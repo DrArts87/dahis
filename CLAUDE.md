@@ -95,3 +95,9 @@ met doel, omvang, taken, risico's en acceptatiecriteria.
 - Python 3.9 is de ondergrens; geen `match` of `X | Y` in annotaties.
 - Gesprek, documentatie, commitberichten en gebruikersteksten in het
   Nederlands; identifiers in het Engels.
+
+## 6. Terugkoppeling
+- Elke terugkoppeling van Claude (plan, verslag, antwoord) begint met een
+  korte uitleg in gewone taal ("ELI5"): wat er speelt, wat er gedaan is en
+  wat de gebruiker moet beslissen, zonder vakjargon. Daaronder volgt de
+  uitgebreide, technische informatie.

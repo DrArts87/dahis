@@ -129,7 +129,8 @@ voor de alpha). In het kort:
 - `node --test tests/*.test.mjs`: crypto, formaat, hashketen, back-up en herstel,
   migratie. Opslag in het geheugen nagebootst. PBKDF2-rondes instelbaar zodat
   tests snel zijn, plus één test op de standaardwaarde.
-- `tests/browser.html` voor echte IndexedDB, lokaal met een wegwerpprofiel.
+- `tests/browser.html` (met `tests/browser.mjs`) voor echte IndexedDB, lokaal
+  met een wegwerpprofiel; nog niet in CI.
 
 ## 5. Taken (elk een aparte pull request)
 
@@ -146,8 +147,8 @@ voor de alpha). In het kort:
      eerdere epoch;
    - herhaald herstel van dezelfde back-up (telkens een nieuwe
      schrijfsleutel).
-4. `store.js` (IndexedDB, append-only, atomair schrijven, Web Lock,
-   `persist()`). Tests bij onderbreking: een transactie die wordt afgebroken
+4. ✅ `store.js` (IndexedDB, append-only, atomair schrijven, Web Lock,
+   `persist()`); uitgewerkt in [plan taak 4](2026-11-25-taak-4-opslag.md). Tests bij onderbreking: een transactie die wordt afgebroken
    (onboarding, gewone schrijfactie, terugzetten) laat de opslag ongewijzigd,
    en een nieuwe poging slaagt met een nieuwe salt waar dat hoort.
    Uit de code-audit ([reviews](../reviews/2026-11-25-reviews.md), A1, A2,

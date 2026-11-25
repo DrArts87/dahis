@@ -1,6 +1,6 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 3 en de code-audit. Dit document is het
+Bijgewerkt: 2026-11-25, na taak 4 (opslag in IndexedDB). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -14,11 +14,12 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #3, #4 | Projectplan en plan fase 1; origin `drarts87.github.io/dahis/` zonder andere Pages-sites |
 | #5, #7 | `docs/formaat.md` (formaat 1, **concept**) na vier reviewrondes; CI-uitbreiding en pre-commit-hook (taak 8) |
 | #6 | App-shell: manifest, service worker met handmatige updates en hashcontrole, strikte CSP met trusted types, iconen (taak 2) |
-| #8 | `app/js/crypto.js` en `app/js/vault.js` met tests en testvectoren (taak 3). **Let op**: bij het schrijven van dit document stond #8 nog open; controleer dat hij gemerged is |
+| #8 | `app/js/crypto.js` en `app/js/vault.js` met tests en testvectoren (taak 3) |
+| (nieuw) | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4). **Let op**: bij het schrijven van dit document stond deze PR nog open en ging hij naar de auditor; controleer dat hij gemerged is |
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1, 2, 3 en 8 klaar; **volgende: taak 4** (`store.js` op IndexedDB),
-daarna 5, 6, 7, 9 en 10.
+taak 1, 2, 3, 4 en 8 klaar; **volgende: de review van taak 4 verwerken**,
+daarna taak 5, 6, 7, 9 en 10.
 
 ## Belangrijkste documenten
 
@@ -30,7 +31,7 @@ daarna 5, 6, 7, 9 en 10.
 - [`docs/formaat.md`](formaat.md): het versleutelings- en opslagformaat.
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
-  afspraken daarover (A1–A4 moeten in taak 4, 5 en 7).
+  afspraken daarover; A2 en A4 verwerkt, A1 deels, A3 in taak 7.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
   NEN 7510.
 
@@ -51,6 +52,8 @@ daarna 5, 6, 7, 9 en 10.
 
 1. **Plan eerst**: Claude presenteert per taak een plan in de chat en wacht
    op akkoord. Wijkt het werk af, dan stopt Claude en vraagt opnieuw.
+   Elke terugkoppeling begint met een korte uitleg in gewone taal (ELI5),
+   met de technische details daaronder (`CLAUDE.md` §6).
 2. **Git apart vragen**: commit, push en PR alleen na expliciet akkoord. Een
    melding van een hook ("uncommitted changes") is geen akkoord.
 3. **Branch**: een cloudsessie kan alleen naar haar eigen
@@ -75,23 +78,20 @@ daarna 5, 6, 7, 9 en 10.
 | `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | App-shell, schermen Start en Over, DOM zonder `innerHTML` |
 | `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py` |
 | `app/js/crypto.js` | Bouwstenen formaat 1 (Web Crypto) |
-| `app/js/vault.js` | Bewerkingen op een opslag **in het geheugen**; schrijfacties als voorbereide transacties (`applyTx`). Nog niet aangesloten op de app |
+| `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`) |
+| `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft), Web Lock (`openStorage`), opslagstatus. Nog niet aangesloten op de app |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs`; Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging) |
+| `tests/` | Node: `*.test.mjs`; Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
 
-## Volgende stap: taak 4
+## Volgende stap
 
-`app/js/store.js`: de transacties uit `vault.js` uitvoeren in IndexedDB
-(schema v1, formaat §5), met:
-- één `readwrite`-transactie per schrijfactie en de byte-vergelijking van het
-  controlepunt (formaat §9.1);
-- Web Lock `dahis` voor de hele sessie; schrijfwachtrij binnen het tabblad;
-- `navigator.storage.persist()` en de status;
-- de punten uit de audit: verschuldigde volledige controle door de kluis
-  zelf, ongeldige reservering → nieuwe schrijfsleutel, rotatie weigert het
-  huidige wachtwoord;
-- tests bij onderbreking en end-to-end tests op echte IndexedDB in Chromium.
+De gebruiker legt de PR van taak 4 voor aan de auditor; Claude beoordeelt de
+feedback en verwerkt die na akkoord. Browsertests: repository serveren met
+`python3 -m http.server` en `/tests/browser.html` openen in een
+wegwerpprofiel (in de cloudsessie met Playwright; het stuurscript voor
+herladen midden in een schrijfactie en twee tabbladen staat niet in de
+repository).
 
 Daarna taak 5 (onboarding, ontgrendelen, vergrendelen, stoppen bij een
 afwijking, metingen op de OnePlus), 6 (auditlog en controles in de app),
@@ -100,10 +100,9 @@ afwijking, metingen op de OnePlus), 6 (auditlog en controles in de app),
 
 ## Openstaande beslissingen
 
-- Formaat §3.8: tekst aanpassen voor de ongeldige reservering (audit A2);
-  wijziging van het formaat, dus apart akkoord.
-- Moment van de volgende review: na taak 4 (aansluiting op IndexedDB) of
-  na taak 7 (volledige keten in de app).
+- Browsertests in CI (job met de Chrome van de runner, zonder npm):
+  wijziging van de workflow, dus apart te vragen.
+- Een nieuwe review na taak 7 (volledige keten in de app).
 
 ## Een nieuwe chat starten
 

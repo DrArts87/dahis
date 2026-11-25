@@ -13,7 +13,7 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.1.0';
-const CODE_HASH = '46ca58b7c6ec701c84773b28e57610b892476f570b3dffd3e275fc94dee4b616';
+const CODE_HASH = '9c76d5601271e6223e96377669a0ce4c73f38b95d216877b997eb508a213636a';
 const FILES = {
   'css/app.css': 'd84a72e00d2c7c97e4d0c5a90ee92441b68e574c7335cb93e5d880d6a46284a7',
   'icons/icon-192.png': 'b090d418288b6b804fe6ca2d7e44af19e4fb20d5cacc0e781954a1b7238a6017',
@@ -23,7 +23,8 @@ const FILES = {
   'js/app.js': 'be2999aae6d08145525de3f3b46a27ae0d8033b549e9167ead0f86e016321cb5',
   'js/crypto.js': 'e54e1ece7e34e33c4c2d55036b2e3a168a5a7a798cb23d5be80f96f2d764ac11',
   'js/dom.js': 'b9fbcca62aed7bc58191f03b8c4e5e1ab4bb33047711ef9b7e2bd7703de88610',
-  'js/vault.js': '7da84018bc64fb05b6aee07e3aa491c31cdc04e4109f4f131627c8494792b056',
+  'js/store.js': 'd2cbb60a03b49bb74ad1eb5bb11bc73d3e684c1549e4b242d086050ca3f330cf',
+  'js/vault.js': 'ee1c2e25902a8cb489353a8fb27a9484f3362551534367f7a61958e81f24667b',
   'manifest.webmanifest': '5289e78f294f931c6d8aecc3eb19ebd2d26023d25cc41d25ef8af6f8beaaad80',
 };
 // EINDE RELEASE
