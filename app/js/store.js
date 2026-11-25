@@ -88,12 +88,16 @@ export class IdbBackend {
     });
   }
 
-  static deleteDatabase(name = DB_NAME, { indexedDB = globalThis.indexedDB } = {}) {
+  // Een geblokkeerd wisverzoek (een andere verbinding is nog open) loopt
+  // door zodra die verbinding sluit; het is dus geen fout. onBlocked meldt
+  // het wachten; de promise wacht op succes of een definitieve fout (review
+  // codebase PR #12, 1).
+  static deleteDatabase(name = DB_NAME, { indexedDB = globalThis.indexedDB, onBlocked = null } = {}) {
     return new Promise((resolve, reject) => {
       const req = indexedDB.deleteDatabase(name);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(new StoreError('Opslag niet te wissen', req.error));
-      req.onblocked = () => reject(new StoreError('De opslag is nog geopend in een ander venster'));
+      req.onblocked = () => { if (onBlocked) onBlocked(); };
     });
   }
 
@@ -224,8 +228,10 @@ export class MemoryBackend {
 // schrijfsleutel hebben versleuteld; opnieuw ontgrendelen is dan nodig.
 //
 // onCheck(event) (optioneel) hoort van een verschuldigde volledige controle:
-// {type: 'start'} vooraf, {type: 'done', ms} na een geslaagde controle. Zo kan
-// de app tonen dat de opslag wordt gecontroleerd en hoe lang dat duurde.
+// {type: 'start'} vooraf, {type: 'done', ms} na een geslaagde controle en
+// {type: 'failed'} als inlezen of controleren mislukt (vóór de fout
+// doorgaat). Zo kan de app tonen dat de opslag wordt gecontroleerd en hoe
+// lang dat duurde (review PR #12, P2).
 export class WriteQueue {
   constructor(backend, { clock = () => new Date(), timer = () => globalThis.performance.now() } = {}) {
     this.backend = backend;
@@ -282,8 +288,13 @@ export class WriteQueue {
       if (fullCheckDue(session, now)) {
         this.notify({ type: 'start' });
         const t0 = this.timer();
-        await this.backend.reload();
-        await fullCheck(this.backend.store, session);
+        try {
+          await this.backend.reload();
+          await fullCheck(this.backend.store, session);
+        } catch (err) {
+          this.notify({ type: 'failed' });
+          throw err;
+        }
         this.notify({ type: 'done', ms: this.timer() - t0 });
       }
       for (let i = 0; i < 3; i++) {

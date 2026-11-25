@@ -80,7 +80,7 @@ export class AppController {
   constructor(deps = {}) {
     this.deps = Object.assign({
       openStorage: () => openStorage(),
-      deleteDatabase: () => IdbBackend.deleteDatabase(),
+      deleteDatabase: (options) => IdbBackend.deleteDatabase(undefined, options),
       measureChecks,
       reload: () => globalThis.location.reload(),
       clock: () => new Date(),
@@ -98,6 +98,8 @@ export class AppController {
     this.generation = 0;          // hoger bij vergrendelen of wissen
     this.erasing = false;
     this.checkKind = null;        // lopende controle: 'quick' of 'full'
+    this.auditToken = 0;          // hoger bij openen of sluiten van het logboek
+    this.auditOpen = false;
     this.state = {
       view: 'starting',
       step: null,
@@ -171,7 +173,13 @@ export class AppController {
       }
       if (err instanceof IntegrityError || err instanceof V.ConflictError) {
         this.halt(err);
-      } else if (messages[err.name]) {
+        return false;
+      }
+      // Geen afwijking (bijvoorbeeld inlezen mislukt): geen controle meer
+      // tonen als lopend (review PR #12, P2).
+      this.checkKind = null;
+      if (this.state.checking) this.set({ checking: false });
+      if (messages[err.name]) {
         this.say(messages[err.name]);
       } else {
         this.say('error.unexpected', { name: err.name || 'Error' });
@@ -192,6 +200,8 @@ export class AppController {
       step: null, recoveryKey: null, audit: null,
     });
     this.checkKind = null;
+    this.auditToken += 1;
+    this.auditOpen = false;
   }
 
   // Bericht van de wachtrij over een verschuldigde volledige controle.
@@ -202,6 +212,10 @@ export class AppController {
     } else if (event.type === 'done') {
       this.checkKind = null;
       this.set({ checking: false, lastCheckMs: Math.round(event.ms) });
+    } else if (event.type === 'failed') {
+      // checkKind blijft staan tot guard() de fout heeft afgehandeld: bij een
+      // afwijking toont het stopscherm dan de volledige controle.
+      this.set({ checking: false });
     }
   }
 
@@ -410,11 +424,16 @@ export class AppController {
         this.checkKind = 'full';
         this.set({ checking: true });
         const t0 = this.deps.timer();
-        const fresh = await this.backend.reload();
-        await V.fullCheck(fresh, s);
+        let fresh;
+        try {
+          fresh = await this.backend.reload();
+          await V.fullCheck(fresh, s);
+        } finally {
+          // Ook bij een fout; checkKind ruimt guard() op (review PR #12, P2).
+          this.set({ checking: false });
+        }
         ms = Math.round(this.deps.timer() - t0);
         this.checkKind = null;
-        this.set({ checking: false });
         return V.integrityCheckTx(fresh, s, { now });
       });
       this.alive(gen);
@@ -427,28 +446,44 @@ export class AppController {
 
   // Eerste bladzijde (nieuwste regels) van het auditlog. Alleen lezen; een
   // onleesbare regel is een afwijking (§10).
+  // Elk openen en sluiten verhoogt auditToken; een leesactie die daarvoor
+  // begon, laat haar uitslag vallen (review PR #12, P3).
   async openAuditLog() {
     if (this.state.view !== 'ready') return false;
-    return this.guard(async (gen) => {
-      const page = await V.readAuditPage(this.backend.store, this.session);
-      this.alive(gen);
-      this.set({ audit: page });
-    });
+    const token = ++this.auditToken;
+    this.auditOpen = true;
+    this.set({ audit: null });
+    return this.loadAuditPage(token, null);
   }
 
   // Volgende bladzijde met oudere regels.
   async moreAuditLog() {
     const current = this.state.audit;
-    if (this.state.view !== 'ready' || !current || current.next === null) return false;
-    return this.guard(async (gen) => {
-      const page = await V.readAuditPage(this.backend.store, this.session, { before: current.next });
+    if (this.state.view !== 'ready' || !this.auditOpen || !current || current.next === null) return false;
+    return this.loadAuditPage(this.auditToken, current.next);
+  }
+
+  async loadAuditPage(token, before) {
+    let stale = false;
+    const ok = await this.guard(async (gen) => {
+      const page = await V.readAuditPage(this.backend.store, this.session, before === null ? {} : { before });
       this.alive(gen);
-      this.set({ audit: { entries: current.entries.concat(page.entries), next: page.next } });
+      if (token !== this.auditToken || !this.auditOpen) { stale = true; return; }
+      const earlier = before === null ? [] : this.state.audit.entries;
+      this.set({ audit: { entries: earlier.concat(page.entries), next: page.next } });
     });
+    // Opnieuw geopend terwijl deze (verouderde) leesactie liep: die nieuwe
+    // opening kon niet starten (busy), dus nu alsnog lezen.
+    if (stale && this.auditOpen && this.state.audit === null && this.state.view === 'ready') {
+      return this.loadAuditPage(this.auditToken, null);
+    }
+    return ok && !stale;
   }
 
   closeAuditLog() {
-    this.set({ audit: null });
+    this.auditToken += 1;
+    this.auditOpen = false;
+    if (this.state.audit !== null) this.set({ audit: null });
   }
 
   async refreshStorage() {
@@ -495,6 +530,8 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
+    this.auditToken += 1;
+    this.auditOpen = false;
     this.set({
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
       audit: null, checking: false,
@@ -528,7 +565,9 @@ export class AppController {
     let ok = true;
     try {
       if (storage) storage.backend.close();
-      await this.deps.deleteDatabase();
+      // Het slot blijft vast tot IndexedDB succes of een definitieve fout
+      // meldt; een geblokkeerd verzoek kan later nog slagen.
+      await this.deps.deleteDatabase({ onBlocked: () => this.say('erase.waiting') });
     } catch (err) {
       ok = false;
     }

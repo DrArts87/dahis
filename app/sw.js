@@ -3,8 +3,11 @@
 // - Installeert alle app-bestanden in een cache per versie en controleert van
 //   elk bestand de SHA-256. Klopt er één niet, dan mislukt de installatie en
 //   blijft de huidige versie draaien.
-// - Een nieuwe versie wacht tot de gebruiker op "Bijwerken" drukt (geen
-//   automatische skipWaiting).
+// - Een nieuwe versie wordt pas gebruikt na een tik op "Bijwerken". Chrome
+//   kan een wachtende worker ook zelf activeren zodra alle vensters dicht
+//   zijn; daarom onthoudt de worker in een eigen cache welke versie is
+//   goedgekeurd en serveert hij die, tot de gebruiker de nieuwe goedkeurt
+//   (review codebase PR #12, 3).
 // - Beantwoordt verzoeken alleen uit de cache en gaat nooit zelf het netwerk
 //   op; wat niet in de cache staat, krijgt een 404.
 // - Zet de beveiligingsheaders op elk antwoord, omdat GitHub Pages dat niet
@@ -13,7 +16,7 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.1.0';
-const CODE_HASH = 'e0f16bd039053842c967ba482ba78062dfdf4843d68d7ca30c7d49c7bd6d6fb9';
+const CODE_HASH = 'c9b96fac77be75927632e1ac1a9adab015a32f87cca693952c2aa223d3ad689b';
 const FILES = {
   'css/app.css': '4f4d7cf3ba136df5212fcb2c4a8848992a061b6c725133c8465cec46e2a1bf39',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -24,22 +27,26 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
-  'js/app.js': '08cd532b5d601d605074a42e781bc21e747f8db8b3c5edaf73f348f22fd36a96',
+  'js/app.js': '47db5ceab09c2aa6b111e8a09acd70c19dd370e2307de46ca7688b00eec77423',
   'js/benchmark.js': '9b4a9ebd60d3bf84023ffdcb38043fcbbe2d203bb70d9021f4f199219cc3eae6',
-  'js/controller.js': '9698e98e1840606f773bd3b5a66fcb43c243bfc77902acddd5de758eea3dc4b0',
-  'js/crypto.js': 'e54e1ece7e34e33c4c2d55036b2e3a168a5a7a798cb23d5be80f96f2d764ac11',
+  'js/controller.js': '38e2c49057786d8500c7790cda33080c87878420391f5a40d02d3282f552bc33',
+  'js/crypto.js': '0fd77fa48dc434dbb7a58310acc7a367c69c6bf8c752196b0f456e270d606c50',
   'js/dom.js': '2f27e24228dbb71b902f77741db744f214663e4f00df0fc81412323766c599cf',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': 'f4c216668b51d3ac72040f8088e4d4b130f6516322c9de18c8ed37150a24b520',
+  'js/i18n/nl.js': '06de7ac929ac94777efb4c4f23a27185402f498954fe795b9c55b0f45aaabc1f',
   'js/settings.js': '66752e3878cfdef67a91f3349063d688b31a8f33b67f21a232180a85f3435745',
-  'js/store.js': 'df470e9330ada519d1d699bb1d6c734a2c2b59527b1acc7d452620f250e3327e',
-  'js/vault.js': 'b2486496d45207e5653b8ae07e7d27f6558f21b167ef33f8cf36667d9a155711',
+  'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
+  'js/vault.js': 'd1d5bdc3db7e9724bedfb0bb975f8971167494756cf08541261a38d6d40df9be',
   'manifest.webmanifest': 'f40056063d21cbfdf42cbf89d93f8d737f421ca41d3b789f34eab206e8e9a606',
 };
 // EINDE RELEASE
 
 const CACHE = 'dahis-' + VERSION + '-' + CODE_HASH.slice(0, 16);
 const CACHE_PREFIX = 'dahis-';
+// Goedgekeurde versie: {cache, version, codeHash}. Geen versienummer in de
+// naam, zodat elke versie hem leest.
+const APPROVAL_CACHE = 'dahis-akkoord';
+const OWN = Object.freeze({ cache: CACHE, version: VERSION, codeHash: CODE_HASH });
 
 const CSP = [
   "default-src 'none'",
@@ -122,14 +129,67 @@ self.addEventListener('install', (event) => {
   event.waitUntil(installFiles());
 });
 
+function approvalUrl() {
+  return new URL('__akkoord', scopeUrl()).href;
+}
+
+async function readApproval() {
+  try {
+    const response = await (await caches.open(APPROVAL_CACHE)).match(approvalUrl());
+    if (!response) return null;
+    const a = await response.json();
+    const ok = a && typeof a.cache === 'string' && a.cache.startsWith(CACHE_PREFIX) && a.cache !== APPROVAL_CACHE
+      && typeof a.version === 'string' && typeof a.codeHash === 'string';
+    return ok ? a : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+async function writeApproval(a) {
+  const cache = await caches.open(APPROVAL_CACHE);
+  await cache.put(approvalUrl(), new Response(JSON.stringify(a), { headers: { 'Content-Type': 'application/json' } }));
+}
+
+// De versie waarvan de bestanden worden geserveerd: de goedgekeurde, zolang
+// haar cache bestaat; anders deze versie.
+async function serving() {
+  const a = await readApproval();
+  if (a && a.cache !== CACHE && await caches.has(a.cache)) return a;
+  return OWN;
+}
+
+async function removeOtherCaches(keep) {
+  for (const name of await caches.keys()) {
+    if (name.startsWith(CACHE_PREFIX) && name !== APPROVAL_CACHE && !keep.includes(name)) await caches.delete(name);
+  }
+}
+
+// Activeren, door een tik op Bijwerken (skipWaiting) of door Chrome zelf.
+// Zonder geldige goedkeuring (eerste installatie, of een vorige versie
+// zonder deze registratie) geldt deze versie als goedgekeurd.
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    for (const name of await caches.keys()) {
-      if (name.startsWith(CACHE_PREFIX) && name !== CACHE) await caches.delete(name);
-    }
+    const a = await readApproval();
+    let keep = CACHE;
+    if (a && a.cache !== CACHE && await caches.has(a.cache)) keep = a.cache;
+    else await writeApproval(OWN);
+    await removeOtherCaches([CACHE, keep]);
     await self.clients.claim();
   })());
 });
+
+// Goedkeuring van deze versie (tik op Bijwerken): eerst vastleggen, dan
+// activeren. Een wachtende worker ruimt de oude bestanden op bij 'activate';
+// een worker die al actief was (door Chrome geactiveerd) doet dat hier.
+// Zonder self.serviceWorker (oudere browsers) volgt het opruimen bij de
+// volgende versie.
+async function approve() {
+  await writeApproval(OWN);
+  const me = self.serviceWorker;
+  if (me && me.state === 'activated') await removeOtherCaches([CACHE]);
+  await self.skipWaiting();
+}
 
 function notFound() {
   return new Response('Niet gevonden in de app.', {
@@ -138,12 +198,14 @@ function notFound() {
   });
 }
 
+// Alleen bestanden uit de cache van de geserveerde versie; die bevat alleen
+// bestanden waarvan de hash bij installatie is gecontroleerd.
 async function fromCache(request) {
   const path = relativePath(new URL(request.url));
-  if (request.method !== 'GET' || path === null || !Object.prototype.hasOwnProperty.call(FILES, path)) {
-    return notFound();
-  }
-  const cache = await caches.open(CACHE);
+  if (request.method !== 'GET' || path === null) return notFound();
+  const current = await serving();
+  if (current.cache === CACHE && !Object.prototype.hasOwnProperty.call(FILES, path)) return notFound();
+  const cache = await caches.open(current.cache);
   const cached = await cache.match(new URL(path, scopeUrl()).href);
   if (!cached) return notFound();
   return new Response(cached.body, {
@@ -156,11 +218,20 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(fromCache(event.request));
 });
 
+// info: geserveerde versie, en de versie die op goedkeuring wacht als deze
+// worker al actief is maar nog een oudere versie serveert.
 self.addEventListener('message', (event) => {
   const data = event.data || {};
-  if (data.type === 'info' && event.ports[0]) {
-    event.ports[0].postMessage({ version: VERSION, codeHash: CODE_HASH });
+  const port = event.ports[0];
+  if (data.type === 'info' && port) {
+    event.waitUntil(serving().then((s) => port.postMessage({
+      version: s.version,
+      codeHash: s.codeHash,
+      pending: s.cache === CACHE ? null : { version: VERSION, codeHash: CODE_HASH },
+    })));
   } else if (data.type === 'activate') {
-    self.skipWaiting();
+    event.waitUntil(approve().then(
+      () => { if (port) port.postMessage({ ok: true }); },
+      () => { if (port) port.postMessage({ ok: false }); }));
   }
 });

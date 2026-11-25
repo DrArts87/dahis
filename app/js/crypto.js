@@ -829,12 +829,22 @@ export async function backupAad(epoch, line1) {
 }
 
 // Bouwt het bestand uit een header (met bytes) en een JSON-inhoud.
-export async function encodeBackupFile(dataKey, header, payload, iv) {
+// Dezelfde grenzen als splitBackupFile, aan de schrijvende kant: een bestand
+// dat de eigen import zou weigeren, wordt niet gemaakt (audit A3; review
+// codebase PR #12, 2). maxBytes alleen lager zetten in tests.
+export async function encodeBackupFile(dataKey, header, payload, iv, { maxBytes = MAX_BACKUP_BYTES } = {}) {
   const line1 = serializeHeader(header);
+  require(utf8(line1).length <= MAX_HEADER_BYTES, 'bestand: header te lang');
   const fileKey = await deriveFileKey(dataKey, header.salt, 'backup');
   const plaintext = padJson(payload, BACKUP_BLOCK);
+  // Base64 zonder opvulling van iv ‖ ct, plus header en twee regeleinden
+  // (alles ASCII).
+  const size = line1.length + Math.ceil((4 * (12 + plaintext.length + 16)) / 3) + 2;
+  require(size <= Math.min(maxBytes, MAX_BACKUP_BYTES), 'bestand: groter dan 256 MiB');
   const { iv: i, ct } = await encrypt(fileKey, plaintext, await backupAad(header.epoch, line1), iv);
-  return line1 + '\n' + b64(concat(i, ct)) + '\n';
+  const text = line1 + '\n' + b64(concat(i, ct)) + '\n';
+  require(text.length === size, 'bestand: onverwachte grootte');
+  return text;
 }
 
 export async function decodeBackupPayload(dataKey, header, line1, line2) {

@@ -865,7 +865,7 @@ export async function exportTx(store, session, { now } = {}) {
   return buildTx(store, session, { auditItems: [{ action: 'export', state }], now, fullCheckAction: true });
 }
 
-export async function buildBackupFile(store, session, { now, appVersion = '0.0.0' } = {}) {
+export async function buildBackupFile(store, session, { now, appVersion = '0.0.0', maxBytes } = {}) {
   const meta = store.meta;
   const header = {
     magic: BACKUP_MAGIC,
@@ -887,7 +887,7 @@ export async function buildBackupFile(store, session, { now, appVersion = '0.0.0
     audit: sortedAudit(store.audit).map(auditToJson),
     checkpoint: { kid: meta.checkpoint.kid, content: session.checkpointContent },
   };
-  return encodeBackupFile(session.dataKeys.get(meta.epoch), header, payload);
+  return encodeBackupFile(session.dataKeys.get(meta.epoch), header, payload, undefined, { maxBytes });
 }
 
 // Leest en controleert een back-up volledig in het geheugen (§11.5 stap 1–5).

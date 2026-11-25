@@ -199,6 +199,7 @@ export default Object.freeze({
   'erase.label': 'Typ {word} om te bevestigen',
   'erase.submit': 'Definitief wissen',
   'erase.confirmWrong': 'Typ precies {word} om te bevestigen.',
+  'erase.waiting': 'Wachten tot andere vensters of tabbladen van Dahis gesloten zijn… Sluit ze; het wissen gaat daarna vanzelf verder.',
   'erase.failed': 'Wissen is niet gelukt. Sluit andere vensters van Dahis en probeer het opnieuw.',
 
   'halt.title': 'Gestopt',

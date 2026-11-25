@@ -472,3 +472,92 @@ test('controle op verzoek: duur getoond; meting van de controles slaat niets op'
   assert.deepEqual(Object.keys(r).sort(), ['buildMs', 'fullMs', 'quickMs']);
   assert.equal(canon(dev.backend.disk), before, 'meten slaat niets op');
 });
+
+// --- Review PR #12 ------------------------------------------------------------------
+
+function failReloadOnce(dev) {
+  const backend = dev.backend;
+  const original = backend.reload.bind(backend);
+  backend.reload = async () => {
+    backend.reload = original;
+    const err = new Error('Inlezen afgebroken');
+    err.name = 'StoreError';
+    throw err;
+  };
+}
+
+test('P2: inlezen mislukt bij de controle op verzoek: geen lopende controle meer zichtbaar', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  failReloadOnce(dev);
+  assert.equal(await app.runFullCheck(), false);
+  assert.equal(app.state.view, 'ready');
+  assert.equal(app.state.checking, false);
+  assert.equal(app.state.message.key, 'error.unexpected');
+  assert.equal(app.checkKind, null);
+  assert.equal(await app.runFullCheck(), true, 'daarna lukt het wel');
+});
+
+test('P2: inlezen mislukt bij een verschuldigde controle: geen lopende controle meer zichtbaar', async () => {
+  const dev = device();
+  await onboard(dev);
+  dev.now = new Date(T0.getTime() + 8 * DAY);
+  const app = dev.controller();
+  await app.start();
+  failReloadOnce(dev);
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'locked');
+  assert.equal(app.state.checking, false);
+  assert.equal(app.state.message.key, 'error.unexpected');
+  assert.equal(app.checkKind, null);
+});
+
+test('P3: een leesactie van vóór het sluiten vult het logboek niet opnieuw', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const first = app.openAuditLog();
+  app.closeAuditLog();
+  assert.equal(await first, false);
+  assert.equal(app.state.audit, null, 'gesloten blijft gesloten');
+
+  // Sluiten en meteen weer openen terwijl de oude leesactie loopt.
+  const old = app.openAuditLog();
+  app.closeAuditLog();
+  const again = app.openAuditLog();
+  assert.equal(app.state.audit, null, 'geen oude lijst zichtbaar');
+  await again;
+  await old;
+  assert.ok(app.state.audit && app.state.audit.entries.length > 0, 'nieuwe lijst geladen');
+  assert.equal(app.auditOpen, true);
+
+  // Bladeren na sluiten doet niets.
+  app.closeAuditLog();
+  assert.equal(await app.moreAuditLog(), false);
+  assert.equal(app.state.audit, null);
+});
+
+test('codebase-review 1: geblokkeerd wissen wacht met het slot vast tot het lukt', async () => {
+  const dev = device();
+  await onboard(dev);
+  let finish;
+  const app = dev.controller({
+    deleteDatabase: ({ onBlocked }) => new Promise((resolve) => {
+      onBlocked();
+      finish = () => { dev.deletes += 1; dev.backend = new MemoryBackend(); resolve(); };
+    }),
+  });
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  const closes = dev.closes;
+  const erasing = app.eraseAll(ERASE_WORD);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(app.state.message.key, 'erase.waiting');
+  assert.equal(dev.closes, closes, 'slot nog vast tijdens het wachten');
+  assert.equal(app.state.view, 'ready');
+  finish();
+  assert.equal(await erasing, true);
+  assert.equal(dev.closes, closes + 1);
+  assert.equal(app.state.view, 'locking');
+});

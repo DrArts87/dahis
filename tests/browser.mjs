@@ -386,6 +386,31 @@ test('meting van de controles in de browser (klein) raakt IndexedDB niet', async
   assert((await indexedDB.databases()).length === before, 'geen database aangemaakt');
 });
 
+test('geblokkeerd wissen wacht en slaagt zodra de andere verbinding sluit (review codebase PR #12, 1)', async () => {
+  const name = dbName('wissen');
+  const installed = await install(name);
+  installed.backend.close();
+  // Een verbinding die niet vanzelf sluit bij versionchange (IdbBackend doet
+  // dat wel), zoals een ander programma of een oud tabblad.
+  const backend = await new Promise((resolve, reject) => {
+    const req = indexedDB.open(name);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  let blocked = false;
+  let settled = false;
+  const deleting = IdbBackend.deleteDatabase(name, { onBlocked: () => { blocked = true; } })
+    .then(() => { settled = true; });
+  await new Promise((r) => setTimeout(r, 200));
+  assert(blocked, 'onBlocked gemeld');
+  assert(!settled, 'nog niet klaar en geen fout zolang de verbinding open is');
+  backend.close();
+  await deleting;
+  assert(settled, 'gewist na sluiten');
+  const names = (await indexedDB.databases()).map((d) => d.name);
+  assert(!names.includes(name), 'database weg');
+});
+
 test('opslagstatus is op te vragen', async () => {
   const s = await storageStatus();
   assert(s.supported === true && typeof s.persisted === 'boolean', 'status');

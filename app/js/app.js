@@ -28,7 +28,8 @@ const ui = {
 const sw = {
   status: 'installing',     // installing | ready | unsupported | error
   info: null,               // {version, codeHash} van de actieve versie
-  waiting: null,            // {version, codeHash} van een wachtende versie
+  waiting: null,            // {version, codeHash} van een versie die op akkoord wacht
+  pendingActive: false,     // die versie is al actief maar serveert nog de oude (Chrome activeerde zelf)
   updateStatus: '',
   installPrompt: null,
   standalone: window.matchMedia('(display-mode: standalone)').matches,
@@ -53,24 +54,37 @@ function serviceWorkerUrl() {
   return policy.createScriptURL('sw.js');
 }
 
-function askInfo(worker) {
+function ask(worker, type, timeout = 3000) {
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
-    const timer = setTimeout(() => reject(new Error('Geen antwoord van de service worker')), 3000);
+    const timer = setTimeout(() => reject(new Error('Geen antwoord van de service worker')), timeout);
     channel.port1.onmessage = (event) => {
       clearTimeout(timer);
       resolve(event.data);
     };
-    worker.postMessage({ type: 'info' }, [channel.port2]);
+    worker.postMessage({ type }, [channel.port2]);
   });
 }
 
+function askInfo(worker) {
+  return ask(worker, 'info');
+}
+
+// De actieve worker meldt welke versie hij serveert, en of een nieuwere
+// versie (die Chrome zelf heeft geactiveerd) nog op akkoord wacht.
 async function refreshInfo() {
   const controller = navigator.serviceWorker.controller;
   if (!controller) return;
   try {
-    sw.info = await askInfo(controller);
+    const info = await askInfo(controller);
+    sw.info = { version: info.version, codeHash: info.codeHash };
     sw.status = 'ready';
+    if (info.pending && !(registration && registration.waiting)) {
+      sw.waiting = info.pending;
+      sw.pendingActive = true;
+    } else if (!info.pending) {
+      sw.pendingActive = false;
+    }
   } catch (err) {
     sw.status = 'error';
   }
@@ -79,7 +93,10 @@ async function refreshInfo() {
 
 async function showWaiting(worker) {
   try {
-    sw.waiting = await askInfo(worker);
+    // Een wachtende worker meldt de goedgekeurde versie als geserveerd en
+    // zichzelf als 'pending'.
+    const info = await askInfo(worker);
+    sw.waiting = info.pending || { version: info.version, codeHash: info.codeHash };
     sw.updateStatus = '';
   } catch (err) {
     sw.waiting = { version: '?', codeHash: '' };
@@ -130,10 +147,26 @@ async function initServiceWorker() {
   await refreshInfo();
 }
 
-function activateUpdate() {
-  if (!registration || !registration.waiting) return;
-  updateRequested = true;
-  registration.waiting.postMessage({ type: 'activate' });
+async function activateUpdate() {
+  if (!registration) return;
+  if (registration.waiting) {
+    updateRequested = true;
+    registration.waiting.postMessage({ type: 'activate' });
+    return;
+  }
+  const controller = navigator.serviceWorker.controller;
+  if (!sw.pendingActive || !controller) return;
+  try {
+    const reply = await ask(controller, 'activate', 10000);
+    if (reply && reply.ok) {
+      window.location.reload();
+      return;
+    }
+  } catch (err) {
+    // valt door naar de melding
+  }
+  sw.updateStatus = t('update.failed');
+  render();
 }
 
 async function checkForUpdate() {
@@ -377,7 +410,7 @@ function nav() {
     NAV.map((item) => el('button', {
       type: 'button',
       'aria-current': ui.tab === item.tab ? 'page' : null,
-      onclick: () => { ui.tab = item.tab; ui.sub = null; app.say(null); onTab(); render(); },
+      onclick: () => { ui.tab = item.tab; ui.sub = null; app.closeAuditLog(); app.say(null); onTab(); render(); },
     }, symbol(item.icon), t(item.label))));
 }
 

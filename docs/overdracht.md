@@ -18,7 +18,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #9 | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4) |
 | #10 | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
-| (nieuw) | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| (nieuw) | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 
 **Live**: Pages is ingericht; release `v0.1.0` (codehash
 `820be09d88b4a9e41cf748e047dd1c68a99181cb2b7c3456daec45bc9c363e0d`) staat op
@@ -44,7 +44,8 @@ OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 - [`docs/formaat.md`](formaat.md): het versleutelings- en opslagformaat.
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
-  afspraken daarover; A1 (op één meting na), A2 en A4 verwerkt, A3 in taak 7.
+  afspraken daarover; A1 (op één meting na), A2 en A4 verwerkt, A3 deels
+  (grens aan de schrijvende kant), rest in taak 7.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
   NEN 7510 (met restrisico's van sessies).
 - [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
@@ -105,7 +106,7 @@ OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 | `app/js/benchmark.js` | Meting van de controles op een nep-opslag in het geheugen (wegwerpsleutels, niets opgeslagen) |
 | `app/js/settings.js`, `app/js/i18n.js`, `app/js/i18n/nl.js` | Vaste lijst instellingen; teksten met vaste sleutels |
 | `app/img/` | Randen (SVG) en varen (PNG) van de gebruiker |
-| `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py` |
+| `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py`. Serveert de goedgekeurde versie (cache `dahis-akkoord`), ook als Chrome een nieuwere worker zelf heeft geactiveerd |
 | `app/js/crypto.js` | Bouwstenen formaat 1 (Web Crypto) |
 | `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage` |
 | `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft; meldt een verschuldigde controle via `onCheck`), Web Lock (`openStorage`), opslagstatus |

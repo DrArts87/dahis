@@ -97,6 +97,12 @@ gevonden en dat de opslag dan ongewijzigd blijft.
 - Meting van de controles beschikbaar; uitslag op de OnePlus in formaat §9.4.
 - Alle controles uit `CLAUDE.md` §2 slagen; browsertests slagen.
 
+## Na de reviews in PR #12
+Akkoord gebruiker om mee te nemen: de review van PR #12 (P2, P3) en van de
+hele codebase (wissen bij een geblokkeerd verzoek, grens van de
+back-upschrijver, update zonder Bijwerken). Zie
+[reviews](../reviews/2026-11-25-reviews.md).
+
 ## Open na deze taak
 - Meting op de OnePlus: Meer → Snelheid meten → Controle van de opslag, bij
   beide groottes. De uitslag gaat naar formaat §9.4; daarna termijn (nu 7
