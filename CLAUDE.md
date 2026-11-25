@@ -43,6 +43,9 @@ in PowerShell werkt: `python3` (of `py`), geen `&&`-ketens voor PowerShell 5,
 geen Unix-only commando's als `grep`, `sed` of `rm -rf`. Paden met `/` werken
 in git en Python ook op Windows.
 
+Commando's die Claude zelf uitvoert in een cloudsessie draaien op Linux; de
+Windows-regel geldt voor commando's die de gebruiker krijgt.
+
 Begin van een sessie
 1. `git switch main` en daarna `git pull`
 
@@ -58,11 +61,16 @@ Voor een commit
    niet; die blijf je zelf nalopen.
 
 ## 3. Branches en commits
-- `main` is beschermd: alleen via pull request, lineaire geschiedenis
-  (squash merge).
-- Alle commits zijn ondertekend met een SSH-sleutel (`commit.gpgsign=true`,
-  `gpg.format=ssh`); GitHub toont ze als *Verified*. Een niet-ondertekende
-  commit niet pushen maar opnieuw maken.
+- `main` is beschermd, ook voor beheerders: alleen via pull request, de drie
+  controles uit `controle.yml` moeten groen zijn, ondertekende commits,
+  lineaire geschiedenis. Alleen squash merge; de branch wordt na het mergen
+  automatisch verwijderd.
+- Mergen doet de gebruiker op GitHub (*Squash and merge*), nooit Claude.
+- Alle commits zijn ondertekend met een SSH-sleutel. Commits van de
+  gebruiker met de eigen sleutel; commits uit een Claude-cloudsessie met de
+  sleutel van die sessie, op naam van Claude. Een commit die GitHub niet als
+  *Verified* toont, wordt niet gemerged maar opnieuw gemaakt. Bij een squash
+  merge ondertekent GitHub de commit op `main` zelf.
 - Topic-branches: `feat/...`, `fix/...`, `docs/...`, `refactor/...`, `chore/...`.
 - Conventional Commits met Nederlandse omschrijving.
 
