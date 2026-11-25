@@ -242,8 +242,7 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 
 ## 12. Open vragen
 
-1. iPhone of Android (en welke versie)? Bepaalt o.a. biometrisch
-   ontgrendelen en afdrukken.
-2. Publiceren naar Pages: met de officiële Pages-actions van GitHub
-   (`actions/upload-pages-artifact`, `actions/deploy-pages`) of zonder
-   actions vanaf een aparte branch? Besluit in fase 1.
+Beantwoord voor fase 1, zie [plan fase 1](2026-11-25-fase-1-fundament.md):
+1. Toestel: Android, nieuwste versie, Chrome (referentie: OnePlus 13R).
+2. Publiceren: officiële Pages-actions van GitHub, vastgepind op een
+   commit-SHA, alleen bij een versietag; op een eigen subdomein.
