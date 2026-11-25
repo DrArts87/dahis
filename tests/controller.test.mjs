@@ -792,3 +792,18 @@ test('meting grote back-up: alleen de vaste groottes, niets opgeslagen', async (
   assert.equal(app.state.backupMeasurements[MEASURE_BACKUP_MIB[0]].readMs, 3);
   assert.equal(canon(dev.backend.disk), before);
 });
+
+test('review PR #14, 1: uitslag van een gecontroleerd bestand verdwijnt bij een ander bestand', async () => {
+  const dev = device();
+  await onboard(dev);
+  const { app: first, bytes } = await backupOf(dev);
+  await first.lock();
+  dev.open = false;
+  const app = dev.controller();
+  await app.start();
+  assert.equal(await app.checkFile(chosen(bytes), { password: PASSWORD }), true);
+  assert.equal(app.state.fileCheck.ok, true);
+  app.clearFileCheck();
+  assert.equal(app.state.fileCheck, null);
+  assert.equal(app.state.message, null);
+});

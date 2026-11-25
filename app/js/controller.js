@@ -609,6 +609,12 @@ export class AppController {
     return done && ok;
   }
 
+  // Uitslag van een eerder gecontroleerd bestand weghalen: bij een ander
+  // bestand of bij het verlaten van het controlescherm (review PR #14, 1).
+  clearFileCheck() {
+    if (this.state.fileCheck !== null || this.state.message !== null) this.set({ fileCheck: null, message: null });
+  }
+
   // Tekstsleutel bij een fout met een gekozen bestand; null: onverwacht.
   // Volgorde telt: UnknownBackupFormatError en IntegrityError vóór
   // FormatError.

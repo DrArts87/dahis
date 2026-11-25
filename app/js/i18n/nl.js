@@ -236,6 +236,7 @@ export default Object.freeze({
   'backup.share': 'Delen',
   'backup.download': 'Downloaden',
   'backup.shareNote': 'Bij delen gaat de app naar de achtergrond en vergrendelt hij. Dat is normaal: de back-up is al vastgelegd.',
+  'backup.shareFailed': 'Delen is niet gelukt. Gebruik Downloaden; de back-up is al gemaakt en gecontroleerd.',
   'backup.shareUnsupported': 'Delen lukt hier niet. Gebruik Downloaden.',
   'backup.failed': 'Back-up mislukt: het gemaakte bestand kwam niet overeen met de opslag. Probeer het opnieuw.',
   'backup.tooLarge': 'Back-up mislukt: het bestand zou groter worden dan 256 MiB.',
