@@ -148,12 +148,10 @@ en §11.5.
 | record | opgevulde inhoud 512·k bytes, 1 ≤ k ≤ 2048 (≤ 1 MiB); `ct` = inhoud + 16 |
 | auditregel | opgevulde inhoud 128·k bytes, 1 ≤ k ≤ 32; `ct` = inhoud + 16 |
 | header van een back-up (regel 1) | ≤ 4096 bytes |
-| back-upbestand | ≤ 256 MiB voor het hele tekstbestand, gecontroleerd vóór inlezen (voorlopig) |
+| back-upbestand | ≤ 256 MiB voor het hele tekstbestand, gecontroleerd vóór inlezen |
 
-De grenzen die als voorlopig zijn gemarkeerd, worden vóór gebruik met echte
-dossiers gemeten op het referentietoestel: of de app bij de maximale
-bestandsgrootte een back-up nog kan maken én openen (piekgeheugen). Zo nodig
-gaan ze omlaag.
+Alle grenzen zijn vastgesteld: de grenzen van `kdf.iterations` en van het
+back-upbestand na metingen op het referentietoestel (hieronder).
 
 **Gemeten** op het referentietoestel (OnePlus 13R, Chrome; Meer → Snelheid
 meten, 2026-11-25): PBKDF2-SHA256 met 600.000 rondes 0,1 s, met 10.000.000
@@ -170,8 +168,15 @@ base64-codering in `crypto.js` herschreven (zelfde uitvoer, getest); de oude
 versie gebruikte bij 64 MiB al 2,5 GB en liep bij 250 MiB vast. Het
 piekgeheugen is vanuit de pagina in Chrome op Android niet betrouwbaar te
 meten (de API daarvoor vraagt cross-origin isolation); de meting op de
-OnePlus toetst dus of het lukt en hoe lang het duurt. Tot die meting blijft
-de grens voorlopig.
+OnePlus toetst dus of het lukt en hoe lang het duurt.
+
+| Toestel | ≈ 64 MiB: maken / openen | ≈ 128 MiB | ≈ 250 MiB (bestand 253,3 MiB) |
+|---|---|---|---|
+| OnePlus 13R (versie 0.3.0, 2026-11-25, gemeten door de gebruiker) | 0,6 s / 2,7 s | 1,4 s / 2,7 s | 2,6 s / 6,2 s |
+
+Conclusie: ook net onder de grens is een back-up op het referentietoestel te
+maken en te openen. De grens van 256 MiB is daarmee vastgesteld
+(2026-11-25).
 
 ## 3. Sleutels
 
@@ -645,10 +650,8 @@ Records en auditregels behouden hun eigen versleuteling; terugzetten is
 kopiëren.
 
 Bestandsnaam `dahis-backup-JJJJMMDD-UUMM.dahis` (lokale tijd); MIME-type bij
-delen `application/octet-stream`. Chrome op Android deelt alleen bestanden
-van een vaste lijst bekende typen; staat `.dahis` daar niet op, dan deelt de
-app dezelfde inhoud als `text/plain` met `.txt` achter de naam. De naam doet
-bij het inlezen niet mee.
+downloaden `application/octet-stream`. De naam doet bij het inlezen niet
+mee.
 
 ### 11.3 Exporteren
 1. Volledige controle (§9.3) op de opslag; bij een afwijking §10.
@@ -661,9 +664,11 @@ bij het inlezen niet mee.
    `last_backup_at` schrijven. De regel `export` betekent dus "poging"; een
    bruikbaar bestand blijkt uit de direct volgende `verify_backup` met
    `equal` (audit A3). Mislukt de controle, dan geen `verify_backup`.
-5. Pas daarna delen of downloaden. Er wordt dan niets meer geschreven: het
-   deelmenu verbergt de app, en die vergrendelt dan (besluit gebruiker
-   2026-11-25). Wie het delen afbreekt, heeft wel een bijgewerkte
+5. Pas daarna downloaden; er wordt dan niets meer geschreven. De app biedt
+   **geen deelmenu**: dat verbergt de app, die dan vergrendelt door te
+   herladen, en dat breekt het delen af (proef op de OnePlus, versie 0.3.0;
+   besluit gebruiker 2026-11-25). Het bestand gaat buiten het toestel via
+   Bestanden → Downloads. Wie niet downloadt, heeft wel een bijgewerkte
    `last_backup_at` maar geen bestand; dat is geaccepteerd.
 
 ### 11.4 Controleren

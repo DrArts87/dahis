@@ -512,8 +512,8 @@ export class AppController {
   // opslag en de regel export; het bestand bouwen; dat bestand direct
   // controleren tegen de export (gelijk aan een export); pas dan
   // verify_backup met detail equal en last_backup_at (audit A3). Daarna staat
-  // het bestand klaar om te delen of te downloaden; er wordt dan niets meer
-  // geschreven, zodat vergrendelen achter het deelmenu niets kost.
+  // het bestand klaar om te downloaden; er wordt dan niets meer
+  // geschreven. Alleen downloaden (formaat §11.3 stap 5).
   async makeBackup({ appVersion = '0.0.0' } = {}) {
     if (this.state.view !== 'ready') return false;
     this.backupFile = null;
@@ -569,8 +569,8 @@ export class AppController {
     return done && ok;
   }
 
-  // Het gemaakte bestand (tekst en naam) voor delen of downloaden.
-  backupForShare() {
+  // Het gemaakte bestand (tekst en naam) om te downloaden.
+  backupForDownload() {
     return this.state.view === 'ready' ? this.backupFile : null;
   }
 

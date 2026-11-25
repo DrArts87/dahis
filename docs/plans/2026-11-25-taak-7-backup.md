@@ -119,3 +119,28 @@ lezer per formaatnummer en een meting van grote back-ups op de OnePlus.
   opslag; een ongeldig bestand laat de opslag leeg.
 - Op de OnePlus (taak 10): delen of downloaden lukt, terugzetten via beide
   routes, meting grote back-up.
+
+## Proef op de OnePlus (versie 0.3.0) en herstelronde (0.3.1)
+Uitgevoerd door de gebruiker op 2026-11-25.
+
+| Stap | Uitkomst |
+|---|---|
+| A. Bijwerken, versie en codehash | In orde |
+| B. Grote back-up | 64 MiB 0,6 / 2,7 s; 128 MiB 1,4 / 2,7 s; 253,3 MiB 2,6 / 6,2 s (maken / openen). Grens van 256 MiB vastgesteld (akkoord gebruiker; formaat §2.4) |
+| C. Back-up maken en delen | Maken, herinnering en logboek in orde; **delen werkte niet** (geen deelmenu). Downloaden werkt |
+| D. Bestand controleren | In orde, ook fout wachtwoord en ander bestand; **niet te zien dat een bestand gekozen was** |
+| E. Terugzetten met wachtwoord | In orde |
+| F. Terugzetten met herstelsleutel | Niet getest; open voor taak 10 |
+| G. Onderbreken tijdens terugzetten | Op de telefoon niet te onderbreken (te snel). Gedekt door de tests: een afgebroken IndexedDB-transactie laat de opslag leeg en een nieuwe poging slaagt (`tests/browser.mjs`, `tests/controller.test.mjs`) |
+
+Herstelronde (besluiten gebruiker 2026-11-25):
+- **Alleen downloaden** (optie b). Vermoedelijke oorzaak bij delen: het
+  deelmenu verbergt de app, die vergrendelt door te herladen, en dat breekt
+  het delen af. Delen gaat nu vanuit Bestanden → Downloads; de
+  `.txt`-terugval vervalt. Formaat §11.2 en §11.3 aangepast. Besluit 3
+  (delen als standaard) is hiermee vervangen.
+- **Bestand kiezen**: eigen knop "Bestand kiezen" en een duidelijke regel
+  "Gekozen: naam (grootte)" of "Nog geen bestand gekozen"; het knopje van
+  Chrome is verborgen.
+- Versie 0.3.1.
+
