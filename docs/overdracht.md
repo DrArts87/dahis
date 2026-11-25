@@ -117,8 +117,8 @@ OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 
 ## Volgende stap
 
-Taak 6 is gebouwd. Na de merge: zo nodig een nieuwe release (zie
-`docs/release.md`) en op de OnePlus de controles meten (Meer → Snelheid
+Taak 6 is gebouwd; `app/sw.js` staat op versie **0.2.0**. Na de merge:
+release `v0.2.0` maken (zie `docs/release.md`) en op de OnePlus de controles meten (Meer → Snelheid
 meten → Controle van de opslag, bij beide groottes); de uitslag gaat naar
 formaat §9.4, waarna de termijn van 7 dagen wordt bevestigd of bijgesteld.
 

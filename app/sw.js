@@ -15,8 +15,8 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.1.0';
-const CODE_HASH = 'c9b96fac77be75927632e1ac1a9adab015a32f87cca693952c2aa223d3ad689b';
+const VERSION = '0.2.0';
+const CODE_HASH = '7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691';
 const FILES = {
   'css/app.css': '4f4d7cf3ba136df5212fcb2c4a8848992a061b6c725133c8465cec46e2a1bf39',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
