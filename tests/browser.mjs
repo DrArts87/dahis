@@ -360,6 +360,32 @@ test('vernietigen verwijdert alle versies uit IndexedDB', async () => {
   await IdbBackend.deleteDatabase(name);
 });
 
+test('logboek lezen op IndexedDB schrijft niets; onleesbare regel geeft chain', async () => {
+  const name = dbName('logboek');
+  const { backend, queue } = await install(name);
+  const session = await unlock(backend, queue);
+  await putRecord(queue, session, { v: 1 });
+  const before = await dump(name);
+  const page = await V.readAuditPage(backend.store, session);
+  assert(page.entries[0].action === 'create' && page.next === null, 'nieuwste eerst, alles op één bladzijde');
+  assert(page.entries[page.entries.length - 1].detail === 'install', 'begint bij de installatie');
+  assert((await dump(name)) === before, 'opslag ongewijzigd');
+  const copy = structuredClone(backend.store);
+  copy.audit[0].ct = copy.audit[0].ct.slice();
+  copy.audit[0].ct[0] ^= 1;
+  await rejects(V.readAuditPage(copy, session), (e) => e instanceof C.IntegrityError && e.code === 'chain', 'onleesbare regel');
+  backend.close();
+  await IdbBackend.deleteDatabase(name);
+});
+
+test('meting van de controles in de browser (klein) raakt IndexedDB niet', async () => {
+  const { measureChecks } = await import('../app/js/benchmark.js');
+  const before = (await indexedDB.databases()).length;
+  const r = await measureChecks({ auditRows: 200, recordVersions: 20 });
+  assert(r.fullMs >= 0 && r.quickMs >= 0 && r.buildMs >= 0, 'duren');
+  assert((await indexedDB.databases()).length === before, 'geen database aangemaakt');
+});
+
 test('opslagstatus is op te vragen', async () => {
   const s = await storageStatus();
   assert(s.supported === true && typeof s.persisted === 'boolean', 'status');

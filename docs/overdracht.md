@@ -1,6 +1,6 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 9 (GitHub Pages en releaseprocedure). Dit document is het
+Bijgewerkt: 2026-11-25, na taak 6 (auditlog en controles in de app). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -16,12 +16,23 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #6 | App-shell: manifest, service worker met handmatige updates en hashcontrole, strikte CSP met trusted types, iconen (taak 2) |
 | #8 | `app/js/crypto.js` en `app/js/vault.js` met tests en testvectoren (taak 3) |
 | #9 | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4) |
-| (nieuw) | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
-| (nieuw) | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| #10 | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
+| #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
+| (nieuw) | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+
+**Live**: Pages is ingericht; release `v0.1.0` (codehash
+`820be09d88b4a9e41cf748e047dd1c68a99181cb2b7c3456daec45bc9c363e0d`) staat op
+`https://drarts87.github.io/dahis/`. De gebruiker heeft de app op de OnePlus
+geïnstalleerd, **alleen met testgegevens**.
+
+**Metingen op de OnePlus 13R**: PBKDF2 600.000 rondes 0,1 s, 10.000.000
+rondes 1,5 s (formaat §2.4; grens vastgesteld). Open: de duur van de
+controles (Meer → Snelheid meten → Controle van de opslag, bij 20.000 en
+100.000 regels), naar formaat §9.4.
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1, 2, 3, 4, 5, 8 en 9 klaar (5 nog zonder metingen op de OnePlus);
-**volgende: taak 6** (auditlog en controles in de app), daarna 7 en 10.
+taak 1–6, 8 en 9 klaar (6 nog zonder meting van de controles op de
+OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 
 ## Belangrijkste documenten
 
@@ -33,12 +44,13 @@ taak 1, 2, 3, 4, 5, 8 en 9 klaar (5 nog zonder metingen op de OnePlus);
 - [`docs/formaat.md`](formaat.md): het versleutelings- en opslagformaat.
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
-  afspraken daarover; A2 en A4 verwerkt, A1 deels, A3 in taak 7.
+  afspraken daarover; A1 (op één meting na), A2 en A4 verwerkt, A3 in taak 7.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
   NEN 7510 (met restrisico's van sessies).
 - [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
   [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
-  instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md).
+  instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md),
+  [plan taak 6](plans/2026-11-25-taak-6-auditlog.md).
 
 ## Besluiten in het kort
 
@@ -55,7 +67,9 @@ taak 1, 2, 3, 4, 5, 8 en 9 klaar (5 nog zonder metingen op de OnePlus);
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
 | Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
-| Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen |
+| Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen; inzien onder Meer → Logboek (met technische regel voor debugging en forensisch onderzoek), het inzien zelf wordt niet gelogd |
+| Realistisch log | 0–10 regels per dag (≈ 18.000 in 5 jaar); meten bij 20.000 en 100.000 regels |
+| PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard 600.000 (een hogere standaard is een apart besluit) |
 | Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld) |
 
 ## Werkwijze met Claude (cloudsessie)
@@ -87,39 +101,42 @@ taak 1, 2, 3, 4, 5, 8 en 9 klaar (5 nog zonder metingen op de OnePlus);
 | Pad | Wat |
 |---|---|
 | `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | Schermen (alleen tekenen), logo en iconen als SVG-symbolen in `index.html`, DOM zonder `innerHTML` |
-| `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen, herstel, wachtwoord, instellingen, controle, meting, vergrendelen (herladen), alles wissen, stoppen bij een afwijking |
+| `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen, herstel, wachtwoord, instellingen, controle (met duur en soort bij een afwijking), logboek, metingen, vergrendelen (herladen), alles wissen, stoppen bij een afwijking |
+| `app/js/benchmark.js` | Meting van de controles op een nep-opslag in het geheugen (wegwerpsleutels, niets opgeslagen) |
 | `app/js/settings.js`, `app/js/i18n.js`, `app/js/i18n/nl.js` | Vaste lijst instellingen; teksten met vaste sleutels |
 | `app/img/` | Randen (SVG) en varen (PNG) van de gebruiker |
 | `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py` |
 | `app/js/crypto.js` | Bouwstenen formaat 1 (Web Crypto) |
-| `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`) |
-| `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft), Web Lock (`openStorage`), opslagstatus |
+| `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage` |
+| `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft; meldt een verschuldigde controle via `onCheck`), Web Lock (`openStorage`), opslagstatus |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
+| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
 | `.github/workflows/pages.yml` | Publiceren van `app/` op Pages bij een versietag, na dezelfde controles en een controle van tag en versie |
 
 ## Volgende stap
 
-Taak 5 en 9 zijn gebouwd; na de merge van taak 9 stelt de gebruiker Pages
-in en publiceert `v0.1.0` (`docs/release.md`). Daarna taak 6 (auditlog en
-controles in de app). Open uit taak 5: de metingen op de OnePlus (Meer →
-Snelheid meten, bij 600.000 en 10.000.000 rondes).
+Taak 6 is gebouwd. Na de merge: zo nodig een nieuwe release (zie
+`docs/release.md`) en op de OnePlus de controles meten (Meer → Snelheid
+meten → Controle van de opslag, bij beide groottes); de uitslag gaat naar
+formaat §9.4, waarna de termijn van 7 dagen wordt bevestigd of bijgesteld.
+
+Daarna taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
+verbergt de app en vergrendelt die nu) en 10 (acceptatietest op de
+OnePlus).
 
 Browsercontrole: repository serveren met `python3 -m http.server` en
 `/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
 wegwerpprofiel; in de cloudsessie met Playwright, stuurscripts niet in de
 repository.
 
-Daarna taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
-verbergt de app en vergrendelt die nu) en 10 (acceptatietest op de
-OnePlus).
-
 ## Openstaande beslissingen
 
 - Browsertests in CI (job met de Chrome van de runner, zonder npm):
   wijziging van de workflow, dus apart te vragen.
 - Een nieuwe review na taak 7 (volledige keten in de app).
+- Een hogere standaardwaarde voor PBKDF2 dan 600.000 rondes (de meting laat
+  ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe).
 
 ## Een nieuwe chat starten
 

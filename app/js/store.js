@@ -222,12 +222,23 @@ export class MemoryBackend {
 // Een afwijking (IntegrityError) of een conflict stopt de wachtrij: daarna
 // weigert hij alles. Bij een conflict kan een andere schrijver met dezelfde
 // schrijfsleutel hebben versleuteld; opnieuw ontgrendelen is dan nodig.
+//
+// onCheck(event) (optioneel) hoort van een verschuldigde volledige controle:
+// {type: 'start'} vooraf, {type: 'done', ms} na een geslaagde controle. Zo kan
+// de app tonen dat de opslag wordt gecontroleerd en hoe lang dat duurde.
 export class WriteQueue {
-  constructor(backend, { clock = () => new Date() } = {}) {
+  constructor(backend, { clock = () => new Date(), timer = () => globalThis.performance.now() } = {}) {
     this.backend = backend;
     this.clock = clock;
+    this.timer = timer;
+    this.onCheck = null;
     this.tail = Promise.resolve();
     this.halted = null;
+  }
+
+  notify(event) {
+    if (!this.onCheck) return;
+    try { this.onCheck(event); } catch (err) { /* weergave mag de wachtrij niet storen */ }
   }
 
   // build(store, session, now) geeft een transactie uit vault.js.
@@ -269,8 +280,11 @@ export class WriteQueue {
     try {
       const now = this.clock();
       if (fullCheckDue(session, now)) {
+        this.notify({ type: 'start' });
+        const t0 = this.timer();
         await this.backend.reload();
         await fullCheck(this.backend.store, session);
+        this.notify({ type: 'done', ms: this.timer() - t0 });
       }
       for (let i = 0; i < 3; i++) {
         const pre = await nextPrelude(this.backend.store, session, { now });

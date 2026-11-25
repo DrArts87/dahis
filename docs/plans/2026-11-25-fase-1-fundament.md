@@ -162,12 +162,13 @@ voor de alpha). In het kort:
    - `rotateKeysTx()` weigert een nieuw wachtwoord dat de huidige wrap opent;
    - end-to-end tests op echte IndexedDB in Chromium: onboarding,
      ontgrendelen, schrijven, vergrendelen, back-up en terugzetten.
-5. Onboarding, ontgrendelen, vergrendelen, wachtwoord wijzigen, herstel,
+5. ✅ Onboarding, ontgrendelen, vergrendelen, wachtwoord wijzigen, herstel,
    alles wissen, stoppen bij een afwijking. Meting op de OnePlus: PBKDF2 bij
-   600.000 en bij het maximum van 10.000.000 rondes.
-6. Auditlog met hashketen, controlepunt, snelle en volledige controle. Meting
+   600.000 en bij het maximum van 10.000.000 rondes (gemeten: 0,1 s en
+   1,5 s).
+6. ✅ Auditlog met hashketen, controlepunt, snelle en volledige controle. Meting
    op de OnePlus: duur van de volledige controle bij een realistisch groot
-   log.
+   log (nog open). Uitgewerkt in [plan taak 6](2026-11-25-taak-6-auditlog.md).
 7. Back-up: export, beide controles, terugzetten, herinnering,
    migratieketen, testbestand. Tests: terugzetten op een lege opslag met
    wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag

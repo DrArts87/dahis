@@ -3,7 +3,7 @@
 Formaat: **1**
 Status: concept voor de alpha, herzien na vier reviewrondes (2026-11-25);
 tekst van §3.8, §9.1, §9.2 en §9.4 verduidelijkt na de code-audit en de
-review van taak 4.
+review van taak 4; metingen in §2.4 en §9.4 (taak 6).
 Wordt *vastgesteld* na taak 3 (implementatie en testvectoren), de metingen op
 het referentietoestel en een volgende review. Tot dan kan formaat 1 nog zonder
 migratie wijzigen, omdat er geen echte gegevens in bestaan.
@@ -137,7 +137,7 @@ en §11.5.
 |---|---|
 | `kdf.alg` | exact `PBKDF2-SHA256` |
 | `recovery.alg` | exact `HKDF-SHA256` |
-| `kdf.iterations` | 600.000 t/m 10.000.000 (voorlopig) |
+| `kdf.iterations` | 600.000 t/m 10.000.000 |
 | salt (alle soorten) | 16 bytes |
 | IV | 12 bytes |
 | gewrapte sleutel (`ct`) | 48 bytes |
@@ -151,9 +151,15 @@ en §11.5.
 | back-upbestand | ≤ 256 MiB voor het hele tekstbestand, gecontroleerd vóór inlezen (voorlopig) |
 
 De grenzen die als voorlopig zijn gemarkeerd, worden vóór gebruik met echte
-dossiers gemeten op het referentietoestel: de rekentijd van PBKDF2 bij het
-maximum, en of de app bij de maximale bestandsgrootte een back-up nog kan
-maken én openen (piekgeheugen). Zo nodig gaan ze omlaag.
+dossiers gemeten op het referentietoestel: of de app bij de maximale
+bestandsgrootte een back-up nog kan maken én openen (piekgeheugen). Zo nodig
+gaan ze omlaag.
+
+**Gemeten** op het referentietoestel (OnePlus 13R, Chrome; Meer → Snelheid
+meten, 2026-11-25): PBKDF2-SHA256 met 600.000 rondes 0,1 s, met 10.000.000
+rondes 1,5 s. Het maximum is dus werkbaar en de grens van `kdf.iterations`
+is vastgesteld. Een hogere standaardwaarde dan 600.000 is mogelijk; dat is
+een apart besluit.
 
 ## 3. Sleutels
 
@@ -546,6 +552,18 @@ eerstvolgende schrijfactie. De
 controle loopt onder het Web Lock en er wordt intussen niets geschreven. De
 termijn en de duur worden tijdens de alpha bijgesteld op basis van metingen
 bij een realistisch groot log.
+
+**Meting.** Een realistisch log telt 0–10 regels per dag, dus ongeveer
+18.000 regels in 5 jaar. De app meet de controles op een nep-opslag in het
+geheugen (Meer → Snelheid meten → Controle van de opslag) bij 20.000 regels
+met 2.000 recordversies en, als marge, 100.000 regels met 10.000
+recordversies; het inlezen uit IndexedDB telt daarbij niet mee. Ter
+indicatie, in Chromium op een ontwikkelmachine: volledig 0,6 s en 3,5 s,
+snel 0,04 s en 0,2 s.
+
+| Toestel | 20.000 regels: volledig / snel | 100.000 regels: volledig / snel |
+|---|---|---|
+| OnePlus 13R | nog te meten | nog te meten |
 
 ## 10. Gedrag bij een afwijking
 De app **stopt met normaal gebruik**: geen records openen, geen
