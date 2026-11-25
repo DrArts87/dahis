@@ -411,6 +411,56 @@ test('geblokkeerd wissen wacht en slaagt zodra de andere verbinding sluit (revie
   assert(!names.includes(name), 'database weg');
 });
 
+// --- Taak 7 -----------------------------------------------------------------------------
+
+test('back-up gelijk aan de export op IndexedDB: verify_backup en last_backup_at duurzaam', async () => {
+  const name = dbName('export');
+  let { backend, queue, clock } = await install(name);
+  let session = await unlock(backend, queue);
+  await putRecord(queue, session, { naam: SECRET_TEXT });
+  await queue.run(session, (store, s, now) => V.exportTx(store, s, { now }));
+  const file = C.utf8(await V.buildBackupFile(backend.store, session, { now: clock.fn() }));
+  await V.verifyExportedBackup(backend.store, session, file);
+  clock.advance(1000);
+  await queue.run(session, (store, s, now) => V.verifyBackupTx(store, s, { now }));
+  backend.close();
+  ({ backend, queue } = await reopen(name, clock));
+  assert(backend.store.meta.last_backup_at === clock.fn().toISOString(), 'last_backup_at vastgelegd');
+  session = await unlock(backend, queue);
+  // Na herladen nog steeds gelijk aan de (vastgelegde) export.
+  await V.verifyExportedBackup(backend.store, session, file);
+  const other = C.utf8(await V.buildBackupFile(backend.store, session, { now: clock.fn() }));
+  await rejects(V.verifyExportedBackup(backend.store, session, other), (e) => e instanceof V.BackupMismatchError, 'bestand zonder export');
+  await V.fullCheck(backend.store, session);
+  backend.close();
+  await IdbBackend.deleteDatabase(name);
+});
+
+test('testbestand formaat 1 terugzetten op IndexedDB, met wachtwoord en met herstelsleutel', async () => {
+  const fixture = await (await fetch('fixtures/testbestand-formaat-1.json')).json();
+  const file = C.utf8(fixture.bestand);
+  const clock = clockAt(T0);
+  const routes = [
+    { secret: { password: fixture.wachtwoord }, password: fixture.wachtwoord },
+    { secret: { recoveryKey: fixture.herstelsleutel }, newPassword: PASSWORD2, password: PASSWORD2 },
+  ];
+  for (const route of routes) {
+    const name = dbName('testbestand');
+    let { backend, queue } = await reopen(name, clock);
+    await queue.runPlain(async (store, now) => (await V.restoreTx(file, route.secret, { newPassword: route.newPassword, now })).tx);
+    backend.close();
+    ({ backend, queue } = await reopen(name, clock));
+    const session = await unlock(backend, queue, { password: route.password });
+    await V.fullCheck(backend.store, session);
+    for (const r of fixture.records) {
+      const rec = await V.readRecord(backend.store, session, r.id);
+      assert(r.deleted ? rec.content.deleted === true : rec.content.data.omschrijving === r.data.omschrijving, 'record ' + r.id);
+    }
+    backend.close();
+    await IdbBackend.deleteDatabase(name);
+  }
+});
+
 test('opslagstatus is op te vragen', async () => {
   const s = await storageStatus();
   assert(s.supported === true && typeof s.persisted === 'boolean', 'status');

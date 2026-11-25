@@ -3,7 +3,9 @@
 // alleen schermen. Teksten: i18n/nl.js.
 import { el, replace, symbol } from './dom.js';
 import { t } from './i18n.js';
-import { AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES } from './controller.js';
+import {
+  AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, backupDue,
+} from './controller.js';
 import { SETTINGS } from './settings.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
@@ -20,8 +22,10 @@ const app = new AppController();
 
 const ui = {
   tab: 'patients',          // patients | recipes | settings | more
-  sub: null,                // password | about | measure | erase | audit
+  sub: null,                // password | about | measure | erase | audit | backup
   unlockMode: 'password',   // password | recovery
+  lockedMode: 'unlock',     // unlock | file (back-up controleren op het vergrendelscherm)
+  file: null,               // gekozen back-upbestand (File); overleeft opnieuw tekenen
   clearInputs: false,
 };
 
@@ -235,7 +239,9 @@ setInterval(() => {
 
 // --- Hulpmiddelen voor schermen ---------------------------------------------------------
 
-const SUCCESS = new Set([k('recovery.done'), k('password.changed'), k('settings.saved'), k('check.ok')]);
+const SUCCESS = new Set([
+  k('recovery.done'), k('password.changed'), k('settings.saved'), k('check.ok'), k('backup.ready'), k('fileCheck.ok'),
+]);
 
 const HALT_TEXT = {
   checkpoint: k('halt.code.checkpoint'),
@@ -282,6 +288,7 @@ const AUDIT_DETAIL_TEXT = {
   'password_change:user': k('audit.detail.passwordUser'),
   'password_change:recovery': k('audit.detail.passwordRecovery'),
   'password_change:kdf_upgrade': k('audit.detail.passwordKdf'),
+  'verify_backup:equal': k('audit.detail.verifyEqual'),
 };
 
 const AUDIT_RESULT = {
@@ -360,6 +367,45 @@ function textInput(id, extra = {}) {
   }, extra));
 }
 
+// Bestandskiezer. De gekozen File staat in ui.file, want opnieuw tekenen
+// maakt een nieuw invoerveld. Geen accept-filter: Android kent het type
+// .dahis niet en zou het bestand dan grijs tonen.
+function fileInput() {
+  return [
+    el('label', { for: 'file' }, t('file.choose')),
+    el('input', {
+      id: 'file', name: 'file', type: 'file', disabled: app.state.busy,
+      onchange: (event) => { ui.file = (event.target.files && event.target.files[0]) || null; app.say(null); render(); },
+    }),
+    ui.file ? el('p', { class: 'hint' }, t('file.chosen', { name: ui.file.name })) : null,
+  ];
+}
+
+function chooseFileFirst() {
+  if (ui.file) return true;
+  app.say('file.none');
+  return false;
+}
+
+// Wachtwoord of herstelsleutel, met wisselknop (ui.unlockMode).
+function secretField(id) {
+  const recovery = ui.unlockMode === 'recovery';
+  return [
+    field(id, recovery ? t('unlock.recoveryLabel') : t('unlock.passwordLabel'),
+      recovery ? textInput(id, { 'aria-describedby': id + '-hint' }) : passwordInput(id, 'off'),
+      recovery ? t('unlock.recoveryHint') : null),
+    button(recovery ? t('unlock.usePassword') : t('unlock.useRecovery'), () => {
+      ui.unlockMode = recovery ? 'password' : 'recovery';
+      app.say(null);
+      render();
+    }, 'link'),
+  ];
+}
+
+function secretValue(id) {
+  return ui.unlockMode === 'recovery' ? { recoveryKey: value(id) } : { password: value(id) };
+}
+
 function value(id) {
   const node = document.getElementById(id);
   return node ? node.value : '';
@@ -410,7 +456,7 @@ function nav() {
     NAV.map((item) => el('button', {
       type: 'button',
       'aria-current': ui.tab === item.tab ? 'page' : null,
-      onclick: () => { ui.tab = item.tab; ui.sub = null; app.closeAuditLog(); app.say(null); onTab(); render(); },
+      onclick: () => { ui.tab = item.tab; ui.sub = null; app.closeAuditLog(); app.closeBackup(); app.say(null); onTab(); render(); },
     }, symbol(item.icon), t(item.label))));
 }
 
@@ -506,7 +552,47 @@ function onboardingIntro() {
         el('p', { class: 'muted' }, t('onboarding.intro.warning'))),
       el('p', { class: 'muted' }, t('onboarding.intro.testOnly')),
       button(t('onboarding.intro.start'), () => app.goToStep('password'), 'primary'),
+      button(t('onboarding.intro.restore'), () => {
+        ui.file = null;
+        ui.unlockMode = 'password';
+        app.goToStep('restore');
+      }),
       installCard(),
+    ],
+  });
+}
+
+function onboardingRestore() {
+  const recovery = ui.unlockMode === 'recovery';
+  return page({
+    head: header({
+      title: t('restore.title'),
+      back: backLink(t('common.back'), () => { ui.file = null; app.say(null); app.goToStep('intro'); }),
+    }),
+    body: form(() => {
+      if (!chooseFileFirst()) return;
+      app.restoreBackup(ui.file, secretValue('secret'), value('pw1'), value('pw2'));
+    },
+    el('p', {}, t('restore.text')),
+    fileInput(),
+    secretField('secret'),
+    recovery ? [
+      el('p', { class: 'muted' }, t('restore.newPassword')),
+      field('pw1', t('password.new'), passwordInput('pw1', 'new-password'), t('password.minimum', { min: 14 })),
+      field('pw2', t('password.repeat'), passwordInput('pw2', 'new-password')),
+    ] : null,
+    el('p', { class: 'muted' }, t('restore.empty')),
+    submit(t('restore.submit'))),
+  });
+}
+
+function onboardingRestored() {
+  return page({
+    head: header({ title: t('restore.doneTitle') }),
+    body: [
+      el('p', {}, t('restore.doneText')),
+      el('p', { class: 'note warn' }, t('restore.doneBackup')),
+      button(t('onboarding.done.button'), () => app.lock(), 'primary'),
     ],
   });
 }
@@ -578,6 +664,7 @@ function onboardingDone() {
 // --- Schermen: ontgrendelen en herstel ------------------------------------------------------
 
 function lockedScreen() {
+  if (ui.lockedMode === 'file') return fileCheckScreen();
   const recovery = ui.unlockMode === 'recovery';
   const failed = app.state.failedUnlocks;
   const input = recovery
@@ -593,7 +680,49 @@ function lockedScreen() {
       ui.unlockMode = recovery ? 'password' : 'recovery';
       app.say(null);
       render();
+    }, 'link'),
+    button(t('fileCheck.link'), () => {
+      ui.lockedMode = 'file';
+      ui.file = null;
+      ui.unlockMode = 'password';
+      app.say(null);
+      render();
     }, 'link'));
+}
+
+// Een (ouder) back-upbestand controleren, zonder sessie: er wordt niets
+// opgeslagen (formaat §11.4, besluit gebruiker 2026-11-25).
+function fileCheckScreen() {
+  const r = app.state.fileCheck;
+  const fmt = new Intl.NumberFormat('nl-NL');
+  return page({
+    head: header({
+      title: t('fileCheck.title'),
+      back: backLink(t('common.back'), () => {
+        ui.lockedMode = 'unlock';
+        ui.file = null;
+        ui.unlockMode = 'password';
+        app.say(null);
+        render();
+      }),
+    }),
+    body: [
+      form(() => {
+        if (!chooseFileFirst()) return;
+        app.checkFile(ui.file, secretValue('secret'));
+      },
+      el('p', {}, t('fileCheck.text')),
+      fileInput(),
+      secretField('secret'),
+      submit(t('fileCheck.submit'))),
+      r && r.ok ? el('section', { class: 'card' }, el('dl', {},
+        el('dt', {}, t('fileCheck.created')), el('dd', {}, dateTime(Date.parse(r.summary.createdAt))),
+        el('dt', {}, t('fileCheck.version')), el('dd', {}, r.summary.appVersion),
+        el('dt', {}, t('fileCheck.contents')),
+        el('dd', {}, t('fileCheck.contentsValue', { records: fmt.format(r.summary.records), audit: fmt.format(r.summary.audit) })))) : null,
+      r && !r.ok ? el('p', { class: 'muted' }, t('fileCheck.code', { code: r.code })) : null,
+    ],
+  });
 }
 
 function recoveryPasswordScreen() {
@@ -613,8 +742,17 @@ function emptyState(text) {
   return el('div', { class: 'empty' }, symbol('logo-g', 'empty-mark'), el('p', {}, text));
 }
 
+function backupReminder() {
+  const last = app.state.lastBackupAt;
+  if (!backupDue(last)) return null;
+  return el('div', { class: 'note warn reminder', role: 'status' },
+    el('span', {}, last === null ? t('backup.reminderNever') : t('backup.reminderOld', { when: dateTime(last) })),
+    button(t('backup.reminderButton'), () => { ui.tab = 'more'; ui.sub = 'backup'; app.say(null); render(); }, 'small'));
+}
+
 function patientsTab() {
   return [
+    backupReminder(),
     el('div', { class: 'search' }, symbol('i-search'),
       el('input', { type: 'search', placeholder: t('patients.search'), disabled: true, 'aria-label': t('patients.search') })),
     emptyState(t('patients.empty')),
@@ -662,7 +800,9 @@ function moreTab() {
   return [
     el('h3', {}, t('more.data')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
-      listItem('i-archive', t('more.backup'), { value: t('more.backupLater') }),
+      listItem('i-archive', t('more.backup'), {
+        value: dateTime(app.state.lastBackupAt), onclick: () => { ui.sub = 'backup'; app.say(null); render(); },
+      }),
       listItem('i-shield', t('more.check'), {
         value: checkValue(), onclick: () => app.runFullCheck(),
       }),
@@ -675,6 +815,69 @@ function moreTab() {
       listItem('i-info', t('more.about'), { onclick: () => { ui.sub = 'about'; app.say(null); render(); } }),
       listItem('i-trash', t('more.erase'), { danger: true, onclick: () => { ui.sub = 'erase'; app.say(null); render(); } }))),
   ];
+}
+
+function appVersion() {
+  return (sw.info && sw.info.version) || '0.0.0';
+}
+
+// Bestandstypen die Chrome op Android mag delen, staan vast; .dahis hoort
+// er niet bij. Dan dezelfde inhoud als tekstbestand met .txt achter de naam
+// (het bestand is UTF-8-tekst; de naam doet bij het inlezen niet mee).
+function shareFile(b) {
+  const candidates = [
+    new File([b.text], b.name, { type: 'application/octet-stream' }),
+    new File([b.text], b.name + '.txt', { type: 'text/plain' }),
+  ];
+  if (!navigator.canShare) return null;
+  return candidates.find((f) => navigator.canShare({ files: [f] })) || null;
+}
+
+async function shareBackup() {
+  const b = app.backupForShare();
+  if (!b) return;
+  const file = shareFile(b);
+  if (!file) { app.say('backup.shareUnsupported'); return; }
+  try {
+    await navigator.share({ files: [file], title: file.name });
+  } catch (err) {
+    // Afgebroken of niet gelukt: de back-up blijft klaarstaan (als de app
+    // intussen niet is vergrendeld).
+  }
+}
+
+function downloadBackup() {
+  const b = app.backupForShare();
+  if (!b) return;
+  const url = URL.createObjectURL(new Blob([b.text], { type: 'application/octet-stream' }));
+  const a = el('a', { href: url, download: b.name, hidden: true });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+}
+
+function backupScreen() {
+  const b = app.state.backup;
+  return page({
+    head: header({
+      title: t('backup.title'), lock: true,
+      back: backLink(t('nav.more'), () => { ui.sub = null; app.closeBackup(); app.say(null); render(); }),
+    }),
+    body: [
+      el('p', {}, t('backup.text')),
+      el('section', { class: 'card' }, el('dl', {},
+        el('dt', {}, t('backup.last')), el('dd', {}, dateTime(app.state.lastBackupAt)))),
+      el('p', { class: 'muted' }, t('backup.policy')),
+      b ? [
+        el('section', { class: 'card' }, el('p', { class: 'hash' }, t('backup.file', { name: b.name, mb: megabytes(b.bytes) }))),
+        button(t('backup.share'), shareBackup, 'primary'),
+        button(t('backup.download'), downloadBackup),
+        el('p', { class: 'muted' }, t('backup.shareNote')),
+      ] : button(t('backup.make'), () => app.makeBackup({ appVersion: appVersion() }), 'primary'),
+    ],
+    navbar: true,
+  });
 }
 
 function changePasswordScreen() {
@@ -789,6 +992,14 @@ function checkMeasureItem(size, i) {
   });
 }
 
+function backupMeasureItem(mib) {
+  const r = app.state.backupMeasurements[mib];
+  let val = t('measure.notYet');
+  if (r && r.error) val = t('measure.backupFailed', { name: r.error });
+  else if (r) val = t('measure.backupResult', { write: seconds(r.writeMs), read: seconds(r.readMs), mb: megabytes(r.bytes) });
+  return listItem(null, t('measure.backupSize', { mb: mib }), { value: val, onclick: () => app.measureBackup(mib) });
+}
+
 function measureScreen() {
   const m = app.state.measurements;
   return page({
@@ -808,6 +1019,10 @@ function measureScreen() {
       el('p', {}, t('measure.checkText')),
       el('section', { class: 'card' }, el('ul', { class: 'list' }, MEASURE_CHECK_SIZES.map(checkMeasureItem))),
       el('p', { class: 'muted' }, t('measure.checkNote')),
+      el('h3', {}, t('measure.backupTitle')),
+      el('p', {}, t('measure.backupText')),
+      el('section', { class: 'card' }, el('ul', { class: 'list' }, MEASURE_BACKUP_MIB.map(backupMeasureItem))),
+      el('p', { class: 'muted' }, t('measure.backupNote')),
     ],
     navbar: true,
   });
@@ -849,6 +1064,7 @@ function readyScreen() {
   if (ui.sub === 'measure') return measureScreen();
   if (ui.sub === 'audit') return auditScreen();
   if (ui.sub === 'erase') return eraseScreen(false);
+  if (ui.sub === 'backup') return backupScreen();
   const titles = {
     patients: t('nav.patients'), recipes: t('nav.recipes'), settings: t('nav.settings'), more: t('nav.more'),
   };
@@ -879,6 +1095,8 @@ function view() {
         case 'key': return onboardingKey();
         case 'check': return onboardingCheck();
         case 'done': return onboardingDone();
+        case 'restore': return onboardingRestore();
+        case 'restored': return onboardingRestored();
         default: return onboardingIntro();
       }
     default: return startingScreen();
@@ -891,12 +1109,12 @@ function render() {
   const saved = new Map();
   const focused = document.activeElement && document.activeElement.id;
   if (!ui.clearInputs) {
-    for (const input of root.querySelectorAll('input[id]')) saved.set(input.id, input.value);
+    for (const input of root.querySelectorAll('input[id]')) if (input.type !== 'file') saved.set(input.id, input.value);
   }
   replace(root, view());
   for (const [id, val] of saved) {
     const input = document.getElementById(id);
-    if (input && input.type !== 'search') input.value = val;
+    if (input && input.type !== 'search' && input.type !== 'file') input.value = val;
   }
   if (!app.state.busy) ui.clearInputs = false;
   const target = (focused && document.getElementById(focused)) || root.querySelector('[role="alert"]');

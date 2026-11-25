@@ -1,4 +1,5 @@
-// Meting van de controles bij een groot logboek (taak 6, formaat §9.4).
+// Meting van de controles bij een groot logboek (taak 6, formaat §9.4) en
+// van grote back-ups (taak 7, formaat §2.4).
 //
 // Bouwt in het geheugen een opslag van formaat 1 met een wegwerpwachtwoord
 // en wegwerpsleutels, met `auditRows` auditregels en `recordVersions`
@@ -16,7 +17,9 @@ import {
   randomBytes, b64, sealRecord, versionHash, stateDigest, auditContent, sealAudit,
   writeKeysDigest, keyringDigest, sealCheckpoint,
 } from './crypto.js';
-import { applyTx, createInstallation, emptyStore, fullCheck, quickCheck } from './vault.js';
+import {
+  applyTx, createInstallation, emptyStore, fullCheck, quickCheck, buildBackupFile, inspectBackup,
+} from './vault.js';
 
 export const BENCH_KIND = 'meting';
 
@@ -27,9 +30,11 @@ function throwawayPassword() {
   return 'meting ' + b64(randomBytes(24));
 }
 
-// Geeft {store, session}. now: tijdstip van alle regels.
-export async function buildBenchStore({ auditRows, recordVersions, now = new Date() }) {
-  const { tx, session } = await createInstallation({ password: throwawayPassword(), now });
+// Geeft {store, session, password}. now: tijdstip van alle regels.
+// padBytes: opvulling per recordversie (standaard ongeveer 1 KiB per versie).
+export async function buildBenchStore({ auditRows, recordVersions, now = new Date(), padBytes = 800 }) {
+  const password = throwawayPassword();
+  const { tx, session } = await createInstallation({ password, now });
   const store = emptyStore();
   applyTx(store, tx);
   const kid = session.kid;
@@ -42,8 +47,8 @@ export async function buildBenchStore({ auditRows, recordVersions, now = new Dat
   for (let i = 0; i < recordVersions; i++) {
     const id = globalThis.crypto.randomUUID();
     ids.push(id);
-    // Ongeveer 1 KiB per versie, zoals een kort dossierstuk.
-    const content = { schema: 1, data: { n: i, pad: '0'.repeat(800) } };
+    // Standaard ongeveer 1 KiB per versie, zoals een kort dossierstuk.
+    const content = { schema: 1, data: { n: i, pad: '0'.repeat(padBytes) } };
     const row = await sealRecord(keys.record, epoch, { id, version: 1, kid, kind: BENCH_KIND, updated_at: ts }, content);
     store.records.push(row);
     recordRows.push(row);
@@ -80,7 +85,7 @@ export async function buildBenchStore({ auditRows, recordVersions, now = new Dat
   };
   store.meta.checkpoint = await sealCheckpoint(keys.checkpoint, kid, epoch, content);
   session.checkpointContent = content;
-  return { store, session };
+  return { store, session, password };
 }
 
 // Geeft {buildMs, fullMs, quickMs} (afgerond op hele ms).
@@ -93,4 +98,39 @@ export async function measureChecks({ auditRows, recordVersions, timer = () => g
   await quickCheck(store, session);
   const t3 = timer();
   return { buildMs: Math.round(t1 - t0), fullMs: Math.round(t2 - t1), quickMs: Math.round(t3 - t2) };
+}
+
+// Opvulling per recordversie bij de meting van grote back-ups: 64 KiB.
+export const BACKUP_PAD_BYTES = 64 * 1024;
+
+// Een recordversie van BACKUP_PAD_BYTES neemt in het bestand ongeveer zoveel
+// bytes in: versleuteld, base64 in de inhoud, en de inhoud nog eens base64
+// (§11.2): 4/3 · 4/3 ≈ 1,78, plus wat JSON.
+const BYTES_PER_VERSION = Math.ceil(BACKUP_PAD_BYTES * 16 / 9) + 256;
+
+// Maakt en opent een nep-back-up van ongeveer targetBytes, in het geheugen,
+// met de echte buildBackupFile() en inspectBackup() (wachtwoordroute). Geeft
+// {bytes, buildMs, writeMs, readMs}, of {error} als het niet lukt (te groot,
+// te weinig geheugen). Piekgeheugen is vanuit de pagina niet betrouwbaar te
+// meten in Chrome op Android.
+export async function measureBackup({ targetBytes, timer = () => globalThis.performance.now(), now = new Date() }) {
+  const recordVersions = Math.max(1, Math.floor(targetBytes / BYTES_PER_VERSION));
+  try {
+    const t0 = timer();
+    let bench = await buildBenchStore({ auditRows: recordVersions, recordVersions, now, padBytes: BACKUP_PAD_BYTES });
+    const t1 = timer();
+    let text = await buildBackupFile(bench.store, bench.session, { now });
+    const t2 = timer();
+    let file = new TextEncoder().encode(text);
+    text = null;
+    const size = file.length;
+    const opened = await inspectBackup(file, { password: bench.password });
+    opened.raw.fill(0);
+    const t3 = timer();
+    file = null;
+    bench = null;
+    return { bytes: size, buildMs: Math.round(t1 - t0), writeMs: Math.round(t2 - t1), readMs: Math.round(t3 - t2) };
+  } catch (err) {
+    return { error: (err && err.name) || 'Error' };
+  }
 }

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../app/js/crypto.js';
 import * as V from '../app/js/vault.js';
-import { buildBenchStore, measureChecks, BENCH_KIND } from '../app/js/benchmark.js';
+import { buildBenchStore, measureChecks, measureBackup, BENCH_KIND } from '../app/js/benchmark.js';
 
 test('nep-opslag doorstaat beide controles en heeft de gevraagde omvang', async () => {
   const { store, session } = await buildBenchStore({ auditRows: 40, recordVersions: 7 });
@@ -30,4 +30,13 @@ test('measureChecks geeft drie duren in ms', async () => {
   let t = 0;
   const r = await measureChecks({ auditRows: 10, recordVersions: 2, timer: () => (t += 5) });
   assert.deepEqual(r, { buildMs: 5, fullMs: 5, quickMs: 5 });
+});
+
+test('measureBackup maakt en opent een kleine nep-back-up; te groot geeft een fout in plaats van een crash', async () => {
+  const r = await measureBackup({ targetBytes: 300 * 1024 });
+  assert.equal(r.error, undefined);
+  assert.ok(r.bytes > 100 * 1024 && r.bytes < 600 * 1024, String(r.bytes));
+  for (const k of ['buildMs', 'writeMs', 'readMs']) assert.equal(typeof r[k], 'number');
+  const tooBig = await measureBackup({ targetBytes: 0, timer: () => { throw new RangeError('nep'); } });
+  assert.deepEqual(tooBig, { error: 'RangeError' });
 });

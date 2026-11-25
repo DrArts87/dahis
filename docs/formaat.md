@@ -162,6 +162,17 @@ maximum is dus werkbaar en de grens van `kdf.iterations`
 is vastgesteld. Een hogere standaardwaarde dan 600.000 is mogelijk; dat is
 een apart besluit.
 
+**Back-upbestand** (taak 7): Meer → Snelheid meten → Grote back-up maakt en
+opent een nep-back-up van ongeveer 64, 128 en 250 MiB in het geheugen. In
+Node op een ontwikkelmachine: een bestand van 253 MiB is te maken (2,6 s) en
+te openen (6,2 s), bij ongeveer 1,4 GB procesgeheugen. Daarvoor is de
+base64-codering in `crypto.js` herschreven (zelfde uitvoer, getest); de oude
+versie gebruikte bij 64 MiB al 2,5 GB en liep bij 250 MiB vast. Het
+piekgeheugen is vanuit de pagina in Chrome op Android niet betrouwbaar te
+meten (de API daarvoor vraagt cross-origin isolation); de meting op de
+OnePlus toetst dus of het lukt en hoe lang het duurt. Tot die meting blijft
+de grens voorlopig.
+
 ## 3. Sleutels
 
 ```
@@ -634,7 +645,10 @@ Records en auditregels behouden hun eigen versleuteling; terugzetten is
 kopiëren.
 
 Bestandsnaam `dahis-backup-JJJJMMDD-UUMM.dahis` (lokale tijd); MIME-type bij
-delen `application/octet-stream`.
+delen `application/octet-stream`. Chrome op Android deelt alleen bestanden
+van een vaste lijst bekende typen; staat `.dahis` daar niet op, dan deelt de
+app dezelfde inhoud als `text/plain` met `.txt` achter de naam. De naam doet
+bij het inlezen niet mee.
 
 ### 11.3 Exporteren
 1. Volledige controle (§9.3) op de opslag; bij een afwijking §10.
@@ -642,17 +656,35 @@ delen `application/octet-stream`.
    opslag, plus het nieuwe controlepunt.
 3. De back-up opbouwen uit precies die toestand, met een nieuwe bestandssalt;
    het `checkpoint` in de back-up verwijst naar de `export`-regel.
-4. Delen of downloaden; daarna `last_backup_at` bijwerken.
+4. Direct het gebouwde bestand controleren: gelijk aan een export (§11.4).
+   Pas als dat lukt, atomair de regel `verify_backup` met detail `equal` en
+   `last_backup_at` schrijven. De regel `export` betekent dus "poging"; een
+   bruikbaar bestand blijkt uit de direct volgende `verify_backup` met
+   `equal` (audit A3). Mislukt de controle, dan geen `verify_backup`.
+5. Pas daarna delen of downloaden. Er wordt dan niets meer geschreven: het
+   deelmenu verbergt de app, en die vergrendelt dan (besluit gebruiker
+   2026-11-25). Wie het delen afbreekt, heeft wel een bijgewerkte
+   `last_backup_at` maar geen bestand; dat is geaccepteerd.
 
 ### 11.4 Controleren
 - **Interne integriteit** (elke back-up): §11.5 stap 1–5 zonder te schrijven.
-  Werkt ook voor een oudere back-up.
-- **Gelijk aan een export** (direct na exporteren): de back-up is intern
-  integer, en `checkpoint.seq`, `checkpoint.h` en `checkpoint.state` zijn
-  gelijk aan `seq`, `h` en `state` van de `export`-regel met die `seq` in de
-  eigen opslag. De vergelijking gaat met de momentopname van de export, niet
-  met de huidige opslag.
-- Daarna een regel `verify_backup` met detail `integrity` of `equal`.
+  Werkt ook voor een oudere back-up. De app doet dit vanaf het
+  vergrendelscherm, met het wachtwoord of de herstelsleutel van het bestand.
+  Er is dan geen sessie, dus er komt **geen regel** in het auditlog (besluit
+  gebruiker 2026-11-25); ook een fout geheim telt niet als mislukte
+  ontgrendeling. Een beschadigd bestand is geen afwijking van de opslag
+  (§10): de app stopt niet.
+- **Gelijk aan een export** (direct na exporteren, §11.3 stap 4): de back-up
+  is intern integer, en `checkpoint.seq`, `checkpoint.h` en
+  `checkpoint.state` zijn gelijk aan `seq`, `h` en `state` van de
+  `export`-regel met die `seq` in de eigen opslag. De vergelijking gaat met
+  de momentopname van de export, niet met de huidige opslag. Omdat de sessie
+  al open is, gebruikt de app de datasleutel van de sessie in plaats van
+  stap 3 van §11.5; de header moet dan byte voor byte `epoch`, `kdf`,
+  `wrapped_password` en `recovery` uit `meta` bevatten, zodat het bestand met
+  dezelfde geheimen opent als de opslag.
+- Daarna een regel `verify_backup` met detail `equal`. De detail `integrity`
+  blijft in formaat 1 bestaan, maar de app schrijft hem nu niet.
 
 ### 11.5 Terugzetten (formaat 1: alleen op een lege opslag)
 Stap 1–6 gebeuren in het geheugen; er wordt niets geschreven.
@@ -764,7 +796,13 @@ van toen.
 - Migratie van de opslag in `onupgradeneeded`, stap voor stap, na een
   verplichte back-up.
 - Per formaat een testbestand in `tests/fixtures/` (verzonnen inhoud, bekend
-  testwachtwoord); elke versie moet ze allemaal kunnen terugzetten.
+  testwachtwoord); elke versie moet ze allemaal kunnen terugzetten. Formaat
+  1: `tests/fixtures/testbestand-formaat-1.json` (het bestand als tekst in
+  JSON, met wachtwoord en herstelsleutel; `.dahis`-bestanden weigert de
+  privacycontrole), getest in `tests/testbestand.test.mjs` en in de browser.
+- Back-ups lezen gaat via een lezer per formaatnummer in de header
+  (`vault.js`); een nummer zonder lezer (nieuwer dan de app) geeft de melding
+  dat de app eerst moet worden bijgewerkt.
 - Het `schema` per kind migreert los van het formaat, bij het lezen.
 - Formaat 1 verwijdert geen auditregels; inkorten na de bewaartermijn vraagt
   een nieuw formaat.

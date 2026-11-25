@@ -6,7 +6,10 @@ import assert from 'node:assert/strict';
 import * as C from '../app/js/crypto.js';
 import * as V from '../app/js/vault.js';
 import { MemoryBackend, WriteQueue, AlreadyOpenError } from '../app/js/store.js';
-import { AppController, ERASE_WORD, MEASURE_CHECK_SIZES, normalizeGroup } from '../app/js/controller.js';
+import {
+  AppController, ERASE_WORD, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, BACKUP_REMINDER_MS,
+  backupDue, backupFileName, normalizeGroup,
+} from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
 
@@ -560,4 +563,232 @@ test('codebase-review 1: geblokkeerd wissen wacht met het slot vast tot het lukt
   assert.equal(await erasing, true);
   assert.equal(dev.closes, closes + 1);
   assert.equal(app.state.view, 'locking');
+});
+
+// --- Taak 7: back-up maken, controleren en terugzetten ---------------------------------
+
+// Gekozen bestand zoals een File: grootte vóór de inhoud.
+function chosen(bytes, name = 'dahis-backup-20261125-1300.dahis') {
+  const f = { name, size: bytes.length, reads: 0 };
+  f.arrayBuffer = async () => { f.reads += 1; return bytes.slice().buffer; };
+  return f;
+}
+
+async function backupOf(dev) {
+  const app = await unlocked(dev);
+  assert.equal(await app.makeBackup({ appVersion: '0.3.0' }), true);
+  const file = app.backupForShare();
+  assert.ok(file && file.text.endsWith('\n'));
+  return { app, bytes: C.utf8(file.text), name: file.name };
+}
+
+test('back-up maken: export, direct daarna verify_backup equal, en de herinnering verdwijnt', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(app.state.lastBackupAt, null);
+  assert.equal(backupDue(app.state.lastBackupAt, dev.now.getTime()), true);
+  dev.now = new Date('2026-11-25T13:05:00.000Z');
+  assert.equal(await app.makeBackup({ appVersion: '0.3.0' }), true);
+  assert.equal(app.state.message.key, 'backup.ready');
+  assert.equal(app.state.backup.name, backupFileName(dev.now));
+  assert.equal(app.state.lastBackupAt, dev.now.getTime());
+  assert.equal(dev.backend.disk.meta.last_backup_at, dev.now.toISOString());
+  assert.equal(backupDue(app.state.lastBackupAt, dev.now.getTime()), false);
+  assert.equal(typeof app.state.lastCheckMs, 'number');
+  const actions = await auditActions(dev.backend.disk);
+  assert.deepEqual(actions.slice(-2), ['export', 'verify_backup:equal']);
+  // Het bestand bevat de opslag van het moment van de export.
+  const summary = await V.checkBackupFile(C.utf8(app.backupForShare().text), { password: PASSWORD });
+  assert.equal(summary.appVersion, '0.3.0');
+  assert.equal(summary.audit, actions.length - 1);
+  // Sluiten of vergrendelen laat het bestand los.
+  app.closeBackup();
+  assert.equal(app.backupForShare(), null);
+  assert.equal(app.state.backup, null);
+  await app.makeBackup();
+  await app.lock();
+  assert.equal(app.backupForShare(), null);
+  // Na herladen: last_backup_at uit de opslag.
+  const again = await unlocked(dev);
+  assert.equal(again.state.lastBackupAt, dev.now.getTime());
+});
+
+test('herinnering: nooit, na 7 dagen, en bij een tijdstip in de toekomst', () => {
+  const now = Date.parse('2026-11-25T12:00:00.000Z');
+  assert.equal(backupDue(null, now), true);
+  assert.equal(backupDue(now - BACKUP_REMINDER_MS + 1, now), false);
+  assert.equal(backupDue(now - BACKUP_REMINDER_MS, now), true);
+  assert.equal(backupDue(now + 60000, now), true);
+  assert.equal(backupFileName(new Date(2026, 0, 5, 7, 3)), 'dahis-backup-20260105-0703.dahis');
+});
+
+test('terugzetten met wachtwoord op een lege opslag; daarna ontgrendelen en import in het log', async () => {
+  const a = device();
+  await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(app.state.step, 'restore');
+  assert.equal(app.shouldLockOnHide(), false, 'bestandskiezer: geen geheimen, niet vergrendelen');
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+  assert.equal(app.state.step, 'restored');
+  assert.equal(app.shouldLockOnHide(), false);
+  assert.notEqual(b.backend.disk.meta.device_id, a.backend.disk.meta.device_id);
+  await app.lock();
+  const opened = await unlocked(b);
+  assert.equal(opened.state.view, 'ready');
+  assert.equal(opened.state.lastBackupAt, null, 'nieuwe installatie: eerst een nieuwe back-up');
+  const actions = await auditActions(b.backend.disk);
+  // verify_backup komt ná de export en zit dus niet in het bestand.
+  assert.deepEqual(actions.slice(-5), ['unlock:password', 'export', 'write_key:' + b.backend.disk.meta.write_keys.at(-1).kid, 'import', 'unlock:password']);
+  await V.fullCheck(b.backend.disk, (await V.unlock(b.backend.disk, { password: PASSWORD })).session);
+});
+
+test('terugzetten met de herstelsleutel: nieuw wachtwoord verplicht; daarna alleen dat wachtwoord', async () => {
+  const a = device();
+  const { recoveryKey } = await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(bytes), { recoveryKey }, 'kort', 'kort'), false);
+  assert.equal(app.state.message.key, 'password.tooShort');
+  assert.equal(await app.restoreBackup(chosen(bytes), { recoveryKey }, PASSWORD2, PASSWORD), false);
+  assert.equal(app.state.message.key, 'password.mismatch');
+  assert.equal(canon(b.backend.disk), canon(V.emptyStore()));
+  assert.equal(await app.restoreBackup(chosen(bytes), { recoveryKey }, PASSWORD2, PASSWORD2), true);
+  await app.lock();
+  const locked = b.controller();
+  b.open = false;
+  await locked.start();
+  await locked.unlock({ password: PASSWORD });
+  assert.equal(locked.state.message.key, 'unlock.wrong');
+  await locked.unlock({ password: PASSWORD2 });
+  assert.equal(locked.state.view, 'ready');
+  const actions = await auditActions(b.backend.disk, { password: PASSWORD2 });
+  assert.ok(actions.includes('recovery_used') && actions.includes('password_change:recovery') && actions.includes('import'));
+  assert.equal(await locked.runFullCheck(), true);
+});
+
+test('ongeldig of te groot bestand bij terugzetten: melding, opslag blijft leeg, opnieuw proberen lukt', async () => {
+  const a = device();
+  await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  const empty = canon(V.emptyStore());
+
+  const big = { name: 'x.dahis', size: C.MAX_BACKUP_BYTES + 1, arrayBuffer: async () => { throw new Error('mag niet inlezen'); } };
+  assert.equal(await app.restoreBackup(big, { password: PASSWORD }), false);
+  assert.equal(app.state.message.key, 'backup.tooBig');
+
+  assert.equal(await app.restoreBackup(chosen(C.utf8('geen back-up\n')), { password: PASSWORD }), false);
+  assert.equal(app.state.message.key, 'file.unusable');
+
+  const text = new TextDecoder().decode(bytes);
+  const [line1, line2] = text.split('\n');
+  const flipped = line1 + '\n' + (line2[20] === 'A' ? 'B' : 'A').padStart(21, line2.slice(0, 20)) + line2.slice(21) + '\n';
+  // Niet te ontsleutelen: dezelfde melding als een ander bestand.
+  assert.equal(await app.restoreBackup(chosen(C.utf8(flipped)), { password: PASSWORD }), false);
+  assert.equal(app.state.message.key, 'file.unusable');
+
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD2 }), false);
+  assert.equal(app.state.message.key, 'file.wrongPassword');
+
+  const newer = C.utf8(text.replace('"format":1', '"format":7'));
+  assert.equal(await app.restoreBackup(chosen(newer), { password: PASSWORD }), false);
+  assert.equal(app.state.message.key, 'backup.newerFormat');
+
+  assert.equal(app.state.view, 'onboarding');
+  assert.equal(app.state.step, 'restore');
+  assert.equal(canon(b.backend.disk), empty);
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+});
+
+test('afgebroken terugzetten (transactie mislukt): opslag blijft leeg, nieuwe poging met een nieuwe schrijfsleutel', async () => {
+  const a = device();
+  await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  const commit = b.backend.commit.bind(b.backend);
+  let fail = true;
+  const salts = [];
+  b.backend.commit = async (tx) => {
+    salts.push(C.b64(tx.putMeta.write_keys.at(-1).salt));
+    if (fail) { fail = false; throw new Error('toestel uit'); }
+    return commit(tx);
+  };
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), false);
+  assert.equal(canon(b.backend.disk), canon(V.emptyStore()));
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+  assert.equal(salts.length, 2);
+  assert.notEqual(salts[0], salts[1]);
+});
+
+test('back-up controleren op het vergrendelscherm: uitslag, niets geschreven, geen stop bij schade', async () => {
+  const dev = device();
+  const { recoveryKey } = await onboard(dev);
+  const { app: first, bytes } = await backupOf(dev);
+  await first.lock();
+  dev.open = false;
+  const app = dev.controller();
+  await app.start();
+  assert.equal(app.state.view, 'locked');
+  const before = canon(dev.backend.disk);
+
+  assert.equal(await app.checkFile(chosen(bytes), { password: PASSWORD }), true);
+  assert.equal(app.state.message.key, 'fileCheck.ok');
+  assert.equal(app.state.fileCheck.ok, true);
+  assert.equal(app.state.fileCheck.summary.appVersion, '0.3.0');
+  assert.equal(await app.checkFile(chosen(bytes), { recoveryKey }), true);
+
+  assert.equal(await app.checkFile(chosen(bytes), { password: PASSWORD2 }), false);
+  assert.equal(app.state.message.key, 'file.wrongPassword');
+  assert.equal(app.state.failedUnlocks, 0, 'geen mislukte ontgrendeling van de opslag');
+
+  const text = new TextDecoder().decode(bytes);
+  const [line1, line2] = text.split('\n');
+  const damaged = await (async () => {
+    const { session } = await V.unlock(dev.backend.disk, { password: PASSWORD });
+    const header = C.parseHeader(line1);
+    const payload = await C.decodeBackupPayload(session.dataKeys.get(1), header, line1, line2);
+    payload.audit = payload.audit.slice(0, -1);
+    return C.utf8(await C.encodeBackupFile(session.dataKeys.get(1), header, payload));
+  })();
+  assert.equal(await app.checkFile(chosen(damaged), { password: PASSWORD }), false);
+  assert.equal(app.state.message.key, 'file.damaged');
+  assert.equal(app.state.fileCheck.ok, false);
+  assert.equal(typeof app.state.fileCheck.code, 'string');
+  assert.equal(app.state.view, 'locked', 'een beschadigd bestand stopt de app niet');
+  assert.equal(canon(dev.backend.disk), before);
+  // Ontgrendelen werkt daarna gewoon.
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'ready');
+  assert.equal(app.state.fileCheck, null);
+});
+
+test('meting grote back-up: alleen de vaste groottes, niets opgeslagen', async () => {
+  const dev = device();
+  await onboard(dev);
+  const calls = [];
+  const app = dev.controller({
+    measureBackup: async (o) => { calls.push(o.targetBytes); return { bytes: o.targetBytes, buildMs: 1, writeMs: 2, readMs: 3 }; },
+  });
+  dev.open = false;
+  await app.start();
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.measureBackup(3), false);
+  assert.equal(await app.measureBackup(MEASURE_BACKUP_MIB[0]), true);
+  assert.deepEqual(calls, [MEASURE_BACKUP_MIB[0] * 1024 * 1024]);
+  assert.equal(app.state.backupMeasurements[MEASURE_BACKUP_MIB[0]].readMs, 3);
+  assert.equal(canon(dev.backend.disk), before);
 });

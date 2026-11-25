@@ -403,3 +403,81 @@ test('back-up boven de grens wordt niet gemaakt; op de grens wel, en dan ook lee
   assert.equal(C.utf8(exact).length, size);
   await V.inspectBackup(C.utf8(exact), { password: PASSWORD });
 });
+
+// --- Taak 7: gelijk aan de export, verify_backup, lezer per formaat ------------------
+
+test('back-up direct na export is gelijk aan de export; verify_backup legt last_backup_at vast', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  await putRecord(store, session, { kind: 'test_persoon', data: { naam: SECRET_TEXT } });
+  const file = await makeBackup(store, session);
+  const result = await V.verifyExportedBackup(store, session, file);
+  assert.equal(result.records, 1);
+  assert.equal(store.meta.last_backup_at, null);
+  const later = new Date(NOW.getTime() + 1000);
+  await write(store, session, () => V.verifyBackupTx(store, session, { now: later }));
+  assert.equal(store.meta.last_backup_at, later.toISOString());
+  const actions = (await auditActions(store, session)).map((c) => c.action + ':' + (c.detail ?? ''));
+  assert.deepEqual(actions.slice(-2), ['export:', 'verify_backup:equal']);
+  await V.fullCheck(store, session);
+  // Na verify_backup verandert de opslag, maar de vergelijking gaat met de
+  // momentopname van de export: nog steeds gelijk.
+  await V.verifyExportedBackup(store, session, file);
+});
+
+test('gelijk aan de export faalt bij een bestand zonder export, van een andere opslag of gewijzigd', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  // Zonder export-regel: het controlepunt wijst naar de regel unlock.
+  const noExport = C.utf8(await V.buildBackupFile(store, session, { now: NOW }));
+  await assert.rejects(V.verifyExportedBackup(store, session, noExport),
+    (e) => e instanceof V.BackupMismatchError && /geen export/.test(e.message));
+
+  const other = await setup();
+  const otherSession = await unlockAndLog(other.store, { password: PASSWORD });
+  const foreign = await makeBackup(other.store, otherSession);
+  await assert.rejects(V.verifyExportedBackup(store, session, foreign), V.BackupMismatchError);
+
+  const file = await makeBackup(store, session);
+  const before = clone(store);
+  const tampered = await tamperBackup(file, session.dataKeys.get(1), (p) => {
+    p.audit = p.audit.slice(0, -1);
+  });
+  // Een beschadigde inhoud is een gewone weigering, geen afwijking van de opslag.
+  await assert.rejects(V.verifyExportedBackup(store, session, tampered),
+    (e) => e instanceof V.BackupMismatchError && !(e instanceof C.IntegrityError));
+  const cut = file.slice(0, file.length - 10);
+  await assert.rejects(V.verifyExportedBackup(store, session, cut), V.BackupMismatchError);
+  assert.deepEqual(store, before);
+});
+
+test('ouder bestand controleren: samenvatting, niets geschreven, verkeerd geheim geweigerd', async () => {
+  const { store, recoveryKey } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  await putRecord(store, session, { kind: 'test_persoon', data: { v: 1 } });
+  const file = await makeBackup(store, session);
+  const before = clone(store);
+  const summary = await V.checkBackupFile(file, { password: PASSWORD });
+  assert.deepEqual(Object.keys(summary).sort(), ['appVersion', 'audit', 'createdAt', 'records', 'route']);
+  assert.equal(summary.route, 'password');
+  assert.equal(summary.records, 1);
+  assert.equal(summary.appVersion, '0.1.0');
+  assert.equal(summary.createdAt, NOW.toISOString());
+  assert.equal((await V.checkBackupFile(file, { recoveryKey })).route, 'recovery');
+  await assert.rejects(V.checkBackupFile(file, { password: PASSWORD2 }), C.WrongSecretError);
+  assert.deepEqual(store, before);
+});
+
+test('back-up van een onbekend (nieuwer) formaat geeft een eigen melding', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  const text = new TextDecoder().decode(await makeBackup(store, session));
+  const newer = C.utf8(text.replace('"format":1', '"format":2'));
+  await assert.rejects(V.restoreTx(newer, { password: PASSWORD }, { now: NOW }),
+    (e) => e instanceof V.UnknownBackupFormatError && e.format === 2);
+  await assert.rejects(V.checkBackupFile(newer, { password: PASSWORD }), V.UnknownBackupFormatError);
+  // Geen bruikbaar nummer: gewone weigering door de strikte lezer.
+  const broken = C.utf8(text.replace('"format":1', '"format":"1"'));
+  await assert.rejects(V.restoreTx(broken, { password: PASSWORD }, { now: NOW }),
+    (e) => e instanceof C.FormatError && !(e instanceof V.UnknownBackupFormatError));
+});

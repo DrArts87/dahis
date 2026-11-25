@@ -103,3 +103,16 @@ test('de datasleutel is na importeren niet exporteerbaar en de ruwe bytes zijn g
   assert.equal(key.extractable, false);
   assert.deepEqual(raw, new Uint8Array(32));
 });
+
+// Taak 7: b64() schrijft nu via een bytebuffer; de uitvoer moet gelijk zijn
+// aan base64url zonder opvulling, voor elke restlengte.
+test('b64 is base64url zonder opvulling, ook bij grote invoer', () => {
+  for (let n = 0; n < 64; n++) {
+    const bytes = C.randomBytes(n);
+    const expected = Buffer.from(bytes).toString('base64url');
+    assert.equal(C.b64(bytes), expected, 'lengte ' + n);
+    assert.deepEqual(C.fromB64(expected), bytes);
+  }
+  const big = new Uint8Array(3 * 70000 + 2).map((_, i) => (i * 131) & 255);
+  assert.equal(C.b64(big), Buffer.from(big).toString('base64url'));
+});

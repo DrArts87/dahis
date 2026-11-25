@@ -854,7 +854,10 @@ function payloadToStore(payload) {
   for (const r of records) validateRecordRow(r);
   for (const a of audit) validateAuditRow(a);
   if (!hasExactKeys(payload.checkpoint, ['kid', 'content'])) throw new FormatError('inhoud: checkpoint');
-  return { writeKeys, keyring, records, audit, checkpoint: payload.checkpoint };
+  return {
+    writeKeys, keyring, records, audit, checkpoint: payload.checkpoint,
+    createdAt: payload.created_at, appVersion: payload.app_version,
+  };
 }
 
 // Back-up maken (§11.3): eerst volledige controle, dan de regel export.
@@ -890,11 +893,86 @@ export async function buildBackupFile(store, session, { now, appVersion = '0.0.0
   return encodeBackupFile(session.dataKeys.get(meta.epoch), header, payload, undefined, { maxBytes });
 }
 
+// Back-up van een formaat dat deze app niet kent (nieuwer dan de app): de
+// app moet worden bijgewerkt (§14).
+export class UnknownBackupFormatError extends FormatError {
+  constructor(format) {
+    super('Back-up van een onbekend formaat: ' + format);
+    this.name = 'UnknownBackupFormatError';
+    this.format = format;
+  }
+}
+
+// Het bestand komt niet overeen met de export van deze opslag (§11.4, gelijk
+// aan een export). Geen afwijking van de opslag zelf: de app stopt niet.
+export class BackupMismatchError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = 'BackupMismatchError';
+    this.cause = cause;
+  }
+}
+
+// Lezers per formaatnummer van het bestand (§14): een lezer wordt nooit
+// verwijderd. Formaat 1 is het enige.
+const BACKUP_READERS = new Map([
+  [1, { header: parseHeader, body: checkBackupBodyV1 }],
+]);
+
+function backupReader(line1) {
+  let format;
+  try {
+    const raw = JSON.parse(line1);
+    format = raw && typeof raw === 'object' ? raw.format : undefined;
+  } catch (err) {
+    format = undefined;
+  }
+  // Geen bruikbaar nummer: de strikte lezer van het huidige formaat geeft de
+  // juiste foutmelding.
+  if (!Number.isSafeInteger(format) || format < 1) return BACKUP_READERS.get(FORMAT);
+  const reader = BACKUP_READERS.get(format);
+  if (!reader) throw new UnknownBackupFormatError(format);
+  return reader;
+}
+
+// §11.5 stap 4–5 met de datasleutel van de epoch uit de header: inhoud
+// ontsleutelen en strikt inlezen, samenhang, sleutelring, volledige controle.
+// Geeft {data, session}; session is een sessie op de inhoud van het bestand.
+async function checkBackupBodyV1(header, line1, line2, dataKey) {
+  const data = payloadToStore(await decodeBackupPayload(dataKey, header, line1, line2));
+  const meta = { epoch: header.epoch, write_keys: data.writeKeys, keyring: data.keyring, reservation: undefined };
+  const session = new Session({ epoch: header.epoch, deviceId: null });
+  session.dataKeys.set(header.epoch, dataKey);
+  try { validateWriteKeys(data.writeKeys); validateKeyring(data.keyring); } catch (err) { throw new IntegrityError('keys', err.message); }
+  session.setWriteKeys(data.writeKeys);
+  const cpKid = data.checkpoint.kid;
+  if (!session.writeKeys.has(cpKid) || session.epochOf(cpKid) !== header.epoch) {
+    throw new IntegrityError('keys', 'Controlepunt hoort niet bij de epoch van de back-up');
+  }
+  const content = data.checkpoint.content;
+  try {
+    validateCheckpointContent(content);
+  } catch (err) {
+    throw new IntegrityError('checkpoint', err.message);
+  }
+  await checkCoherence(meta, cpKid, content, data.records, data.audit);
+  for (const entry of data.keyring) {
+    const k = await unwrapKeyringEntry((await session.subkeys(entry.kid)).keyring, header.epoch, entry);
+    session.dataKeys.set(entry.epoch, await importDataKey(k));
+  }
+  session.kid = cpKid;
+  session.checkpointContent = content;
+  const fake = { meta: Object.assign({}, meta, { checkpoint: { kid: cpKid } }), records: data.records, audit: data.audit };
+  await fullCheckInner(fake, session, true);
+  return { data, session };
+}
+
 // Leest en controleert een back-up volledig in het geheugen (§11.5 stap 1–5).
 // Geeft {header, data, session, raw, route}; de aanroeper wist raw.
 export async function inspectBackup(bytes, secret) {
   const { line1, line2 } = splitBackupFile(bytes);
-  const header = parseHeader(line1);
+  const reader = backupReader(line1);
+  const header = reader.header(line1);
   const { raw, route } = await unwrapCurrent(header, secret);
   let dataKey;
   try {
@@ -904,36 +982,81 @@ export async function inspectBackup(bytes, secret) {
     throw err;
   }
   try {
-    const data = payloadToStore(await decodeBackupPayload(dataKey, header, line1, line2));
-    const meta = { epoch: header.epoch, write_keys: data.writeKeys, keyring: data.keyring, reservation: undefined };
-    const session = new Session({ epoch: header.epoch, deviceId: null });
-    session.dataKeys.set(header.epoch, dataKey);
-    try { validateWriteKeys(data.writeKeys); validateKeyring(data.keyring); } catch (err) { throw new IntegrityError('keys', err.message); }
-    session.setWriteKeys(data.writeKeys);
-    const cpKid = data.checkpoint.kid;
-    if (!session.writeKeys.has(cpKid) || session.epochOf(cpKid) !== header.epoch) {
-      throw new IntegrityError('keys', 'Controlepunt hoort niet bij de epoch van de back-up');
-    }
-    const content = data.checkpoint.content;
-    try {
-      validateCheckpointContent(content);
-    } catch (err) {
-      throw new IntegrityError('checkpoint', err.message);
-    }
-    await checkCoherence(meta, cpKid, content, data.records, data.audit);
-    for (const entry of data.keyring) {
-      const k = await unwrapKeyringEntry((await session.subkeys(entry.kid)).keyring, header.epoch, entry);
-      session.dataKeys.set(entry.epoch, await importDataKey(k));
-    }
-    session.kid = cpKid;
-    session.checkpointContent = content;
-    const fake = { meta: Object.assign({}, meta, { checkpoint: { kid: cpKid } }), records: data.records, audit: data.audit };
-    await fullCheckInner(fake, session, true);
+    const { data, session } = await reader.body(header, line1, line2, dataKey);
     return { header, data, session, raw, route };
   } catch (err) {
     wipe(raw);
     throw err;
   }
+}
+
+// Interne integriteit van een (ouder) bestand (§11.4), zonder iets te
+// schrijven. Geeft een samenvatting; de sleutels gaan niet mee terug.
+export async function checkBackupFile(bytes, secret) {
+  const { data, raw, route } = await inspectBackup(bytes, secret);
+  wipe(raw);
+  return {
+    route,
+    createdAt: data.createdAt,
+    appVersion: data.appVersion,
+    records: data.records.length,
+    audit: data.audit.length,
+  };
+}
+
+function sameWraps(header, meta) {
+  const k = meta.kdf;
+  const w = meta.wrapped_password;
+  const r = meta.recovery;
+  return Boolean(k && w && r)
+    && header.epoch === meta.epoch
+    && header.kdf.alg === k.alg && header.kdf.iterations === k.iterations && equalBytes(header.kdf.salt, k.salt)
+    && equalBytes(header.wrapped_password.iv, w.iv) && equalBytes(header.wrapped_password.ct, w.ct)
+    && header.recovery.alg === r.alg && equalBytes(header.recovery.salt, r.salt)
+    && equalBytes(header.recovery.iv, r.iv) && equalBytes(header.recovery.ct, r.ct);
+}
+
+// "Gelijk aan een export" (§11.4), direct na het bouwen, met de datasleutel
+// van de sessie: de header bevat byte voor byte de wraps uit meta (dus opent
+// met dezelfde geheimen), het bestand is intern integer, en checkpoint.seq,
+// .h en .state zijn gelijk aan die van de export-regel met die seq in de
+// eigen opslag. Elke fout is BackupMismatchError: het bestand is niet
+// bruikbaar, de opslag zelf is niet aangetast.
+export async function verifyExportedBackup(store, session, bytes) {
+  let result;
+  try {
+    const { line1, line2 } = splitBackupFile(bytes);
+    const reader = backupReader(line1);
+    const header = reader.header(line1);
+    if (header.format !== FORMAT) throw new FormatError('header: niet het huidige formaat');
+    if (!sameWraps(header, store.meta)) throw new FormatError('header: andere wraps dan de opslag');
+    const dataKey = session.dataKeys.get(header.epoch);
+    if (!dataKey) throw new FormatError('header: onbekende epoch');
+    const { data } = await reader.body(header, line1, line2, dataKey);
+    const content = data.checkpoint.content;
+    const rows = sortedAudit(store.audit);
+    const index = rows.findIndex((a) => a.seq === content.seq);
+    if (index < 0) throw new FormatError('geen regel met deze seq in de opslag');
+    const row = rows[index];
+    if (b64(row.h) !== content.h) throw new FormatError('h verschilt van de export-regel');
+    const hPrev = index > 0 ? rows[index - 1].h : ZERO_HASH;
+    const c = await openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev);
+    if (c.action !== 'export') throw new FormatError('regel is geen export');
+    if (c.state !== content.state) throw new FormatError('state verschilt van de export-regel');
+    result = { seq: content.seq, records: data.records.length, audit: data.audit.length };
+  } catch (err) {
+    throw new BackupMismatchError(err.message || 'Back-up niet gelijk aan de export', err);
+  }
+  return result;
+}
+
+// Regel verify_backup (§11.4) en, bij detail equal, last_backup_at (§11.3,
+// besluit gebruiker 2026-11-25: vóór het delen, omdat het deelmenu de app
+// vergrendelt).
+export async function verifyBackupTx(store, session, { detail = 'equal', now } = {}) {
+  const at = now || new Date();
+  const putMeta = detail === 'equal' ? { last_backup_at: iso(at) } : {};
+  return buildTx(store, session, { auditItems: [{ action: 'verify_backup', detail }], putMeta, now: at });
 }
 
 // Terugzetten op een lege opslag (§11.5). Bij de herstelsleutel is
