@@ -135,7 +135,7 @@ voor de alpha). In het kort:
 
 1. Dit plan; daarna `docs/formaat.md`.
 2. App-shell, manifest, service worker met handmatige update, CSP, iconen.
-3. `crypto.js` met tests: sleutels en wraps, herstelsleutel,
+3. ✅ `crypto.js` (bouwstenen) en `vault.js` (bewerkingen in het geheugen) met tests: sleutels en wraps, herstelsleutel,
    schrijfsleutels en reservering (beide gevallen van formaat §3.8),
    registerdigests, records, auditketen, controlepunt, back-upformaat met
    strikt inlezen. Testvectoren in `tests/fixtures/vectoren.json`, ook
@@ -150,6 +150,17 @@ voor de alpha). In het kort:
    `persist()`). Tests bij onderbreking: een transactie die wordt afgebroken
    (onboarding, gewone schrijfactie, terugzetten) laat de opslag ongewijzigd,
    en een nieuwe poging slaagt met een nieuwe salt waar dat hoort.
+   Uit de code-audit ([reviews](../reviews/2026-11-25-reviews.md), A1, A2,
+   A4):
+   - de kluis bepaalt zelf of de volledige controle verschuldigd is en voert
+     die uit vóór de eerste schrijfactie (geen vlag van de aanroeper);
+   - een reservering is duurzaam vastgelegd vóór gebruik; schrijfacties
+     binnen één tabblad lopen via één wachtrij;
+   - een ongeldige reservering leidt tot een nieuwe schrijfsleutel vóór er
+     opnieuw wordt versleuteld (formaat §3.8 daarop aanpassen);
+   - `rotateKeysTx()` weigert een nieuw wachtwoord dat de huidige wrap opent;
+   - end-to-end tests op echte IndexedDB in Chromium: onboarding,
+     ontgrendelen, schrijven, vergrendelen, back-up en terugzetten.
 5. Onboarding, ontgrendelen, vergrendelen, wachtwoord wijzigen, herstel,
    alles wissen, stoppen bij een afwijking. Meting op de OnePlus: PBKDF2 bij
    600.000 en bij het maximum van 10.000.000 rondes.
@@ -160,14 +171,17 @@ voor de alpha). In het kort:
    migratieketen, testbestand. Tests: terugzetten op een lege opslag met
    wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag
    leeg; twee keer dezelfde back-up terugzetten geeft twee verschillende
-   schrijfsleutels; na terugzetten met de herstelsleutel en een nieuw
+   schrijfsleutels; bij export wordt de grens van 256 MiB aan de schrijvende
+   kant gecontroleerd, en een bruikbaar bestand blijkt uit een direct
+   volgende `verify_backup` met detail `equal` (audit A3); na terugzetten met
+   de herstelsleutel en een nieuw
    wachtwoord opent de app daarna normaal met dat nieuwe wachtwoord (en niet
    meer met het oude), en de controles slagen. Meting op de OnePlus: piekgeheugen, en of bij de maximale
    bestandsgrootte een back-up nog te maken én te openen is.
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
-   (gebruiker). Bij taak 3 komt `node --test` erbij.
+   (gebruiker). `node --test` sinds taak 3.
 9. Pages-workflow op versietag en releaseprocedure, inclusief controle op
    andere Pages-sites op het account (apart te vragen).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
@@ -213,6 +227,9 @@ alleen voor dit hulpmiddel).
 - na herstel met een nieuw wachtwoord opent de app weer normaal;
 - de tests bij onderbreking slagen: de app afsluiten tijdens onboarding,
   tijdens een schrijfactie en tijdens terugzetten laat geen half ingerichte
-  opslag achter, en een nieuwe poging slaagt;
+  opslag achter, en een nieuwe poging slaagt; een onderbroken restore laat de
+  doelopslag leeg;
+- een verschuldigde volledige controle die schade vindt, laat de bestaande
+  opslag ongewijzigd;
 - de voorlopige limieten in `docs/formaat.md` §2.4 zijn gemeten en
   vastgesteld, en het formaat is vastgesteld.

@@ -12,8 +12,11 @@ back-ups die met Dahis zijn gemaakt. Een implementatie houdt zich er byte voor
 byte aan. Wijzigen kan dan alleen met een nieuw formaatnummer en een migratie
 (§14).
 
-Testvectoren, ook negatieve, volgen bij taak 3 in
-`tests/fixtures/vectoren.json`. Wat bewust na de alpha komt, staat in §17.
+Testvectoren, ook negatieve, staan in `tests/fixtures/vectoren.json` (gemaakt
+met `tests/maak_vectoren.mjs`). Ze worden gecontroleerd tegen de
+implementatie (`app/js/crypto.js`, in Node en in de browser) en onafhankelijk
+in Python (`tests/test_vectoren.py`). Wat bewust na de alpha komt, staat in
+§17.
 
 ## 1. Dreigingsmodel en garanties
 

@@ -48,6 +48,8 @@ jobs:
         run: eval "$CHECKOUT"
       - name: Syntaxis van alle JS-bestanden
         run: find app tests \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -r -n1 node --check
+      - name: Node-tests (crypto, formaat, testvectoren)
+        run: node --test tests/*.test.mjs
 
   privacy:
     name: Geen persoons- of patiëntgegevens

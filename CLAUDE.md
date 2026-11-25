@@ -51,12 +51,15 @@ Begin van een sessie
 2. Eenmalig per checkout: `git config core.hooksPath .githooks`. De
    pre-commit-hook werkt `app/sw.js` bij met `tools/release.py` en stopt de
    commit als er iets veranderd is.
+3. Lees [`docs/overdracht.md`](docs/overdracht.md) voor de stand van zaken,
+   de werkwijze en de volgende stap.
 
 Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
    service worker de nieuwe bestanden), `python3 -m py_compile tools/*.py`,
-   `python3 -m unittest discover -s tests` en `node --check` op de
-   JS-bestanden. CI (`controle.yml`) controleert hetzelfde.
+   `python3 -m unittest discover -s tests`, `node --check` op de
+   JS-bestanden en `node --test tests/*.test.mjs`. CI (`controle.yml`)
+   controleert hetzelfde.
 2. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
 
