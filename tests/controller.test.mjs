@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import * as C from '../app/js/crypto.js';
 import * as V from '../app/js/vault.js';
 import { MemoryBackend, WriteQueue, AlreadyOpenError } from '../app/js/store.js';
-import { AppController, ERASE_WORD, normalizeGroup } from '../app/js/controller.js';
+import { AppController, ERASE_WORD, MEASURE_CHECK_SIZES, normalizeGroup } from '../app/js/controller.js';
+import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
 
 const PASSWORD = 'correct paard batterij nietje';
@@ -257,6 +258,7 @@ test('afwijking bij ontgrendelen: gestopt, opslag ongewijzigd', async () => {
   await app.unlock({ password: PASSWORD });
   assert.equal(app.state.view, 'halted');
   assert.equal(typeof app.state.haltCode, 'string');
+  assert.equal(app.state.haltCheck, 'quick');
   assert.equal(canon(dev.backend.disk), before);
   assert.equal(app.shouldLockOnHide(), true);
   assert.equal(await app.saveSetting('lock.idleMinutes', 5), false);
@@ -358,4 +360,204 @@ test('alles wissen: slot pas vrij na het verwijderen (review PR #10, P2)', async
   assert.equal(await erasing, true);
   assert.deepEqual(events.filter((e, i) => events.indexOf(e) === i), ['verbinding dicht', 'verwijderd', 'slot vrij']);
   assert.ok(events.indexOf('slot vrij') > events.indexOf('verwijderd'));
+});
+
+// --- Taak 6: logboek en controles ------------------------------------------------------
+
+const DAY = 24 * 60 * 60 * 1000;
+
+test('logboek: regels nieuwste eerst, bladeren, en er wordt niets geschreven', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  for (let i = 0; i < 3; i++) await app.saveSetting('lock.idleMinutes', 4 + i);
+  const total = dev.backend.disk.audit.length;
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.openAuditLog(), true);
+  const first = app.state.audit.entries;
+  assert.equal(first[0].seq, total);
+  assert.equal(first[0].action, 'update');
+  assert.equal(first[first.length - 1].action + ':' + first[first.length - 1].detail, 'create:install');
+  assert.equal(app.state.audit.next, null);
+  assert.equal(await app.moreAuditLog(), false, 'geen oudere regels');
+  assert.equal(canon(dev.backend.disk), before, 'lezen schrijft niets');
+  app.closeAuditLog();
+  assert.equal(app.state.audit, null);
+  await app.lock();
+  assert.equal(app.state.audit, null);
+});
+
+test('logboek: een onleesbare regel stopt de app (chain), opslag ongewijzigd', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const row = dev.backend.store.audit.find((r) => r.seq === 1);
+  row.ct = row.ct.slice();
+  row.ct[0] ^= 1;
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.openAuditLog(), false);
+  assert.equal(app.state.view, 'halted');
+  assert.equal(app.state.haltCode, 'chain');
+  assert.equal(canon(dev.backend.disk), before);
+});
+
+test('verschuldigde controle bij ontgrendelen: zichtbaar, met duur, en gelogd na unlock', async () => {
+  const dev = device();
+  await onboard(dev);
+  dev.now = new Date(T0.getTime() + 8 * DAY);
+  const seen = [];
+  const app = dev.controller();
+  app.subscribe((st) => { if (st.checking) seen.push(st.view); });
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'ready');
+  assert.ok(seen.includes('locked'), 'controle zichtbaar tijdens ontgrendelen');
+  assert.equal(app.state.checking, false);
+  assert.equal(typeof app.state.lastCheckMs, 'number');
+  assert.equal(app.state.lastFullCheckAt, dev.now.getTime());
+  const actions = await auditActions(dev.backend.disk);
+  assert.deepEqual(actions.slice(-2), ['unlock:password', 'integrity_check']);
+});
+
+test('klok teruggezet: laatste controle in de toekomst, dus verschuldigd', async () => {
+  const dev = device();
+  await onboard(dev);
+  dev.now = new Date(T0.getTime() - DAY);
+  const app = await unlocked(dev);
+  assert.equal(app.state.view, 'ready');
+  const actions = await auditActions(dev.backend.disk);
+  assert.deepEqual(actions.slice(-2), ['unlock:password', 'integrity_check']);
+});
+
+test('verschuldigde controle vindt schade aan een oudere regel: gestopt, niets geschreven', async () => {
+  const dev = device();
+  await onboard(dev);
+  let app = await unlocked(dev);
+  await app.saveSetting('lock.idleMinutes', 5);
+  await app.lock();
+  const row = dev.backend.disk.audit.find((r) => r.seq === 2);
+  row.ct = row.ct.slice();
+  row.ct[0] ^= 1;                              // h blijft gelijk: de snelle controle ziet dit niet
+  const before = canon(dev.backend.disk);
+  dev.now = new Date(T0.getTime() + 8 * DAY);
+  app = dev.controller();
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'halted');
+  assert.equal(app.state.haltCode, 'chain');
+  assert.equal(app.state.haltCheck, 'full');
+  assert.equal(app.state.checking, false);
+  assert.equal(canon(dev.backend.disk), before, 'opslag ongewijzigd');
+});
+
+test('controle op verzoek: duur getoond; meting van de controles slaat niets op', async () => {
+  const dev = device();
+  await onboard(dev);
+  let t = 0;
+  const app = await (async () => {
+    const a = dev.controller({
+      timer: () => (t += 250),
+      measureChecks: (o) => measureChecks(Object.assign({}, o, { auditRows: 12, recordVersions: 2 })),
+    });
+    await a.start();
+    await a.unlock({ password: PASSWORD });
+    return a;
+  })();
+  assert.equal(await app.runFullCheck(), true);
+  assert.equal(app.state.lastCheckMs, 250);
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.measureCheck(MEASURE_CHECK_SIZES.length), false);
+  assert.equal(await app.measureCheck(0), true);
+  const r = app.state.checkMeasurements[0];
+  assert.deepEqual(Object.keys(r).sort(), ['buildMs', 'fullMs', 'quickMs']);
+  assert.equal(canon(dev.backend.disk), before, 'meten slaat niets op');
+});
+
+// --- Review PR #12 ------------------------------------------------------------------
+
+function failReloadOnce(dev) {
+  const backend = dev.backend;
+  const original = backend.reload.bind(backend);
+  backend.reload = async () => {
+    backend.reload = original;
+    const err = new Error('Inlezen afgebroken');
+    err.name = 'StoreError';
+    throw err;
+  };
+}
+
+test('P2: inlezen mislukt bij de controle op verzoek: geen lopende controle meer zichtbaar', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  failReloadOnce(dev);
+  assert.equal(await app.runFullCheck(), false);
+  assert.equal(app.state.view, 'ready');
+  assert.equal(app.state.checking, false);
+  assert.equal(app.state.message.key, 'error.unexpected');
+  assert.equal(app.checkKind, null);
+  assert.equal(await app.runFullCheck(), true, 'daarna lukt het wel');
+});
+
+test('P2: inlezen mislukt bij een verschuldigde controle: geen lopende controle meer zichtbaar', async () => {
+  const dev = device();
+  await onboard(dev);
+  dev.now = new Date(T0.getTime() + 8 * DAY);
+  const app = dev.controller();
+  await app.start();
+  failReloadOnce(dev);
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'locked');
+  assert.equal(app.state.checking, false);
+  assert.equal(app.state.message.key, 'error.unexpected');
+  assert.equal(app.checkKind, null);
+});
+
+test('P3: een leesactie van vóór het sluiten vult het logboek niet opnieuw', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const first = app.openAuditLog();
+  app.closeAuditLog();
+  assert.equal(await first, false);
+  assert.equal(app.state.audit, null, 'gesloten blijft gesloten');
+
+  // Sluiten en meteen weer openen terwijl de oude leesactie loopt.
+  const old = app.openAuditLog();
+  app.closeAuditLog();
+  const again = app.openAuditLog();
+  assert.equal(app.state.audit, null, 'geen oude lijst zichtbaar');
+  await again;
+  await old;
+  assert.ok(app.state.audit && app.state.audit.entries.length > 0, 'nieuwe lijst geladen');
+  assert.equal(app.auditOpen, true);
+
+  // Bladeren na sluiten doet niets.
+  app.closeAuditLog();
+  assert.equal(await app.moreAuditLog(), false);
+  assert.equal(app.state.audit, null);
+});
+
+test('codebase-review 1: geblokkeerd wissen wacht met het slot vast tot het lukt', async () => {
+  const dev = device();
+  await onboard(dev);
+  let finish;
+  const app = dev.controller({
+    deleteDatabase: ({ onBlocked }) => new Promise((resolve) => {
+      onBlocked();
+      finish = () => { dev.deletes += 1; dev.backend = new MemoryBackend(); resolve(); };
+    }),
+  });
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  const closes = dev.closes;
+  const erasing = app.eraseAll(ERASE_WORD);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(app.state.message.key, 'erase.waiting');
+  assert.equal(dev.closes, closes, 'slot nog vast tijdens het wachten');
+  assert.equal(app.state.view, 'ready');
+  finish();
+  assert.equal(await erasing, true);
+  assert.equal(dev.closes, closes + 1);
+  assert.equal(app.state.view, 'locking');
 });

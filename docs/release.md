@@ -18,6 +18,14 @@ wordt gepubliceerd; er gaan nooit gegevens naar GitHub.
 - Op de telefoon ziet de app de nieuwe versie bij de volgende controle en
   toont "Nieuwe versie staat klaar"; pas na een tik op Bijwerken wordt
   die actief.
+- Chrome kan een wachtende service worker zelf activeren zodra alle vensters
+  van de app dicht zijn. De worker onthoudt daarom welke versie is
+  goedgekeurd en blijft de bestanden van die versie serveren tot je op
+  Bijwerken tikt; de melding blijft dan staan. Uitzondering: de overgang
+  vanaf `0.1.0`, die deze registratie nog niet kende, kan nog één keer
+  vanzelf gaan.
+- Oude versies worden pas opgeruimd als een nieuwere versie is goedgekeurd;
+  een versie die op dat moment nog wordt gedownload, blijft staan.
 
 ## Eenmalig instellen (gebruiker, op GitHub)
 1. **Pages**: *Settings → Pages → Build and deployment → Source: GitHub

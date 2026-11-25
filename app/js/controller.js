@@ -27,10 +27,17 @@ import {
   AlreadyOpenError, IdbBackend, openStorage, storageStatus, requestPersist,
 } from './store.js';
 import { SETTINGS_KIND, SETTINGS_SCHEMA, defaultSettings, normalizeSettings, withSetting } from './settings.js';
+import { measureChecks } from './benchmark.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
 export const MEASURE_ITERATIONS = Object.freeze([DEFAULT_ITERATIONS, MAX_ITERATIONS]);
+// Meting van de controles (taak 6): 0–10 regels per dag geeft in 5 jaar
+// ongeveer 18.000 regels; 100.000 is de marge.
+export const MEASURE_CHECK_SIZES = Object.freeze([
+  Object.freeze({ auditRows: 20000, recordVersions: 2000 }),
+  Object.freeze({ auditRows: 100000, recordVersions: 10000 }),
+]);
 
 // Weergaven waarin sleutels of geheimen in het geheugen kunnen staan; bij
 // verbergen van de app wordt dan vergrendeld.
@@ -73,7 +80,8 @@ export class AppController {
   constructor(deps = {}) {
     this.deps = Object.assign({
       openStorage: () => openStorage(),
-      deleteDatabase: () => IdbBackend.deleteDatabase(),
+      deleteDatabase: (options) => IdbBackend.deleteDatabase(undefined, options),
+      measureChecks,
       reload: () => globalThis.location.reload(),
       clock: () => new Date(),
       timer: () => globalThis.performance.now(),
@@ -89,6 +97,9 @@ export class AppController {
     this.settingsId = null;
     this.generation = 0;          // hoger bij vergrendelen of wissen
     this.erasing = false;
+    this.checkKind = null;        // lopende controle: 'quick' of 'full'
+    this.auditToken = 0;          // hoger bij openen of sluiten van het logboek
+    this.auditOpen = false;
     this.state = {
       view: 'starting',
       step: null,
@@ -102,7 +113,12 @@ export class AppController {
       storage: null,
       haltCode: null,
       lastFullCheckAt: null,
+      lastCheckMs: null,          // duur van de laatste volledige controle in deze sessie
+      checking: false,            // volledige controle loopt
+      haltCheck: null,            // 'quick' of 'full': waarbij de afwijking werd gevonden
+      audit: null,                // logboek: {entries, next}
       measurements: {},
+      checkMeasurements: {},      // index in MEASURE_CHECK_SIZES -> {buildMs, fullMs, quickMs}
     };
   }
 
@@ -157,7 +173,13 @@ export class AppController {
       }
       if (err instanceof IntegrityError || err instanceof V.ConflictError) {
         this.halt(err);
-      } else if (messages[err.name]) {
+        return false;
+      }
+      // Geen afwijking (bijvoorbeeld inlezen mislukt): geen controle meer
+      // tonen als lopend (review PR #12, P2).
+      this.checkKind = null;
+      if (this.state.checking) this.set({ checking: false });
+      if (messages[err.name]) {
         this.say(messages[err.name]);
       } else {
         this.say('error.unexpected', { name: err.name || 'Error' });
@@ -173,7 +195,28 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
-    this.set({ view: 'halted', haltCode: code, step: null, recoveryKey: null });
+    this.set({
+      view: 'halted', haltCode: code, haltCheck: this.checkKind, checking: false,
+      step: null, recoveryKey: null, audit: null,
+    });
+    this.checkKind = null;
+    this.auditToken += 1;
+    this.auditOpen = false;
+  }
+
+  // Bericht van de wachtrij over een verschuldigde volledige controle.
+  onQueueCheck(event) {
+    if (event.type === 'start') {
+      this.checkKind = 'full';
+      this.set({ checking: true });
+    } else if (event.type === 'done') {
+      this.checkKind = null;
+      this.set({ checking: false, lastCheckMs: Math.round(event.ms) });
+    } else if (event.type === 'failed') {
+      // checkKind blijft staan tot guard() de fout heeft afgehandeld: bij een
+      // afwijking toont het stopscherm dan de volledige controle.
+      this.set({ checking: false });
+    }
   }
 
   // --- Opstarten -----------------------------------------------------------------
@@ -186,6 +229,7 @@ export class AppController {
       else this.set({ view: 'error', message: { key: 'error.storage', params: { detail: err.message || '' } } });
       return;
     }
+    if (this.queue) this.queue.onCheck = (event) => this.onQueueCheck(event);
     const store = this.backend.store;
     if (isEmpty(store)) {
       this.set({ view: 'onboarding', step: 'intro' });
@@ -268,9 +312,12 @@ export class AppController {
     if (this.state.view !== 'locked') return false;
     return this.guard(async (gen) => {
       let session;
+      this.checkKind = 'quick';
       try {
         ({ session } = await V.unlock(this.backend.store, secret));
+        this.checkKind = null;
       } catch (err) {
+        if (!(err instanceof IntegrityError)) this.checkKind = null;
         this.alive(gen);
         if (err instanceof WrongSecretError) {
           await this.queue.runPlain((store, now) => V.failedUnlockTx(store, now));
@@ -367,19 +414,76 @@ export class AppController {
 
   // --- Controle, opslag en meting ---------------------------------------------------
 
-  // Volledige controle op verzoek (§9.4) op een vers ingelezen opslag.
+  // Volledige controle op verzoek (§9.4) op een vers ingelezen opslag, met
+  // de duur (inlezen en controleren).
   async runFullCheck() {
     if (this.state.view !== 'ready') return false;
     return this.guard(async (gen) => {
+      let ms = null;
       await this.queue.run(this.session, async (store, s, now) => {
-        const fresh = await this.backend.reload();
-        await V.fullCheck(fresh, s);
+        this.checkKind = 'full';
+        this.set({ checking: true });
+        const t0 = this.deps.timer();
+        let fresh;
+        try {
+          fresh = await this.backend.reload();
+          await V.fullCheck(fresh, s);
+        } finally {
+          // Ook bij een fout; checkKind ruimt guard() op (review PR #12, P2).
+          this.set({ checking: false });
+        }
+        ms = Math.round(this.deps.timer() - t0);
+        this.checkKind = null;
         return V.integrityCheckTx(fresh, s, { now });
       });
       this.alive(gen);
-      this.set({ lastFullCheckAt: this.session.lastFullCheckAt });
+      this.set({ lastFullCheckAt: this.session.lastFullCheckAt, lastCheckMs: ms });
       this.say('check.ok');
     });
+  }
+
+  // --- Logboek ---------------------------------------------------------------------
+
+  // Eerste bladzijde (nieuwste regels) van het auditlog. Alleen lezen; een
+  // onleesbare regel is een afwijking (§10).
+  // Elk openen en sluiten verhoogt auditToken; een leesactie die daarvoor
+  // begon, laat haar uitslag vallen (review PR #12, P3).
+  async openAuditLog() {
+    if (this.state.view !== 'ready') return false;
+    const token = ++this.auditToken;
+    this.auditOpen = true;
+    this.set({ audit: null });
+    return this.loadAuditPage(token, null);
+  }
+
+  // Volgende bladzijde met oudere regels.
+  async moreAuditLog() {
+    const current = this.state.audit;
+    if (this.state.view !== 'ready' || !this.auditOpen || !current || current.next === null) return false;
+    return this.loadAuditPage(this.auditToken, current.next);
+  }
+
+  async loadAuditPage(token, before) {
+    let stale = false;
+    const ok = await this.guard(async (gen) => {
+      const page = await V.readAuditPage(this.backend.store, this.session, before === null ? {} : { before });
+      this.alive(gen);
+      if (token !== this.auditToken || !this.auditOpen) { stale = true; return; }
+      const earlier = before === null ? [] : this.state.audit.entries;
+      this.set({ audit: { entries: earlier.concat(page.entries), next: page.next } });
+    });
+    // Opnieuw geopend terwijl deze (verouderde) leesactie liep: die nieuwe
+    // opening kon niet starten (busy), dus nu alsnog lezen.
+    if (stale && this.auditOpen && this.state.audit === null && this.state.view === 'ready') {
+      return this.loadAuditPage(this.auditToken, null);
+    }
+    return ok && !stale;
+  }
+
+  closeAuditLog() {
+    this.auditToken += 1;
+    this.auditOpen = false;
+    if (this.state.audit !== null) this.set({ audit: null });
   }
 
   async refreshStorage() {
@@ -403,6 +507,18 @@ export class AppController {
     });
   }
 
+  // Duur van de controles bij een groot nep-logboek in het geheugen
+  // (benchmark.js); er wordt niets opgeslagen.
+  async measureCheck(index) {
+    const size = MEASURE_CHECK_SIZES[index];
+    if (!size) return false;
+    return this.guard(async (gen) => {
+      const result = await this.deps.measureChecks(Object.assign({ timer: this.deps.timer, now: this.deps.clock() }, size));
+      this.alive(gen);
+      this.set({ checkMeasurements: Object.assign({}, this.state.checkMeasurements, { [index]: result }) });
+    });
+  }
+
   // --- Vergrendelen en wissen ---------------------------------------------------------
 
   // Laat sessie en geheimen los, sluit opslag en slot, en herlaadt de pagina:
@@ -414,7 +530,12 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
-    this.set({ view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null });
+    this.auditToken += 1;
+    this.auditOpen = false;
+    this.set({
+      view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
+      audit: null, checking: false,
+    });
     try {
       if (this.storage) await this.storage.close();
     } catch (err) {
@@ -444,7 +565,9 @@ export class AppController {
     let ok = true;
     try {
       if (storage) storage.backend.close();
-      await this.deps.deleteDatabase();
+      // Het slot blijft vast tot IndexedDB succes of een definitieve fout
+      // meldt; een geblokkeerd verzoek kan later nog slagen.
+      await this.deps.deleteDatabase({ onBlocked: () => this.say('erase.waiting') });
     } catch (err) {
       ok = false;
     }

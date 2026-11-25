@@ -342,3 +342,64 @@ test('niet toegepaste nieuwe schrijfsleutel laat geen subsleutel achter', async 
   assert.equal(session.kid, next);
   await V.fullCheck(store, session);
 });
+
+// --- Logboek lezen (taak 6) -------------------------------------------------------------
+
+test('logboek lezen: nieuwste eerst, bladeren, en er wordt niets geschreven', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  for (let i = 0; i < 4; i++) await putRecord(store, session, { kind: 'test_persoon', data: { v: i } });
+  const before = clone(store);
+  const total = store.audit.length;
+  const first = await V.readAuditPage(store, session, { limit: 3 });
+  assert.deepEqual(first.entries.map((e) => e.seq), [total, total - 1, total - 2]);
+  assert.equal(first.next, total - 2);
+  assert.equal(first.entries[0].action, 'create');
+  assert.equal(first.entries[0].kind, 'test_persoon');
+  assert.ok(C.UUID_RE.test(first.entries[0].record_id));
+  const seen = first.entries.slice();
+  let next = first.next;
+  while (next !== null) {
+    const page = await V.readAuditPage(store, session, { before: next, limit: 3 });
+    seen.push(...page.entries);
+    next = page.next;
+  }
+  assert.deepEqual(seen.map((e) => e.seq), Array.from({ length: total }, (_, i) => total - i));
+  const last = seen[seen.length - 1];
+  assert.equal(last.action + ':' + last.detail, 'create:install');
+  assert.ok(seen.some((e) => e.action === 'unlock' && e.detail === 'password'));
+  assert.deepEqual(Object.keys(last).sort(), ['action', 'detail', 'kid', 'kind', 'record_id', 'result', 'seq', 'ts', 'version']);
+  assert.deepEqual(store, before, 'lezen schrijft niets');
+});
+
+test('logboek lezen: een onleesbare regel of een gat is een afwijking (chain)', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  await putRecord(store, session, { kind: 'test_persoon', data: { v: 1 } });
+  const damaged = clone(store);
+  const row = damaged.audit.find((r) => r.seq === 2);
+  row.ct = row.ct.slice();
+  row.ct[0] ^= 1;
+  await expectIntegrity(V.readAuditPage(damaged, session), 'chain');
+  const gap = clone(store);
+  gap.audit = gap.audit.filter((r) => r.seq !== 2);
+  await expectIntegrity(V.readAuditPage(gap, session), 'chain');
+  // Wel leesbaar: alleen regels ná de beschadiging.
+  const page = await V.readAuditPage(damaged, session, { limit: 1 });
+  assert.equal(page.entries.length, 1);
+});
+
+// --- Review codebase PR #12, 2: grens aan de schrijvende kant -------------------------
+
+test('back-up boven de grens wordt niet gemaakt; op de grens wel, en dan ook leesbaar', async () => {
+  const { store } = await setup();
+  const session = await unlockAndLog(store, { password: PASSWORD });
+  const file = await V.buildBackupFile(store, session, { now: NOW });
+  const size = C.utf8(file).length;
+  assert.equal(file.length, size, 'alleen ASCII');
+  await assert.rejects(V.buildBackupFile(store, session, { now: NOW, maxBytes: size - 1 }),
+    (e) => e instanceof C.FormatError && /256 MiB/.test(e.message));
+  const exact = await V.buildBackupFile(store, session, { now: NOW, maxBytes: size });
+  assert.equal(C.utf8(exact).length, size);
+  await V.inspectBackup(C.utf8(exact), { password: PASSWORD });
+});

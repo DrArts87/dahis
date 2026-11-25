@@ -620,6 +620,18 @@ export async function fullCheck(store, session) {
   return fullCheckInner(store, session, false);
 }
 
+// Een fout bij het inlezen van een regel of versie is altijd een afwijking
+// met de code van die soort, ook als de inhoud wel ontsleutelt maar niet aan
+// het formaat voldoet (FormatError).
+async function asIntegrity(code, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof IntegrityError) throw err;
+    throw new IntegrityError(code, err.message);
+  }
+}
+
 async function fullCheckInner(store, session, backup) {
   const rows = sortedAudit(store.audit);
   let hPrev = ZERO_HASH;
@@ -630,11 +642,12 @@ async function fullCheckInner(store, session, backup) {
     if (!equalBytes(await auditHash(hPrev, row.seq, row.kid, row.iv, row.ct), row.h)) {
       throw new IntegrityError('chain', 'Hash van auditregel ' + row.seq + ' klopt niet');
     }
-    await openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev);
+    const prev = hPrev;
+    await asIntegrity('chain', async () => openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, prev));
     hPrev = row.h;
   }
   for (const row of store.records) {
-    await openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row);
+    await asIntegrity('record', async () => openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row));
   }
   await quickCheckInner(store, session, backup);
   session.fullCheckPending = true;
@@ -645,6 +658,43 @@ async function fullCheckInner(store, session, backup) {
 export async function integrityCheckTx(store, session, { now } = {}) {
   if (!session.fullCheckPending) await fullCheck(store, session);
   return buildTx(store, session, { now });
+}
+
+// --- Logboek lezen ---------------------------------------------------------------------
+
+export const AUDIT_PAGE_SIZE = 50;
+
+// Ontsleutelt een bladzijde van het auditlog, nieuwste eerst: hooguit `limit`
+// regels met seq < before (zonder before: vanaf de laatste regel). Een pure
+// leesfunctie; er wordt niets geschreven en het lezen wordt niet gelogd
+// (besluit gebruiker 2026-11-25). Elke regel ontsleutelt met de h van de
+// regel ervoor in de AAD; lukt dat niet, of ontbreekt een volgnummer, dan is
+// dat een afwijking `chain` (§10). De hashketen zelf controleert fullCheck.
+// Geeft {entries, next}: next is de before voor de volgende bladzijde, of
+// null als er geen oudere regels zijn.
+export async function readAuditPage(store, session, { before = null, limit = AUDIT_PAGE_SIZE } = {}) {
+  const rows = sortedAudit(store.audit);
+  const n = rows.length;
+  const end = before === null ? n : Math.min(n, Math.max(0, before - 1));
+  const start = Math.max(0, end - Math.max(1, limit));
+  const entries = [];
+  for (let i = end - 1; i >= start; i--) {
+    const row = rows[i];
+    try { validateAuditRow(row); } catch (err) { throw new IntegrityError('chain', err.message); }
+    if (row.seq !== i + 1) throw new IntegrityError('chain', 'Gat in de volgnummers');
+    let hPrev = ZERO_HASH;
+    if (i > 0) {
+      const p = rows[i - 1];
+      if (!p || p.seq !== i || !isBytes(p.h, 32)) throw new IntegrityError('chain', 'Gat in de volgnummers');
+      hPrev = p.h;
+    }
+    const c = await asIntegrity('chain', async () => openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev));
+    entries.push({
+      seq: row.seq, kid: row.kid, ts: c.ts, action: c.action, kind: c.kind, record_id: c.record_id,
+      version: c.version, result: c.result, detail: c.detail,
+    });
+  }
+  return { entries, next: start > 0 ? start + 1 : null };
 }
 
 // --- Records ----------------------------------------------------------------------------
@@ -815,7 +865,7 @@ export async function exportTx(store, session, { now } = {}) {
   return buildTx(store, session, { auditItems: [{ action: 'export', state }], now, fullCheckAction: true });
 }
 
-export async function buildBackupFile(store, session, { now, appVersion = '0.0.0' } = {}) {
+export async function buildBackupFile(store, session, { now, appVersion = '0.0.0', maxBytes } = {}) {
   const meta = store.meta;
   const header = {
     magic: BACKUP_MAGIC,
@@ -837,7 +887,7 @@ export async function buildBackupFile(store, session, { now, appVersion = '0.0.0
     audit: sortedAudit(store.audit).map(auditToJson),
     checkpoint: { kid: meta.checkpoint.kid, content: session.checkpointContent },
   };
-  return encodeBackupFile(session.dataKeys.get(meta.epoch), header, payload);
+  return encodeBackupFile(session.dataKeys.get(meta.epoch), header, payload, undefined, { maxBytes });
 }
 
 // Leest en controleert een back-up volledig in het geheugen (§11.5 stap 1–5).

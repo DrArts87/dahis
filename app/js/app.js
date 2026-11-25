@@ -3,7 +3,7 @@
 // alleen schermen. Teksten: i18n/nl.js.
 import { el, replace, symbol } from './dom.js';
 import { t } from './i18n.js';
-import { AppController, ERASE_WORD, MEASURE_ITERATIONS } from './controller.js';
+import { AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES } from './controller.js';
 import { SETTINGS } from './settings.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
@@ -20,7 +20,7 @@ const app = new AppController();
 
 const ui = {
   tab: 'patients',          // patients | recipes | settings | more
-  sub: null,                // password | about | measure | erase
+  sub: null,                // password | about | measure | erase | audit
   unlockMode: 'password',   // password | recovery
   clearInputs: false,
 };
@@ -28,7 +28,8 @@ const ui = {
 const sw = {
   status: 'installing',     // installing | ready | unsupported | error
   info: null,               // {version, codeHash} van de actieve versie
-  waiting: null,            // {version, codeHash} van een wachtende versie
+  waiting: null,            // {version, codeHash} van een versie die op akkoord wacht
+  pendingActive: false,     // die versie is al actief maar serveert nog de oude (Chrome activeerde zelf)
   updateStatus: '',
   installPrompt: null,
   standalone: window.matchMedia('(display-mode: standalone)').matches,
@@ -53,24 +54,37 @@ function serviceWorkerUrl() {
   return policy.createScriptURL('sw.js');
 }
 
-function askInfo(worker) {
+function ask(worker, type, timeout = 3000) {
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
-    const timer = setTimeout(() => reject(new Error('Geen antwoord van de service worker')), 3000);
+    const timer = setTimeout(() => reject(new Error('Geen antwoord van de service worker')), timeout);
     channel.port1.onmessage = (event) => {
       clearTimeout(timer);
       resolve(event.data);
     };
-    worker.postMessage({ type: 'info' }, [channel.port2]);
+    worker.postMessage({ type }, [channel.port2]);
   });
 }
 
+function askInfo(worker) {
+  return ask(worker, 'info');
+}
+
+// De actieve worker meldt welke versie hij serveert, en of een nieuwere
+// versie (die Chrome zelf heeft geactiveerd) nog op akkoord wacht.
 async function refreshInfo() {
   const controller = navigator.serviceWorker.controller;
   if (!controller) return;
   try {
-    sw.info = await askInfo(controller);
+    const info = await askInfo(controller);
+    sw.info = { version: info.version, codeHash: info.codeHash };
     sw.status = 'ready';
+    if (info.pending && !(registration && registration.waiting)) {
+      sw.waiting = info.pending;
+      sw.pendingActive = true;
+    } else if (!info.pending) {
+      sw.pendingActive = false;
+    }
   } catch (err) {
     sw.status = 'error';
   }
@@ -79,7 +93,10 @@ async function refreshInfo() {
 
 async function showWaiting(worker) {
   try {
-    sw.waiting = await askInfo(worker);
+    // Een wachtende worker meldt de goedgekeurde versie als geserveerd en
+    // zichzelf als 'pending'.
+    const info = await askInfo(worker);
+    sw.waiting = info.pending || { version: info.version, codeHash: info.codeHash };
     sw.updateStatus = '';
   } catch (err) {
     sw.waiting = { version: '?', codeHash: '' };
@@ -130,10 +147,26 @@ async function initServiceWorker() {
   await refreshInfo();
 }
 
-function activateUpdate() {
-  if (!registration || !registration.waiting) return;
-  updateRequested = true;
-  registration.waiting.postMessage({ type: 'activate' });
+async function activateUpdate() {
+  if (!registration) return;
+  if (registration.waiting) {
+    updateRequested = true;
+    registration.waiting.postMessage({ type: 'activate' });
+    return;
+  }
+  const controller = navigator.serviceWorker.controller;
+  if (!sw.pendingActive || !controller) return;
+  try {
+    const reply = await ask(controller, 'activate', 10000);
+    if (reply && reply.ok) {
+      window.location.reload();
+      return;
+    }
+  } catch (err) {
+    // valt door naar de melding
+  }
+  sw.updateStatus = t('update.failed');
+  render();
 }
 
 async function checkForUpdate() {
@@ -214,6 +247,48 @@ const HALT_TEXT = {
   conflict: k('halt.code.conflict'),
 };
 
+const HALT_CHECK = {
+  quick: k('halt.check.quick'),
+  full: k('halt.check.full'),
+};
+
+// Acties uit formaat §8.2 in gewone taal.
+const AUDIT_TEXT = {
+  create: k('audit.action.create'),
+  view: k('audit.action.view'),
+  update: k('audit.action.update'),
+  delete: k('audit.action.delete'),
+  destroy: k('audit.action.destroy'),
+  unlock: k('audit.action.unlock'),
+  unlock_failed: k('audit.action.unlock_failed'),
+  lock: k('audit.action.lock'),
+  password_change: k('audit.action.password_change'),
+  recovery_used: k('audit.action.recovery_used'),
+  key_rotation: k('audit.action.key_rotation'),
+  write_key: k('audit.action.write_key'),
+  export: k('audit.action.export'),
+  import: k('audit.action.import'),
+  verify_backup: k('audit.action.verify_backup'),
+  integrity_check: k('audit.action.integrity_check'),
+  print: k('audit.action.print'),
+  app_update: k('audit.action.app_update'),
+};
+
+// Bijzondere combinaties van actie en detail.
+const AUDIT_DETAIL_TEXT = {
+  'create:install': k('audit.detail.install'),
+  'unlock:password': k('audit.detail.unlockPassword'),
+  'unlock:recovery': k('audit.detail.unlockRecovery'),
+  'password_change:user': k('audit.detail.passwordUser'),
+  'password_change:recovery': k('audit.detail.passwordRecovery'),
+  'password_change:kdf_upgrade': k('audit.detail.passwordKdf'),
+};
+
+const AUDIT_RESULT = {
+  error: k('audit.result.error'),
+  denied: k('audit.result.denied'),
+};
+
 const NAV = [
   { tab: 'patients', icon: 'i-people', label: k('nav.patients') },
   { tab: 'recipes', icon: 'i-rx', label: k('nav.recipes') },
@@ -225,13 +300,24 @@ function number(value, digits = 1) {
   return new Intl.NumberFormat('nl-NL', { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(value);
 }
 
-function seconds(ms) {
-  return number(ms / 1000, 1);
+function seconds(ms, digits = 1) {
+  return number(ms / 1000, digits);
 }
 
 function dateTime(ms) {
   if (ms === null || ms === undefined) return t('check.never');
   return new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ms));
+}
+
+function checkValue() {
+  const when = dateTime(app.state.lastFullCheckAt);
+  const ms = app.state.lastCheckMs;
+  return ms === null || ms === undefined ? when : t('check.withDuration', { when, s: seconds(ms, 2) });
+}
+
+function checkingNote() {
+  if (!app.state.checking) return null;
+  return el('p', { class: 'note', role: 'status' }, t('check.running'));
 }
 
 function megabytes(bytes) {
@@ -324,7 +410,7 @@ function nav() {
     NAV.map((item) => el('button', {
       type: 'button',
       'aria-current': ui.tab === item.tab ? 'page' : null,
-      onclick: () => { ui.tab = item.tab; ui.sub = null; app.say(null); onTab(); render(); },
+      onclick: () => { ui.tab = item.tab; ui.sub = null; app.closeAuditLog(); app.say(null); onTab(); render(); },
     }, symbol(item.icon), t(item.label))));
 }
 
@@ -352,7 +438,7 @@ function page({ head, body, navbar = false, green = false }) {
     head || null,
     el('main', { class: 'content' },
       el('img', { class: 'rand rand-boven', src: 'img/rand-boven.svg', alt: '' }),
-      el('div', { class: 'inner' }, updateBanner(), messageBox(), body),
+      el('div', { class: 'inner' }, updateBanner(), checkingNote(), messageBox(), body),
       el('img', { class: 'rand rand-onder', src: 'img/rand-onder.svg', alt: '' })),
     navbar ? nav() : null);
 }
@@ -363,7 +449,7 @@ function heroPage(title, ...children) {
     el('main', { class: 'content' },
       el('div', { class: 'inner' },
         el('div', { class: 'hero' }, symbol('logo-w', 'mark'), el('h1', {}, title)),
-        updateBanner(), children, messageBox())));
+        updateBanner(), children, checkingNote(), messageBox())));
 }
 
 // --- Schermen: opstarten -------------------------------------------------------------------
@@ -578,7 +664,10 @@ function moreTab() {
     el('section', { class: 'card' }, el('ul', { class: 'list' },
       listItem('i-archive', t('more.backup'), { value: t('more.backupLater') }),
       listItem('i-shield', t('more.check'), {
-        value: dateTime(app.state.lastFullCheckAt), onclick: () => app.runFullCheck(),
+        value: checkValue(), onclick: () => app.runFullCheck(),
+      }),
+      listItem('i-clock', t('more.audit'), {
+        onclick: async () => { ui.sub = 'audit'; app.say(null); render(); await app.openAuditLog(); },
       }))),
     el('h3', {}, t('more.support')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
@@ -651,6 +740,55 @@ function aboutScreen() {
   });
 }
 
+function auditLabel(e) {
+  if (e.action === 'unlock_failed') return t('audit.detail.failedCount', { n: e.detail });
+  const special = AUDIT_DETAIL_TEXT[e.action + ':' + e.detail];
+  return special ? t(special) : t(AUDIT_TEXT[e.action] || k('audit.action.unknown'));
+}
+
+// Technische regel voor debugging en forensisch onderzoek: volgnummer,
+// schrijfsleutel, soort en versie, het begin van het record-id en de detailcode.
+function auditTech(e) {
+  const parts = ['#' + e.seq, 'kid ' + e.kid];
+  if (e.kind) parts.push(e.kind + (e.version ? ' v' + e.version : ''));
+  if (e.record_id) parts.push(e.record_id.slice(0, 8));
+  if (e.detail !== null && e.detail !== undefined) parts.push(e.action + ':' + e.detail);
+  return parts.join(' · ');
+}
+
+function auditScreen() {
+  const log = app.state.audit;
+  const entries = log ? log.entries : [];
+  return page({
+    head: header({
+      title: t('more.audit'), lock: true,
+      back: backLink(t('nav.more'), () => { ui.sub = null; app.closeAuditLog(); app.say(null); render(); }),
+    }),
+    body: [
+      el('p', { class: 'muted' }, t('audit.text')),
+      !log ? el('p', { role: 'status' }, t('common.busy')) : el('section', { class: 'card' }, el('ol', { class: 'list log' },
+        entries.map((e) => el('li', {},
+          el('span', { class: 'when' }, dateTime(Date.parse(e.ts))),
+          el('span', { class: e.result === 'ok' ? 'label' : 'label danger-text' },
+            auditLabel(e), e.result !== 'ok' ? ' (' + t(AUDIT_RESULT[e.result]) + ')' : ''),
+          el('span', { class: 'tech hash' }, auditTech(e)))))),
+      log && log.next !== null ? button(t('audit.more'), () => app.moreAuditLog()) : null,
+      log && log.next === null ? el('p', { class: 'muted' }, t('audit.end', { n: entries.length })) : null,
+    ],
+    navbar: true,
+  });
+}
+
+function checkMeasureItem(size, i) {
+  const r = app.state.checkMeasurements[i];
+  const fmt = new Intl.NumberFormat('nl-NL');
+  return listItem(null, t('measure.checkSize', { audit: fmt.format(size.auditRows), records: fmt.format(size.recordVersions) }), {
+    value: r ? t('measure.checkResult', { full: seconds(r.fullMs, 2), quick: seconds(r.quickMs, 2), build: seconds(r.buildMs) })
+      : t('measure.notYet'),
+    onclick: () => app.measureCheck(i),
+  });
+}
+
 function measureScreen() {
   const m = app.state.measurements;
   return page({
@@ -666,6 +804,10 @@ function measureScreen() {
           onclick: () => app.measure(n),
         })))),
       el('p', { class: 'muted' }, t('measure.note')),
+      el('h3', {}, t('measure.checkTitle')),
+      el('p', {}, t('measure.checkText')),
+      el('section', { class: 'card' }, el('ul', { class: 'list' }, MEASURE_CHECK_SIZES.map(checkMeasureItem))),
+      el('p', { class: 'muted' }, t('measure.checkNote')),
     ],
     navbar: true,
   });
@@ -692,6 +834,7 @@ function haltedScreen() {
     head: header({ title: t('halt.title'), chip: t('halt.chip') }),
     body: [
       el('p', { class: 'note warn' }, t('halt.found', { code }), ' ', t(HALT_TEXT[code] || k('halt.code.unknown'))),
+      HALT_CHECK[app.state.haltCheck] ? el('p', { class: 'muted' }, t(HALT_CHECK[app.state.haltCheck])) : null,
       el('p', {}, t('halt.text')),
       el('p', { class: 'muted' }, t('halt.options')),
       button(t('common.lock'), () => app.lock(), 'primary'),
@@ -704,6 +847,7 @@ function readyScreen() {
   if (ui.sub === 'password') return changePasswordScreen();
   if (ui.sub === 'about') return aboutScreen();
   if (ui.sub === 'measure') return measureScreen();
+  if (ui.sub === 'audit') return auditScreen();
   if (ui.sub === 'erase') return eraseScreen(false);
   const titles = {
     patients: t('nav.patients'), recipes: t('nav.recipes'), settings: t('nav.settings'), more: t('nav.more'),
