@@ -108,6 +108,7 @@ function relativePath(url) {
 }
 
 async function installFiles() {
+  await register();
   const cache = await caches.open(CACHE);
   try {
     for (const [path, expected] of Object.entries(FILES)) {
@@ -159,9 +160,42 @@ async function serving() {
   return OWN;
 }
 
-async function removeOtherCaches(keep) {
+// Volgorde van installaties (oud → nieuw), in de cache dahis-akkoord. Een
+// installatie schrijft zich in vóór ze haar cache aanmaakt; installaties
+// lopen één voor één, dus alleen register() schrijft deze lijst.
+function registryUrl() {
+  return new URL('__installaties', scopeUrl()).href;
+}
+
+async function readRegistry() {
+  try {
+    const response = await (await caches.open(APPROVAL_CACHE)).match(registryUrl());
+    const list = response ? await response.json() : [];
+    return Array.isArray(list) ? list.filter((n) => typeof n === 'string') : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+async function register() {
+  const existing = await caches.keys();
+  const list = (await readRegistry()).filter((n) => n !== CACHE && existing.includes(n));
+  list.push(CACHE);
+  const cache = await caches.open(APPROVAL_CACHE);
+  await cache.put(registryUrl(), new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json' } }));
+}
+
+// Ruimt alleen caches op van installaties van vóór deze versie (en van
+// versies zonder registratie, zoals 0.1.0), behalve de goedgekeurde. Een
+// nieuwere versie die nog wordt geïnstalleerd of wacht, blijft dus staan
+// (review PR #12, ronde 3).
+async function removeOlderCaches(approvedCache) {
+  const list = await readRegistry();
+  const me = list.indexOf(CACHE);
   for (const name of await caches.keys()) {
-    if (name.startsWith(CACHE_PREFIX) && name !== APPROVAL_CACHE && !keep.includes(name)) await caches.delete(name);
+    if (!name.startsWith(CACHE_PREFIX) || name === APPROVAL_CACHE || name === CACHE || name === approvedCache) continue;
+    const i = list.indexOf(name);
+    if (i === -1 || (me !== -1 && i < me)) await caches.delete(name);
   }
 }
 
@@ -174,20 +208,20 @@ self.addEventListener('activate', (event) => {
     let keep = CACHE;
     if (a && a.cache !== CACHE && await caches.has(a.cache)) keep = a.cache;
     else await writeApproval(OWN);
-    await removeOtherCaches([CACHE, keep]);
+    await removeOlderCaches(keep);
     await self.clients.claim();
   })());
 });
 
 // Goedkeuring van deze versie (tik op Bijwerken): eerst vastleggen, dan
-// activeren. Een wachtende worker ruimt de oude bestanden op bij 'activate';
+// activeren. Een wachtende worker ruimt de oudere bestanden op bij 'activate';
 // een worker die al actief was (door Chrome geactiveerd) doet dat hier.
 // Zonder self.serviceWorker (oudere browsers) volgt het opruimen bij de
 // volgende versie.
 async function approve() {
   await writeApproval(OWN);
   const me = self.serviceWorker;
-  if (me && me.state === 'activated') await removeOtherCaches([CACHE]);
+  if (me && me.state === 'activated') await removeOlderCaches(CACHE);
   await self.skipWaiting();
 }
 

@@ -24,6 +24,8 @@ wordt gepubliceerd; er gaan nooit gegevens naar GitHub.
   Bijwerken tikt; de melding blijft dan staan. Uitzondering: de overgang
   vanaf `0.1.0`, die deze registratie nog niet kende, kan nog één keer
   vanzelf gaan.
+- Oude versies worden pas opgeruimd als een nieuwere versie is goedgekeurd;
+  een versie die op dat moment nog wordt gedownload, blijft staan.
 
 ## Eenmalig instellen (gebruiker, op GitHub)
 1. **Pages**: *Settings → Pages → Build and deployment → Source: GitHub
