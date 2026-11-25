@@ -1,6 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 6 (auditlog en controles in de app). Dit document is het
+Bijgewerkt: 2026-11-25, na taak 6 (auditlog en controles in de app) en de
+metingen op de OnePlus. Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -18,21 +19,23 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #9 | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4) |
 | #10 | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
-| (nieuw) | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| #12 | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert); versie 0.2.0 |
+| (nieuw) | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 
-**Live**: Pages is ingericht; release `v0.1.0` (codehash
-`820be09d88b4a9e41cf748e047dd1c68a99181cb2b7c3456daec45bc9c363e0d`) staat op
+**Live**: Pages is ingericht; release `v0.2.0` (codehash
+`7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691`) staat op
 `https://drarts87.github.io/dahis/`. De gebruiker heeft de app op de OnePlus
 geïnstalleerd, **alleen met testgegevens**.
 
-**Metingen op de OnePlus 13R**: PBKDF2 600.000 rondes 0,1 s, 10.000.000
-rondes 1,5 s (formaat §2.4; grens vastgesteld). Open: de duur van de
-controles (Meer → Snelheid meten → Controle van de opslag, bij 20.000 en
-100.000 regels), naar formaat §9.4.
+**Metingen op de OnePlus 13R** (versie 0.2.0): PBKDF2 600.000 rondes
+0,1 s, 10.000.000 rondes 1,4 s (eerder 1,5 s; formaat §2.4, grens
+vastgesteld). Controles (formaat §9.4): 20.000 regels volledig 0,8 s, snel
+0,04 s; 100.000 regels volledig 4,6 s, snel 0,14 s. Termijn van 7 dagen
+bevestigd.
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1–6, 8 en 9 klaar (6 nog zonder meting van de controles op de
-OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
+taak 1–6, 8 en 9 klaar, inclusief de metingen op de OnePlus;
+**volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 
 ## Belangrijkste documenten
 
@@ -44,7 +47,7 @@ OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 - [`docs/formaat.md`](formaat.md): het versleutelings- en opslagformaat.
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
-  afspraken daarover; A1 (op één meting na), A2 en A4 verwerkt, A3 deels
+  afspraken daarover; A1, A2 en A4 verwerkt, A3 deels
   (grens aan de schrijvende kant), rest in taak 7.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
   NEN 7510 (met restrisico's van sessies).
@@ -117,12 +120,8 @@ OnePlus); **volgende: taak 7** (back-up in de app, audit A3), daarna 10.
 
 ## Volgende stap
 
-Taak 6 is gebouwd; `app/sw.js` staat op versie **0.2.0**. Na de merge:
-release `v0.2.0` maken (zie `docs/release.md`) en op de OnePlus de controles meten (Meer → Snelheid
-meten → Controle van de opslag, bij beide groottes); de uitslag gaat naar
-formaat §9.4, waarna de termijn van 7 dagen wordt bevestigd of bijgesteld.
-
-Daarna taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
+Taak 6 is klaar en `v0.2.0` staat live; de metingen staan in formaat §2.4
+en §9.4. Volgende: taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
 verbergt de app en vergrendelt die nu) en 10 (acceptatietest op de
 OnePlus).
 
