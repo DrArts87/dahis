@@ -37,6 +37,12 @@ export const MEASURE_ITERATIONS = Object.freeze([DEFAULT_ITERATIONS, MAX_ITERATI
 const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'halted']);
 const SECRET_STEPS = new Set(['key', 'check', 'done']);
 
+// Een handeling die liep toen de app werd vergrendeld of gewist; ze mag
+// niets meer schrijven of tonen (review PR #10, P1).
+class StaleError extends Error {
+  constructor() { super('Vergrendeld tijdens de handeling'); this.name = 'StaleError'; }
+}
+
 function isEmpty(store) {
   return Object.keys(store.meta).length === 0 && store.records.length === 0 && store.audit.length === 0;
 }
@@ -81,6 +87,8 @@ export class AppController {
     this.pending = null;          // onboarding: {tx, recoveryKey, groups}
     this.recoverySecret = null;   // herstelsleutel tot het nieuwe wachtwoord is gezet
     this.settingsId = null;
+    this.generation = 0;          // hoger bij vergrendelen of wissen
+    this.erasing = false;
     this.state = {
       view: 'starting',
       step: null,
@@ -117,20 +125,36 @@ export class AppController {
   get backend() { return this.storage && this.storage.backend; }
   get queue() { return this.storage && this.storage.queue; }
 
+  // Ook tijdens een lopende handeling (ontgrendelen, sleutel afleiden):
+  // die kan anders verborgen alsnog een sessie openen (review PR #10, P1).
   shouldLockOnHide() {
+    if (this.state.view === 'locking') return false;
+    if (this.state.busy) return true;
     if (SECRET_VIEWS.has(this.state.view)) return true;
     return this.state.view === 'onboarding' && SECRET_STEPS.has(this.state.step);
   }
 
-  // Voert een handeling uit met busy-vlag. Een afwijking of conflict stopt
-  // de app (§10); andere fouten worden een melding.
+  // Gooit StaleError als de app sinds `gen` is vergrendeld of gewist.
+  alive(gen) {
+    if (gen !== this.generation) throw new StaleError();
+  }
+
+  // Voert een handeling uit met busy-vlag. fn(gen) controleert met
+  // alive(gen) na elke wachtstap of de app intussen is vergrendeld. Een
+  // afwijking of conflict stopt de app (§10); andere fouten worden een
+  // melding.
   async guard(fn, { messages = {} } = {}) {
     if (this.state.busy || this.state.view === 'locking') return false;
+    const gen = this.generation;
     this.set({ busy: true, message: null });
     try {
-      await fn();
+      await fn(gen);
+      this.alive(gen);
       return true;
     } catch (err) {
+      if (gen !== this.generation || err instanceof StaleError) {
+        return false;      // vergrendeld of gewist: niets meer tonen
+      }
       if (err instanceof IntegrityError || err instanceof V.ConflictError) {
         this.halt(err);
       } else if (messages[err.name]) {
@@ -140,7 +164,7 @@ export class AppController {
       }
       return false;
     } finally {
-      this.set({ busy: false });
+      if (gen === this.generation) this.set({ busy: false });
     }
   }
 
@@ -201,9 +225,10 @@ export class AppController {
   async choosePassword(password, repeat) {
     if (this.state.view !== 'onboarding' || this.state.step !== 'password') return false;
     if (!this.checkPasswordPair(password, repeat)) return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       const t0 = this.deps.timer();
       const { tx, recoveryKey } = await V.createInstallation({ password, now: this.deps.clock() });
+      this.alive(gen);
       const pbkdfMs = Math.round(this.deps.timer() - t0);
       const groups = pickGroups(this.deps.random);
       this.pending = { tx, recoveryKey, groups };
@@ -221,14 +246,16 @@ export class AppController {
       this.say('onboarding.check.wrong');
       return false;
     }
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       const tx = this.pending.tx;
       await this.queue.runPlain(() => tx);
+      this.alive(gen);
       this.pending = null;
       let persisted = false;
       try { persisted = await this.deps.requestPersist(); } catch (err) { persisted = false; }
       let storage = null;
       try { storage = await this.deps.storageStatus(); } catch (err) { storage = null; }
+      this.alive(gen);
       if (storage) storage = Object.assign({}, storage, { persisted: storage.persisted || persisted });
       this.set({ step: 'done', recoveryKey: null, groups: null, storage });
     });
@@ -239,11 +266,12 @@ export class AppController {
   // secret: {password} of {recoveryKey} (tekst).
   async unlock(secret) {
     if (this.state.view !== 'locked') return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       let session;
       try {
         ({ session } = await V.unlock(this.backend.store, secret));
       } catch (err) {
+        this.alive(gen);
         if (err instanceof WrongSecretError) {
           await this.queue.runPlain((store, now) => V.failedUnlockTx(store, now));
           const failed = this.backend.store.meta.failed_unlocks;
@@ -256,9 +284,14 @@ export class AppController {
         if (err instanceof FormatError) { this.say('unlock.unusable'); return; }
         throw err;
       }
+      // Vergrendeld tijdens het afleiden van de sleutel: geen sessie openen
+      // en niets schrijven.
+      this.alive(gen);
       await this.queue.run(session, (store, s, now) => V.unlockTx(store, s, { now }));
+      this.alive(gen);
+      await this.loadSettings(session);
+      this.alive(gen);
       this.session = session;
-      await this.loadSettings();
       if (session.route === 'recovery') {
         this.recoverySecret = secret.recoveryKey;
         this.set({ view: 'recovery-password', failedUnlocks: 0, lastFullCheckAt: session.lastFullCheckAt });
@@ -271,11 +304,12 @@ export class AppController {
   async setRecoveryPassword(password, repeat) {
     if (this.state.view !== 'recovery-password' || !this.recoverySecret) return false;
     if (!this.checkPasswordPair(password, repeat)) return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       const current = { recoveryKey: this.recoverySecret };
       await this.queue.run(this.session, (store, s, now) => V.changePasswordTx(store, s, {
         current, newPassword: password, detail: 'recovery', now,
       }));
+      this.alive(gen);
       this.recoverySecret = null;
       this.set({ view: 'ready', lastFullCheckAt: this.session.lastFullCheckAt });
       this.say('recovery.done');
@@ -287,23 +321,24 @@ export class AppController {
   async changePassword(current, password, repeat) {
     if (this.state.view !== 'ready') return false;
     if (!this.checkPasswordPair(password, repeat)) return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       await this.queue.run(this.session, (store, s, now) => V.changePasswordTx(store, s, {
         current, newPassword: password, detail: 'user', now,
       }));
+      this.alive(gen);
       this.say('password.changed');
     }, { messages: { WrongSecretError: 'password.wrongCurrent', RecoveryKeyTypoError: 'unlock.typo' } });
   }
 
   // --- Instellingen -----------------------------------------------------------------
 
-  async loadSettings() {
+  async loadSettings(session = this.session) {
     const store = this.backend.store;
     const ids = Array.from(new Set(store.records.filter((r) => r.kind === SETTINGS_KIND).map((r) => r.id))).sort();
     this.settingsId = ids.length ? ids[0] : null;
     let data = null;
     if (this.settingsId) {
-      const rec = await V.readRecord(store, this.session, this.settingsId);
+      const rec = await V.readRecord(store, session, this.settingsId);
       if (rec && !rec.content.deleted) data = rec.content.data;
     }
     this.set({ settings: normalizeSettings(data) });
@@ -318,11 +353,12 @@ export class AppController {
       this.say('settings.invalid');
       return false;
     }
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       const id = this.settingsId || undefined;
       const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordTx(store, s, {
         id, kind: SETTINGS_KIND, data: next, schema: SETTINGS_SCHEMA, now,
       }));
+      this.alive(gen);
       this.settingsId = tx.putRecords[0].id;
       this.set({ settings: next, lastFullCheckAt: this.session.lastFullCheckAt });
       this.say('settings.saved');
@@ -334,12 +370,13 @@ export class AppController {
   // Volledige controle op verzoek (§9.4) op een vers ingelezen opslag.
   async runFullCheck() {
     if (this.state.view !== 'ready') return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       await this.queue.run(this.session, async (store, s, now) => {
         const fresh = await this.backend.reload();
         await V.fullCheck(fresh, s);
         return V.integrityCheckTx(fresh, s, { now });
       });
+      this.alive(gen);
       this.set({ lastFullCheckAt: this.session.lastFullCheckAt });
       this.say('check.ok');
     });
@@ -357,10 +394,11 @@ export class AppController {
   // er wordt niets opgeslagen.
   async measure(iterations) {
     if (!MEASURE_ITERATIONS.includes(iterations)) return false;
-    return this.guard(async () => {
+    return this.guard(async (gen) => {
       const t0 = this.deps.timer();
       await pbkdf2Bytes('meting ' + Array.from(this.deps.random(8)).join('.'), this.deps.random(16), iterations);
       const ms = Math.round(this.deps.timer() - t0);
+      this.alive(gen);
       this.set({ measurements: Object.assign({}, this.state.measurements, { [iterations]: ms }) });
     });
   }
@@ -371,7 +409,8 @@ export class AppController {
   // de enige betrouwbare manier om sleutels uit het geheugen te halen.
   // Er wordt niets geschreven (alleen ontgrendelingen worden gelogd).
   async lock() {
-    if (this.state.view === 'locking') return;
+    if (this.state.view === 'locking' || this.erasing) return;
+    this.generation += 1;
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
@@ -385,25 +424,39 @@ export class AppController {
     this.deps.reload();
   }
 
+  // Volgorde (review PR #10, P2): eerst de eigen IndexedDB-verbinding
+  // sluiten, dan de database verwijderen, en pas daarna het Web Lock
+  // vrijgeven. Zo kan geen ander tabblad de opslag openen terwijl die
+  // gewist wordt.
   async eraseAll(confirmation) {
     if (String(confirmation || '').trim() !== ERASE_WORD) {
       this.say('erase.confirmWrong', { word: ERASE_WORD });
       return false;
     }
-    if (this.state.view === 'locking' || this.state.busy) return false;
+    if (this.state.view === 'locking' || this.state.busy || this.erasing) return false;
+    this.erasing = true;
+    this.generation += 1;
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
     this.set({ busy: true, message: null });
+    const storage = this.storage;
+    let ok = true;
     try {
-      if (this.storage) await this.storage.close();
-      this.storage = null;
+      if (storage) storage.backend.close();
       await this.deps.deleteDatabase();
     } catch (err) {
-      this.set({ busy: false });
-      this.say('erase.failed');
-      this.storage = null;
-      this.set({ view: 'error', message: { key: 'erase.failed', params: {} } });
+      ok = false;
+    }
+    try {
+      if (storage) await storage.close();
+    } catch (err) {
+      // herladen geeft het slot hoe dan ook vrij
+    }
+    this.storage = null;
+    this.erasing = false;
+    if (!ok) {
+      this.set({ busy: false, view: 'error', message: { key: 'erase.failed', params: {} } });
       return false;
     }
     this.set({ view: 'locking', busy: false });

@@ -13,7 +13,7 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.1.0';
-const CODE_HASH = '95e4f8d879a0c990fc36f390ceecf0bfd18a25dee10f9e7eb0b8b312196153f8';
+const CODE_HASH = '820be09d88b4a9e41cf748e047dd1c68a99181cb2b7c3456daec45bc9c363e0d';
 const FILES = {
   'css/app.css': '326e08be69953e016c20d64a41676d662b1272236250e4c060e101831ed7d7ef',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -25,7 +25,7 @@ const FILES = {
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
   'js/app.js': '455a3fce1fd9b11d383fea515fde89531bebda171265b415c96a62a125914d9f',
-  'js/controller.js': 'd5fef596cf4f3f1c41207ec74dcd22f1b62971d6dca8689131b5c98928aa6468',
+  'js/controller.js': 'c2732e9fee9b733ef6ce5d6c70c022ae562830c7460a3ae6292cd40ca646e1d4',
   'js/crypto.js': 'e54e1ece7e34e33c4c2d55036b2e3a168a5a7a798cb23d5be80f96f2d764ac11',
   'js/dom.js': '2f27e24228dbb71b902f77741db744f214663e4f00df0fc81412323766c599cf',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',

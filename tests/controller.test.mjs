@@ -303,3 +303,59 @@ test('al geopend en meting', async () => {
   assert.equal(typeof first.state.measurements[C.DEFAULT_ITERATIONS], 'number');
   assert.equal(canon(dev.backend.disk), canon(V.emptyStore()), 'meten slaat niets op');
 });
+
+test('verborgen tijdens ontgrendelen: geen sessie, niets geschreven (review PR #10, P1)', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = dev.controller();
+  await app.start();
+  const before = canon(dev.backend.disk);
+  const pending = app.unlock({ password: PASSWORD });
+  assert.equal(app.state.busy, true);
+  assert.equal(app.shouldLockOnHide(), true, 'lopende poging telt als geheim');
+  await app.lock();
+  assert.equal(await pending, false);
+  assert.equal(app.state.view, 'locking');
+  assert.equal(app.session, null);
+  assert.equal(canon(dev.backend.disk), before, 'geen regel unlock na vergrendelen');
+});
+
+test('verborgen tijdens het kiezen van het wachtwoord: geen herstelsleutel getoond', async () => {
+  const dev = device();
+  const app = dev.controller();
+  await app.start();
+  app.goToStep('password');
+  const pending = app.choosePassword(PASSWORD, PASSWORD);
+  await app.lock();
+  assert.equal(await pending, false);
+  assert.equal(app.state.view, 'locking');
+  assert.equal(app.pending, null);
+  assert.equal(app.state.recoveryKey, null);
+});
+
+test('alles wissen: slot pas vrij na het verwijderen (review PR #10, P2)', async () => {
+  const dev = device();
+  await onboard(dev);
+  const events = [];
+  const app = dev.controller({
+    openStorage: async () => {
+      dev.backend.store = structuredClone(dev.backend.disk);
+      const backend = dev.backend;
+      backend.close = () => events.push('verbinding dicht');
+      return {
+        backend,
+        queue: new WriteQueue(backend, { clock: dev.clock }),
+        close: async () => { backend.close(); events.push('slot vrij'); },
+      };
+    },
+    deleteDatabase: async () => { events.push('verwijderd'); dev.backend = new MemoryBackend(); },
+  });
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.view, 'ready');
+  const erasing = app.eraseAll(ERASE_WORD);
+  await app.lock();                      // verbergen tijdens wissen verandert de volgorde niet
+  assert.equal(await erasing, true);
+  assert.deepEqual(events.filter((e, i) => events.indexOf(e) === i), ['verbinding dicht', 'verwijderd', 'slot vrij']);
+  assert.ok(events.indexOf('slot vrij') > events.indexOf('verwijderd'));
+});
