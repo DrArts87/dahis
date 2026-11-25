@@ -65,8 +65,9 @@ daarna taak 5, 6, 7, 9 en 10.
 5. **Controles** vóór elke commit: zie `CLAUDE.md` §2. De pre-commit-hook
    werkt `app/sw.js` bij.
 6. **Reviews**: de gebruiker legt formaat en code voor aan een externe
-   auditor en plakt de feedback in de chat. Claude beoordeelt die kritisch,
-   stelt aanpassingen voor en verwerkt ze pas na akkoord. Het formaat
+   auditor. De auditor geeft de feedback als comment in de pull request;
+   Claude leest die daar (de comments van de PR), beoordeelt ze kritisch,
+   stelt aanpassingen voor en verwerkt ze pas na akkoord van de gebruiker. Het formaat
    wijzigen vraagt altijd apart akkoord.
 7. **Browsercontrole** in de cloudsessie met de voorgeïnstalleerde Chromium
    (Playwright), wegwerpprofiel, testscripts niet in de repository.
@@ -86,8 +87,8 @@ daarna taak 5, 6, 7, 9 en 10.
 
 ## Volgende stap
 
-De gebruiker legt de PR van taak 4 voor aan de auditor; Claude beoordeelt de
-feedback en verwerkt die na akkoord. Browsertests: repository serveren met
+De review van PR #9 (taak 4) is verwerkt (R1, R2); na een tweede blik van
+de auditor en de merge volgt taak 5. Browsertests: repository serveren met
 `python3 -m http.server` en `/tests/browser.html` openen in een
 wegwerpprofiel (in de cloudsessie met Playwright; het stuurscript voor
 herladen midden in een schrijfactie en twee tabbladen staat niet in de

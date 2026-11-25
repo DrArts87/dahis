@@ -272,3 +272,55 @@ test('volledige controle op verzoek schrijft integrity_check', async () => {
   await queue.run(session, (store, s, now) => V.integrityCheckTx(store, s, { now }));
   assert.deepEqual((await actions(backend.store, session)).slice(-1), ['integrity_check']);
 });
+
+test('review PR #9: vervangen controlepunt met dezelfde kid valt op bij de verschuldigde controle', async () => {
+  const clock = clockAt(T0);
+  const { backend, queue } = await install(clock);
+  const session = await unlock(backend, queue);
+  await putRecord(queue, session, { v: 1 });
+  const older = backend.disk.meta.checkpoint;          // geldig, zelfde kid
+  await putRecord(queue, session, { v: 2 });
+  assert.equal(older.kid, backend.disk.meta.checkpoint.kid);
+  backend.disk.meta.checkpoint = older;
+  const before = structuredClone(backend.disk);
+  clock.advance(8 * DAY);                               // controle verschuldigd: wachtrij leest opnieuw in
+  await assert.rejects(putRecord(queue, session, { v: 3 }),
+    (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+  assert.deepEqual(backend.disk, before);
+  await assert.rejects(putRecord(queue, session, { v: 4 }), C.IntegrityError);
+  assert.deepEqual(backend.disk, before);
+});
+
+test('review PR #9: snelle en volledige controle authenticeren het opgeslagen controlepunt', async () => {
+  const clock = clockAt(T0);
+  const { backend, queue } = await install(clock);
+  const session = await unlock(backend, queue);
+  await putRecord(queue, session, { v: 1 });
+  const older = backend.store.meta.checkpoint;
+  await putRecord(queue, session, { v: 2 });
+  await V.quickCheck(backend.store, session);
+  backend.store.meta.checkpoint = older;
+  await assert.rejects(V.quickCheck(backend.store, session), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+  await assert.rejects(V.fullCheck(backend.store, session), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+});
+
+test('review PR #9: zonder geldige reservering weigert de kluis ook buiten de wachtrij', async () => {
+  const clock = clockAt(T0);
+  const { backend, queue } = await install(clock);
+  await unlock(backend, queue);
+  delete backend.disk.meta.reservation;
+  await backend.reload();
+  const { session } = await V.unlock(backend.store, { password: PASSWORD });
+  assert.equal(session.needsNewWriteKey, true);
+  await assert.rejects(V.prepareReservation(backend.store, session, 10), V.WriteKeyNeededError);
+  await assert.rejects(V.putRecordTx(backend.store, session, { kind: 'test_persoon', data: { v: 1 }, now: clock.fn() }), V.WriteKeyNeededError);
+  await assert.rejects(V.unlockTx(backend.store, session, { now: clock.fn() }), V.WriteKeyNeededError);
+  const counter = session.counter;
+  // Een niet toegepaste nieuwe schrijfsleutel laat de eis staan.
+  await V.rollWriteKey(backend.store, session, { now: clock.fn() });
+  assert.equal(session.needsNewWriteKey, true);
+  assert.equal(session.counter, counter);
+  V.applyTx(backend.store, await V.rollWriteKey(backend.store, session, { now: clock.fn() }));
+  assert.equal(session.needsNewWriteKey, false);
+  assert.ok(await V.prepareReservation(backend.store, session, 1 << 17));
+});

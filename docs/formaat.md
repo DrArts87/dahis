@@ -2,7 +2,8 @@
 
 Formaat: **1**
 Status: concept voor de alpha, herzien na vier reviewrondes (2026-11-25);
-tekst van §3.8, §9.1 en §9.4 verduidelijkt na de code-audit (taak 4).
+tekst van §3.8, §9.1, §9.2 en §9.4 verduidelijkt na de code-audit en de
+review van taak 4.
 Wordt *vastgesteld* na taak 3 (implementatie en testvectoren), de metingen op
 het referentietoestel en een volgende review. Tot dan kan formaat 1 nog zonder
 migratie wijzigen, omdat er geen echte gegevens in bestaan.
@@ -504,7 +505,9 @@ krijgt de melding "Dahis is al geopend".
 Een pure controle; ze schrijft niets.
 1. Samenhang van de sleutelverwijzingen (§3.2, §3.6), inclusief beide
    registerdigests.
-2. Controlepunt ontsleutelen.
+2. Controlepunt ontsleutelen. Tijdens een sessie beschrijft het opgeslagen
+   controlepunt dezelfde toestand (zelfde `kid` en inhoud) als het
+   controlepunt waarop de sessie voortbouwt; anders `checkpoint` (§10).
 3. De laatste auditregel heeft dezelfde `seq` en `h`, en haar `h` klopt
    opnieuw berekend uit de `h` van de regel ervoor, `seq`, `kid`, `iv` en
    `ct`.

@@ -109,6 +109,12 @@ stopt, en vraagt om opnieuw te ontgrendelen (§9.1 stap 3: "opnieuw beginnen
 vanaf de nieuwe toestand"). Met het Web Lock hoort een conflict niet voor te
 komen.
 
+## Na de review van PR #9
+- De snelle en volledige controle ontsleutelen het opgeslagen controlepunt
+  en eisen dezelfde inhoud als het controlepunt van de sessie (R1).
+- Zolang een nieuwe schrijfsleutel nodig is, weigeren ook
+  `prepareReservation()` en elke andere schrijfactie (R2).
+
 ## Risico's
 
 | Risico | Maatregel |

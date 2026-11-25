@@ -312,6 +312,37 @@ test('verschuldigde volledige controle met schade in IndexedDB: opslag ongewijzi
   await IdbBackend.deleteDatabase(name);
 });
 
+test('vervangen controlepunt (zelfde kid) in IndexedDB: verschuldigde controle weigert, opslag ongewijzigd', async () => {
+  const name = dbName('controlepunt');
+  const { backend, queue, clock } = await install(name);
+  const session = await unlock(backend, queue);
+  await putRecord(queue, session, { v: 1 });
+  const older = backend.store.meta.checkpoint;          // geldig, zelfde kid
+  await putRecord(queue, session, { v: 2 });
+  assert(older.kid === backend.store.meta.checkpoint.kid, 'zelfde kid');
+  // Buiten de sessie om het oudere controlepunt terugzetten.
+  const db = await new Promise((resolve, reject) => {
+    const req = indexedDB.open(name, 1);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  await new Promise((resolve, reject) => {
+    const t = db.transaction('meta', 'readwrite');
+    t.objectStore('meta').put(older, 'checkpoint');
+    t.oncomplete = resolve;
+    t.onabort = () => reject(t.error);
+  });
+  db.close();
+  const before = await dump(name);
+  clock.advance(8 * DAY);                               // de wachtrij leest de opslag opnieuw in
+  await rejects(putRecord(queue, session, { v: 3 }),
+    (e) => e instanceof C.IntegrityError && e.code === 'checkpoint', 'vervangen controlepunt');
+  await rejects(putRecord(queue, session, { v: 4 }), (e) => e instanceof C.IntegrityError, 'wachtrij gestopt');
+  backend.close();
+  assert((await dump(name)) === before, 'opslag ongewijzigd');
+  await IdbBackend.deleteDatabase(name);
+});
+
 test('vernietigen verwijdert alle versies uit IndexedDB', async () => {
   const name = dbName('vernietigen');
   let { backend, queue, clock } = await install(name);
