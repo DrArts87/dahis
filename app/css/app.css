@@ -1,0 +1,119 @@
+:root {
+  --bg: #f4f6f5;
+  --card: #ffffff;
+  --text: #1b2421;
+  --muted: #5a6762;
+  --accent: #1f5c4a;
+  --accent-text: #ffffff;
+  --border: #d5dcd9;
+  --banner: #fff4d6;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121816;
+    --card: #1b2421;
+    --text: #e6ece9;
+    --muted: #9fb0aa;
+    --accent: #4fa88b;
+    --accent-text: #0c1411;
+    --border: #2e3a36;
+    --banner: #3a3216;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+#app {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 8px;
+}
+
+.top h1 { margin: 0; font-size: 1.5rem; }
+
+.badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.card, .banner {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.banner { background: var(--banner); }
+.banner p { margin-top: 0; }
+
+h2 { margin: 0 0 8px; font-size: 1.15rem; }
+
+.muted { color: var(--muted); }
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0 0 12px;
+}
+
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+
+.hash { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.9rem; }
+
+button {
+  font: inherit;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.5; cursor: default; }
+
+button.primary, .tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.tab { flex: 1; }
+
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.noscript { padding: 16px; }
