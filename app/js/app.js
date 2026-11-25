@@ -370,19 +370,30 @@ function textInput(id, extra = {}) {
 // Bestandskiezer. De gekozen File staat in ui.file, want opnieuw tekenen
 // maakt een nieuw invoerveld. Geen accept-filter: Android kent het type
 // .dahis niet en zou het bestand dan grijs tonen.
+// Het knopje van Chrome zelf is verborgen (wel bereikbaar met het
+// toetsenbord): na opnieuw tekenen zei het weer "Geen bestand gekozen"
+// terwijl er wel een bestand was gekozen (proef op de OnePlus, 0.3.0).
 function fileInput() {
+  const f = ui.file;
   return [
-    el('label', { for: 'file' }, t('file.choose')),
+    el('p', { class: 'field-label' }, t('file.choose')),
     el('input', {
-      id: 'file', name: 'file', type: 'file', disabled: app.state.busy,
+      id: 'file', name: 'file', type: 'file', class: 'file-hidden', disabled: app.state.busy,
       onchange: (event) => {
         ui.file = (event.target.files && event.target.files[0]) || null;
         app.clearFileCheck();   // geen uitslag van een ander bestand tonen (review PR #14, 1)
         render();
       },
     }),
-    ui.file ? el('p', { class: 'hint' }, t('file.chosen', { name: ui.file.name })) : null,
+    el('label', { for: 'file', class: app.state.busy ? 'btn file-btn disabled' : 'btn file-btn' },
+      f ? t('file.other') : t('file.pick')),
+    el('p', { class: f ? 'card file-chosen' : 'card file-chosen none', role: 'status' },
+      f ? t('file.chosen', { name: f.name, size: fileSize(f.size) }) : t('file.notChosen')),
   ];
+}
+
+function fileSize(bytes) {
+  return bytes < 1024 * 1024 ? t('file.kb', { kb: number(bytes / 1024, 0) }) : t('file.mb', { mb: megabytes(bytes) });
 }
 
 function chooseFileFirst() {
@@ -825,36 +836,11 @@ function appVersion() {
   return (sw.info && sw.info.version) || '0.0.0';
 }
 
-// Bestandstypen die Chrome op Android mag delen, staan vast; .dahis hoort
-// er niet bij. Dan dezelfde inhoud als tekstbestand met .txt achter de naam
-// (het bestand is UTF-8-tekst; de naam doet bij het inlezen niet mee).
-function shareFile(b) {
-  const candidates = [
-    new File([b.text], b.name, { type: 'application/octet-stream' }),
-    new File([b.text], b.name + '.txt', { type: 'text/plain' }),
-  ];
-  if (!navigator.canShare) return null;
-  return candidates.find((f) => navigator.canShare({ files: [f] })) || null;
-}
-
-async function shareBackup() {
-  const b = app.backupForShare();
-  if (!b) return;
-  app.say(null);   // geen melding van een vorige poging laten staan
-  const file = shareFile(b);
-  if (!file) { app.say('backup.shareUnsupported'); return; }
-  try {
-    await navigator.share({ files: [file], title: file.name });
-  } catch (err) {
-    // Zelf geannuleerd (AbortError): geen melding (formaat §11.3). Elke
-    // andere fout wel, met Downloaden als alternatief: de back-up telt al als
-    // gemaakt, dus er komt geen herinnering (review PR #14, 2).
-    if (!err || err.name !== 'AbortError') app.say('backup.shareFailed');
-  }
-}
-
+// Alleen downloaden: het deelmenu van Android verbergt de app, die dan
+// vergrendelt door te herladen, en dat breekt het delen af (proef op de
+// OnePlus, versie 0.3.0). Delen gaat daarna vanuit Bestanden → Downloads.
 function downloadBackup() {
-  const b = app.backupForShare();
+  const b = app.backupForDownload();
   if (!b) return;
   const url = URL.createObjectURL(new Blob([b.text], { type: 'application/octet-stream' }));
   const a = el('a', { href: url, download: b.name, hidden: true });
@@ -877,10 +863,9 @@ function backupScreen() {
         el('dt', {}, t('backup.last')), el('dd', {}, dateTime(app.state.lastBackupAt)))),
       el('p', { class: 'muted' }, t('backup.policy')),
       b ? [
-        el('section', { class: 'card' }, el('p', { class: 'hash' }, t('backup.file', { name: b.name, mb: megabytes(b.bytes) }))),
-        button(t('backup.share'), shareBackup, 'primary'),
-        button(t('backup.download'), downloadBackup),
-        el('p', { class: 'muted' }, t('backup.shareNote')),
+        el('section', { class: 'card' }, el('p', { class: 'hash' }, t('backup.file', { name: b.name, size: fileSize(b.bytes) }))),
+        button(t('backup.download'), downloadBackup, 'primary'),
+        el('p', { class: 'muted' }, t('backup.afterDownload')),
       ] : button(t('backup.make'), () => app.makeBackup({ appVersion: appVersion() }), 'primary'),
     ],
     navbar: true,

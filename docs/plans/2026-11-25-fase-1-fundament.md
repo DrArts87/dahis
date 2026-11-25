@@ -180,8 +180,9 @@ voor de alpha). In het kort:
    wachtwoord opent de app daarna normaal met dat nieuwe wachtwoord (en niet
    meer met het oude), en de controles slagen. Meting op de OnePlus: piekgeheugen, en of bij de maximale
    bestandsgrootte een back-up nog te maken én te openen is (meting in de
-   app onder Meer → Snelheid meten; op de OnePlus nog te doen, samen met
-   taak 10). Uitgewerkt in [plan taak 7](2026-11-25-taak-7-backup.md).
+   app onder Meer → Snelheid meten; op de OnePlus gemeten: 253 MiB maken
+   2,6 s, openen 6,2 s; grens vastgesteld). Delen bleek niet te werken (het
+   deelmenu vergrendelt de app); alleen downloaden (versie 0.3.1). Uitgewerkt in [plan taak 7](2026-11-25-taak-7-backup.md).
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
@@ -237,5 +238,5 @@ alleen voor dit hulpmiddel).
   doelopslag leeg;
 - een verschuldigde volledige controle die schade vindt, laat de bestaande
   opslag ongewijzigd;
-- de voorlopige limieten in `docs/formaat.md` §2.4 zijn gemeten en
-  vastgesteld, en het formaat is vastgesteld.
+- de limieten in `docs/formaat.md` §2.4 zijn gemeten en vastgesteld
+  (gedaan: PBKDF2 en back-upbestand, 2026-11-25), en het formaat is vastgesteld.

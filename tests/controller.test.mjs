@@ -577,7 +577,7 @@ function chosen(bytes, name = 'dahis-backup-20261125-1300.dahis') {
 async function backupOf(dev) {
   const app = await unlocked(dev);
   assert.equal(await app.makeBackup({ appVersion: '0.3.0' }), true);
-  const file = app.backupForShare();
+  const file = app.backupForDownload();
   assert.ok(file && file.text.endsWith('\n'));
   return { app, bytes: C.utf8(file.text), name: file.name };
 }
@@ -599,16 +599,16 @@ test('back-up maken: export, direct daarna verify_backup equal, en de herinnerin
   const actions = await auditActions(dev.backend.disk);
   assert.deepEqual(actions.slice(-2), ['export', 'verify_backup:equal']);
   // Het bestand bevat de opslag van het moment van de export.
-  const summary = await V.checkBackupFile(C.utf8(app.backupForShare().text), { password: PASSWORD });
+  const summary = await V.checkBackupFile(C.utf8(app.backupForDownload().text), { password: PASSWORD });
   assert.equal(summary.appVersion, '0.3.0');
   assert.equal(summary.audit, actions.length - 1);
   // Sluiten of vergrendelen laat het bestand los.
   app.closeBackup();
-  assert.equal(app.backupForShare(), null);
+  assert.equal(app.backupForDownload(), null);
   assert.equal(app.state.backup, null);
   await app.makeBackup();
   await app.lock();
-  assert.equal(app.backupForShare(), null);
+  assert.equal(app.backupForDownload(), null);
   // Na herladen: last_backup_at uit de opslag.
   const again = await unlocked(dev);
   assert.equal(again.state.lastBackupAt, dev.now.getTime());

@@ -15,10 +15,10 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.3.0';
-const CODE_HASH = 'da223701f732135f900bf9fe5657d83775e5ee973623fe2731f25280de238dcc';
+const VERSION = '0.3.1';
+const CODE_HASH = 'f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a';
 const FILES = {
-  'css/app.css': 'b2787981242e11641bc8fef116bc9c875c63bcf0f75a9b415c83a28935b93b3a',
+  'css/app.css': '0d1e1c1362adb280915f8444725a5b3b48c030537803ed2d221b70dff294711c',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
   'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
   'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
@@ -27,13 +27,13 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
-  'js/app.js': '1331b2f076a544b60083e8f2350fa31ba79c968f82e23016e86e5a6dfe4789c5',
+  'js/app.js': '32df37345fd26f169b889ab7081215fc3183eecc60407b785e393f4f13a14c4f',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
-  'js/controller.js': 'e41d8ee4451ddc70540201ed3e68ba36a321519b5b0042e78ec03cf617f220b1',
+  'js/controller.js': 'd6c0b74401971cc6ba4235715102f50529da671d3613899301031254e9956e88',
   'js/crypto.js': '03b4de941390607641121e50311982af6f910bf662cdd2bf28b148a2cc39f7e2',
   'js/dom.js': '527df54fe4dce2a7e2fb775bb1c358e3b885817de6d79d582b12eafa83552fea',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': 'a14a15182a2dc8ee455094e27bad69ce64c261accba8bd6e0cc72b6357dacc4e',
+  'js/i18n/nl.js': '8d6908bad67a018c13e8675a8ef34c95cfc0a6190aabd2013934555fd18d0384',
   'js/settings.js': '66752e3878cfdef67a91f3349063d688b31a8f33b67f21a232180a85f3435745',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
   'js/vault.js': 'a6a979cc7ebeb6b2b8885f01940318f00ffae212eb08fa931a9cfca0b96b9b45',

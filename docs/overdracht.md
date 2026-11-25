@@ -21,23 +21,25 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
 | #12 | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert); versie 0.2.0 |
 | #13 | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd |
+| #15 | Werkafspraak: na elke merge die `app/` wijzigt de releasetekst met codehash en het verzoek om een release |
+| (nieuw) | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 | #14 | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. Gemerged als #14 (codehash `da223701…`); release `v0.3.0` aangevraagd |
 
-**Live**: Pages is ingericht; release `v0.2.0` (codehash
-`7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691`) staat op
+**Live**: Pages is ingericht; release `v0.3.0` (codehash
+`da223701f732135f900bf9fe5657d83775e5ee973623fe2731f25280de238dcc`) staat op
 `https://drarts87.github.io/dahis/`. De gebruiker heeft de app op de OnePlus
 geïnstalleerd, **alleen met testgegevens**.
 
-**Metingen op de OnePlus 13R** (versie 0.2.0): PBKDF2 600.000 rondes
-0,1 s, 10.000.000 rondes 1,4 s (eerder 1,5 s; formaat §2.4, grens
-vastgesteld). Controles (formaat §9.4): 20.000 regels volledig 0,8 s, snel
-0,04 s; 100.000 regels volledig 4,6 s, snel 0,14 s. Termijn van 7 dagen
-bevestigd.
+**Metingen op de OnePlus 13R**: PBKDF2 600.000 rondes 0,1 s, 10.000.000
+rondes 1,4 s (versie 0.2.0). Controles (formaat §9.4): 20.000 regels
+volledig 0,8 s, snel 0,04 s; 100.000 regels volledig 4,6 s, snel 0,14 s;
+termijn van 7 dagen bevestigd. Grote back-up (versie 0.3.0): 253,3 MiB maken
+2,6 s, openen 6,2 s. Alle grenzen in formaat §2.4 zijn vastgesteld.
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1–9 klaar; van taak 7 staan de metingen en de proef met delen op de
-OnePlus nog open. **Volgende: taak 10** (acceptatietest op de OnePlus), na
-een release `v0.3.0`.
+taak 1–9 klaar, inclusief de proef met 0.3.0 op de OnePlus en de
+herstelronde 0.3.1. **Volgende: taak 10** (acceptatietest op de OnePlus), na
+een release `v0.3.1`.
 
 ## Belangrijkste documenten
 
@@ -69,7 +71,7 @@ een release `v0.3.0`.
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
 | Publiceren | Alleen bij een versietag `vX.Y.Z` op `main` (release op GitHub), via `pages.yml`; zie [`docs/release.md`](release.md) |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
-| Back-ups | Wekelijks; bewaar de laatste vier. Herinnering na 7 dagen. Deelt Chrome `.dahis` niet, dan met `.txt` achter de naam (akkoord gebruiker). `last_backup_at` en `verify_backup` vóór het delen (het deelmenu vergrendelt de app); delen standaard, downloaden als tweede knop; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
+| Back-ups | Wekelijks; bewaar de laatste vier. Herinnering na 7 dagen. Alleen downloaden: het deelmenu vergrendelt de app en breekt het delen af (proef OnePlus); delen vanuit Bestanden → Downloads. `last_backup_at` en `verify_backup` vóór het downloaden; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
 | Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
@@ -124,16 +126,13 @@ een release `v0.3.0`.
 
 ## Volgende stap
 
-Taak 7 is klaar in de code. Na de merge: release `v0.3.0` volgens
-[`docs/release.md`](release.md), bijwerken op de OnePlus, en dan op de
-telefoon:
-- Meer → Snelheid meten → Grote back-up (64, 128 en 250 MiB): lukt het, en
-  hoe lang duurt het? Daarna de grens van 256 MiB vaststellen of verlagen
-  (formaatwijziging, apart besluit);
-- Meer → Back-up: maken en **delen** proberen (komt het deelmenu, met
-  `.dahis` of met `.txt` erachter?), en Downloaden;
-- daarna taak 10: de acceptatietest met checklist, inclusief terugzetten via
-  beide routes op een lege opslag en de tests bij onderbreking.
+Na de merge van de herstelronde: release `v0.3.1` (releasetekst van Claude),
+bijwerken op de OnePlus en kort nalopen: Meer → Back-up → Downloaden, en bij
+terugzetten en controleren de knop *Bestand kiezen* met de regel
+"Gekozen: …". Daarna **taak 10**: de acceptatietest met checklist, met als
+open punt stap F (terugzetten met de herstelsleutel op de telefoon).
+Metingen: PBKDF2 en controles (taak 5–6), grote back-up (taak 7) zijn
+gedaan; alle grenzen in formaat §2.4 zijn vastgesteld.
 
 Browsercontrole: repository serveren met `python3 -m http.server` en
 `/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
@@ -145,7 +144,6 @@ repository.
 - Browsertests in CI (job met de Chrome van de runner, zonder npm):
   wijziging van de workflow, dus apart te vragen.
 - Een nieuwe review nu taak 7 klaar is (volledige keten in de app).
-- De grens van 256 MiB voor een back-up: na de meting op de OnePlus.
 - Een hogere standaardwaarde voor PBKDF2 dan 600.000 rondes (de meting laat
   ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe).
 

@@ -174,7 +174,15 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .btn.link { border: none; background: none; color: var(--accent); min-height: 44px; font-weight: 500; margin-top: 6px; }
 .btn.small { min-height: 44px; margin-top: 10px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
-input[type="file"] { padding: 10px; }
+/* Bestand kiezen (taak 7): eigen knop en duidelijke regel met het gekozen
+   bestand; het invoerveld van Chrome is verborgen maar blijft bereikbaar. */
+.field-label { font-weight: 600; margin: 12px 0 4px; font-size: 0.95rem; }
+.file-hidden { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; overflow: hidden; }
+.btn.file-btn { text-align: center; margin-top: 4px; line-height: 32px; }
+.btn.file-btn.disabled { opacity: 0.55; cursor: default; pointer-events: none; }
+.file-hidden:focus-visible + .file-btn { outline: 3px solid var(--moss); outline-offset: 2px; }
+.card.file-chosen { margin: 8px 0 0; padding: 12px; overflow-wrap: anywhere; font-weight: 600; }
+.card.file-chosen.none { font-weight: 400; color: var(--muted); }
 
 /* Herinnering aan een back-up op het hoofdscherm (taak 7). */
 .note.reminder { margin-bottom: 12px; }
