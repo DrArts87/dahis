@@ -302,6 +302,10 @@ test('review PR #9: snelle en volledige controle authenticeren het opgeslagen co
   backend.store.meta.checkpoint = older;
   await assert.rejects(V.quickCheck(backend.store, session), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
   await assert.rejects(V.fullCheck(backend.store, session), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+  // De back-upvariant is niet van buiten te kiezen.
+  await assert.rejects(V.quickCheck(backend.store, session, { backup: true }), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+  await assert.rejects(V.fullCheck(backend.store, session, { backup: true }), (err) => err instanceof C.IntegrityError && err.code === 'checkpoint');
+  assert.equal(session.fullCheckPending, false);
 });
 
 test('review PR #9: zonder geldige reservering weigert de kluis ook buiten de wachtrij', async () => {

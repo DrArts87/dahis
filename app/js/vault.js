@@ -587,9 +587,15 @@ async function checkStoredCheckpoint(store, session) {
   }
 }
 
-// backup: de opslag is de inhoud van een back-up; daar staat het
-// controlepunt onversleuteld in de (geauthenticeerde) inhoud.
-export async function quickCheck(store, session, { backup = false } = {}) {
+export async function quickCheck(store, session) {
+  return quickCheckInner(store, session, false);
+}
+
+// backup = true alleen vanuit inspectBackup(): daar is de opslag de inhoud van
+// een back-up waarvan het bestand al is geauthenticeerd, en staat het
+// controlepunt onversleuteld in die inhoud. Bewust niet geëxporteerd, zodat
+// geen aanroeper dit pad voor de echte opslag kan gebruiken (review PR #9).
+async function quickCheckInner(store, session, backup) {
   const cp = session.checkpointContent;
   if (!backup) await checkStoredCheckpoint(store, session);
   await checkCoherence(store.meta, store.meta.checkpoint.kid, cp, store.records, store.audit);
@@ -610,7 +616,11 @@ export async function quickCheck(store, session, { backup = false } = {}) {
   if (state !== cp.state || store.records.length !== cp.records) throw new IntegrityError('state', 'Recordtoestand wijkt af van het controlepunt');
 }
 
-export async function fullCheck(store, session, { backup = false } = {}) {
+export async function fullCheck(store, session) {
+  return fullCheckInner(store, session, false);
+}
+
+async function fullCheckInner(store, session, backup) {
   const rows = sortedAudit(store.audit);
   let hPrev = ZERO_HASH;
   for (let i = 0; i < rows.length; i++) {
@@ -626,7 +636,7 @@ export async function fullCheck(store, session, { backup = false } = {}) {
   for (const row of store.records) {
     await openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row);
   }
-  await quickCheck(store, session, { backup });
+  await quickCheckInner(store, session, backup);
   session.fullCheckPending = true;
 }
 
@@ -868,7 +878,7 @@ export async function inspectBackup(bytes, secret) {
     session.kid = cpKid;
     session.checkpointContent = content;
     const fake = { meta: Object.assign({}, meta, { checkpoint: { kid: cpKid } }), records: data.records, audit: data.audit };
-    await fullCheck(fake, session, { backup: true });
+    await fullCheckInner(fake, session, true);
     return { header, data, session, raw, route };
   } catch (err) {
     wipe(raw);
