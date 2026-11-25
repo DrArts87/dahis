@@ -75,6 +75,12 @@ Voor een commit
   lineaire geschiedenis. Alleen squash merge; de branch wordt na het mergen
   automatisch verwijderd.
 - Mergen doet de gebruiker op GitHub (*Squash and merge*), nooit Claude.
+- Na het definitieve akkoord van de gebruiker of de auditor en de merge van
+  een PR die `app/` wijzigt, geeft Claude altijd de releasetekst (titel,
+  versie, codehash uit `app/sw.js` op `main`, korte omschrijving) en vraagt
+  de gebruiker de release te maken volgens
+  [`docs/release.md`](docs/release.md). Claude maakt zelf geen tags of
+  releases.
 - Alle commits zijn ondertekend met een SSH-sleutel. Commits van de
   gebruiker met de eigen sleutel; commits uit een Claude-cloudsessie met de
   sleutel van die sessie, op naam van Claude. Een commit die GitHub niet als

@@ -21,7 +21,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
 | #12 | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert); versie 0.2.0 |
 | #13 | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd |
-| (nieuw) | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| #14 | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. Gemerged als #14 (codehash `da223701…`); release `v0.3.0` aangevraagd |
 
 **Live**: Pages is ingericht; release `v0.2.0` (codehash
 `7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691`) staat op
@@ -91,7 +91,9 @@ een release `v0.3.0`.
    in elke PR). Per taak één PR; na de squash merge wordt de branch
    verwijderd en begint Claude opnieuw vanaf `main`.
 4. **Mergen** doet de gebruiker (*Squash and merge*), na groene controles,
-   *Verified* commits en de verplichte controle **JavaScript**.
+   *Verified* commits en de verplichte controle **JavaScript**. Daarna geeft
+   Claude de releasetekst met codehash en vraagt om de release
+   (`CLAUDE.md` §3).
 5. **Controles** vóór elke commit: zie `CLAUDE.md` §2. De pre-commit-hook
    werkt `app/sw.js` bij.
 6. **Reviews**: de gebruiker legt formaat en code voor aan een externe
