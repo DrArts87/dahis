@@ -1,7 +1,8 @@
 # Beveiliging
 
-Dahis verwerkt medische gegevens. Kwetsbaarheden worden vastgelegd als
-issue in deze private repository, zonder details over personen.
+Dahis verwerkt medische gegevens. Vind je een kwetsbaarheid, meld die dan
+**niet** in een openbaar issue, maar via GitHub: tabblad *Security* →
+*Report a vulnerability* (private vulnerability reporting).
 
 Zet nooit echte persoons- of medische gegevens in een melding, issue of pull
 request, ook niet als voorbeeld.
