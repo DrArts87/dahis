@@ -159,8 +159,10 @@ Als er later toch een tweede site nodig is:
    alles wissen.
 6. Auditlog met hashketen.
 7. Back-up: export, controle, import, herinnering, migratieketen, testbestand.
-8. CI: Node-job in `controle.yml` (apart te vragen; vierde verplichte
-   controle in de branchbescherming).
+8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
+   `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
+   JavaScript wordt een verplichte controle in de branchbescherming
+   (gebruiker). Bij taak 3 komt `node --test` erbij.
 9. Pages-workflow op versietag en releaseprocedure, inclusief controle op
    andere Pages-sites op het account (apart te vragen).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.

@@ -48,9 +48,15 @@ Windows-regel geldt voor commando's die de gebruiker krijgt.
 
 Begin van een sessie
 1. `git switch main` en daarna `git pull`
+2. Eenmalig per checkout: `git config core.hooksPath .githooks`. De
+   pre-commit-hook werkt `app/sw.js` bij met `tools/release.py` en stopt de
+   commit als er iets veranderd is.
 
 Na een codewijziging
-1. `python3 -m py_compile tools/*.py` en `node --check` op de JS-bestanden.
+1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
+   service worker de nieuwe bestanden), `python3 -m py_compile tools/*.py`,
+   `python3 -m unittest discover -s tests` en `node --check` op de
+   JS-bestanden. CI (`controle.yml`) controleert hetzelfde.
 2. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
 
