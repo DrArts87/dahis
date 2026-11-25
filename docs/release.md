@@ -45,14 +45,17 @@ wordt gepubliceerd; er gaan nooit gegevens naar GitHub.
 1. **Versienummer** (niet nodig voor de eerste publicatie, `0.1.0`): op een
    branch `python3 tools/release.py --versie X.Y.Z`, via een pull request
    naar `main` en *Squash and merge*.
-2. **Release maken**: *Releases → Draft a new release*:
+2. **Releasetekst**: na de merge geeft Claude de tekst voor de release
+   (titel, versie, codehash van `main`, korte omschrijving) en vraagt om de
+   release te maken (`CLAUDE.md` §3).
+3. **Release maken**: *Releases → Draft a new release*:
    - *Choose a tag*: `vX.Y.Z` (nieuw), *Target*: `main`;
    - titel `vX.Y.Z`; in de notities de codehash (regel `CODE_HASH` in
      `app/sw.js` op `main`) en een korte omschrijving;
    - *Publish release*. Dit kan ook vanaf de telefoon.
-3. **Controleren**: *Actions → Pages* is groen; de samenvatting toont
+4. **Controleren**: *Actions → Pages* is groen; de samenvatting toont
    dezelfde codehash.
-4. **Op de telefoon**: open de app, tik op *Bijwerken* zodra de melding
+5. **Op de telefoon**: open de app, tik op *Bijwerken* zodra de melding
    verschijnt, en vergelijk onder *Meer → Over deze app* versie en
    codehash met de release.
 
