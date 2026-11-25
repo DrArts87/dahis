@@ -13,19 +13,27 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.1.0';
-const CODE_HASH = '6f9634749823a55c8d107de9dfab9eb66b5fbf010e9eaa1a533e4684c1dabe92';
+const CODE_HASH = '820be09d88b4a9e41cf748e047dd1c68a99181cb2b7c3456daec45bc9c363e0d';
 const FILES = {
-  'css/app.css': 'd84a72e00d2c7c97e4d0c5a90ee92441b68e574c7335cb93e5d880d6a46284a7',
-  'icons/icon-192.png': 'b090d418288b6b804fe6ca2d7e44af19e4fb20d5cacc0e781954a1b7238a6017',
-  'icons/icon-512.png': '40ef0099a8e58ac1d28cde5df123b67ba1b71729980a493ad4f34c8c75253d7d',
-  'icons/maskable-512.png': 'd11fff1268156e7e52b718bf8de38ddb1b05bd4518961488d3046d1e411b2569',
-  'index.html': '948afd6ab56f87748e77bf957534640ed6de5993d6ff906c5ecb4a2d8dbfcd6f',
-  'js/app.js': 'be2999aae6d08145525de3f3b46a27ae0d8033b549e9167ead0f86e016321cb5',
+  'css/app.css': '326e08be69953e016c20d64a41676d662b1272236250e4c060e101831ed7d7ef',
+  'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
+  'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
+  'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
+  'img/galago-open.svg': '202e138fdd3ea7629316b2f87586d2bb9729655000bd53011bd659f994eed8d5',
+  'img/rand-boven.svg': '56c77cadfa290551a3f716f8ed22e1770ed6e507bd89e397684dc4d85d8791a0',
+  'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
+  'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
+  'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
+  'js/app.js': '455a3fce1fd9b11d383fea515fde89531bebda171265b415c96a62a125914d9f',
+  'js/controller.js': 'c2732e9fee9b733ef6ce5d6c70c022ae562830c7460a3ae6292cd40ca646e1d4',
   'js/crypto.js': 'e54e1ece7e34e33c4c2d55036b2e3a168a5a7a798cb23d5be80f96f2d764ac11',
-  'js/dom.js': 'b9fbcca62aed7bc58191f03b8c4e5e1ab4bb33047711ef9b7e2bd7703de88610',
+  'js/dom.js': '2f27e24228dbb71b902f77741db744f214663e4f00df0fc81412323766c599cf',
+  'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
+  'js/i18n/nl.js': '902d4642fb498360a1506e6de42f24173da2a46d84f1fb2480f8f153b092d504',
+  'js/settings.js': '66752e3878cfdef67a91f3349063d688b31a8f33b67f21a232180a85f3435745',
   'js/store.js': 'd2cbb60a03b49bb74ad1eb5bb11bc73d3e684c1549e4b242d086050ca3f330cf',
   'js/vault.js': '08f2c035d4334d191ab7b182526430d5286b038cab3410a0967f4b94debe97d7',
-  'manifest.webmanifest': '5289e78f294f931c6d8aecc3eb19ebd2d26023d25cc41d25ef8af6f8beaaad80',
+  'manifest.webmanifest': 'f40056063d21cbfdf42cbf89d93f8d737f421ca41d3b789f34eab206e8e9a606',
 };
 // EINDE RELEASE
 
@@ -67,6 +75,7 @@ const CONTENT_TYPES = {
   webmanifest: 'application/manifest+json; charset=utf-8',
   json: 'application/json; charset=utf-8',
   png: 'image/png',
+  svg: 'image/svg+xml',
 };
 
 function contentType(path) {

@@ -26,3 +26,17 @@ export function el(tag, props = {}, ...children) {
 export function replace(node, ...children) {
   node.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
 }
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Verwijzing naar een SVG-symbool uit index.html (logo, iconen).
+export function symbol(id, cls = 'icon') {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', cls);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const use = document.createElementNS(SVG_NS, 'use');
+  use.setAttribute('href', '#' + id);
+  svg.append(use);
+  return svg;
+}

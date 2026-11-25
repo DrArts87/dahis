@@ -1,25 +1,44 @@
+/* Opmaak van Dahis (docs/plans/2026-11-25-ui-opbouw.md, docs/ui/voorbeelden.html).
+   Geen externe fonts of afbeeldingen; logo en iconen zijn SVG-symbolen in
+   index.html, randen en varen staan in img/. */
+
 :root {
-  --bg: #f4f6f5;
+  --bg: #f2f4ee;
   --card: #ffffff;
-  --text: #1b2421;
-  --muted: #5a6762;
+  --text: #17231d;
+  --muted: #56655d;
+  --jungle: #123f32;
   --accent: #1f5c4a;
   --accent-text: #ffffff;
-  --border: #d5dcd9;
+  --leaf: #4c8c4a;
+  --moss: #8fb573;
+  --border: #d3dbd2;
+  --warn-bg: #fbeee0;
+  --warn: #8a3b12;
+  --ok-bg: #e3f0e1;
+  --ok: #1f5c2c;
   --banner: #fff4d6;
+  --outside: #c9d1c6;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121816;
-    --card: #1b2421;
-    --text: #e6ece9;
-    --muted: #9fb0aa;
-    --accent: #4fa88b;
-    --accent-text: #0c1411;
-    --border: #2e3a36;
+    --bg: #0e1512;
+    --card: #17211c;
+    --text: #e4ece6;
+    --muted: #9fb2a7;
+    --jungle: #0a2a20;
+    --accent: #5fae8c;
+    --accent-text: #08130e;
+    --leaf: #5f9f5c;
+    --border: #2a3a32;
+    --warn-bg: #3a2414;
+    --warn: #f2b48a;
+    --ok-bg: #16301f;
+    --ok: #9fd8a8;
     --banner: #3a3216;
+    --outside: #050807;
   }
 }
 
@@ -27,93 +46,204 @@
 
 html, body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100%;
+  background: var(--outside);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 17px;
   line-height: 1.45;
 }
 
-#app {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 0 16px 32px;
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.noscript { padding: 16px; }
+
+#app { max-width: 32rem; margin: 0 auto; }
+
+/* --- Pagina ----------------------------------------------------------------- */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
 
+.content { position: relative; flex: 1; display: flex; flex-direction: column; }
+.inner { position: relative; z-index: 1; flex: 1; padding: 16px 16px 24px; }
+
+/* Randen achter de inhoud (ontwerp gebruiker) */
+.rand {
+  position: absolute; left: 0; width: 100%; height: 144px;
+  pointer-events: none; user-select: none; z-index: 0;
+}
+.rand-boven { top: 0; }
+.rand-onder { bottom: 0; }
+
+/* --- Kopregel --------------------------------------------------------------- */
 .top {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  padding: max(10px, env(safe-area-inset-top)) 16px 16px;
+  background: var(--jungle);
+  color: #eef4ee;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 0 8px;
+  flex-direction: column;
+  justify-content: flex-end;
 }
-
-.top h1 { margin: 0; font-size: 1.5rem; }
-
-.badge {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
+.top .row { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; min-height: 40px; }
+.top .spacer { flex: 1; }
+.top h1 { position: relative; z-index: 1; margin: 2px 0 0; font-size: 1.75rem; line-height: 1.2; letter-spacing: 0.01em; }
+.top .sub { position: relative; z-index: 1; margin: 2px 0 0; font-size: 0.85rem; opacity: 0.85; }
+.top .chip { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.4); }
+.top .back, .top .lock {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 0 12px;
+  border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(18, 63, 50, 0.55); color: inherit; font: inherit; font-size: 0.9rem;
+  cursor: pointer;
 }
+.top .back { border-color: transparent; background: none; padding-left: 0; }
+.fern { position: absolute; pointer-events: none; user-select: none; object-fit: contain; }
+.top .fern { right: -18px; top: -14px; width: 160px; height: 146px; opacity: 0.32; }
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin: 8px 0 16px;
-}
+/* --- Inhoud ----------------------------------------------------------------- */
+h3 { margin: 8px 0 8px; font-size: 1.1rem; color: var(--accent); }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); font-size: 0.92rem; }
+.center { text-align: center; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
 
-.card, .banner {
+.card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.card > :last-child { margin-bottom: 0; }
+
+.note { border-radius: 12px; padding: 12px; font-size: 0.95rem; }
+.note.warn { background: var(--warn-bg); color: var(--warn); }
+.note.ok { background: var(--ok-bg); color: var(--ok); }
+
+.banner {
+  background: var(--banner); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 10px; font-size: 0.95rem;
+}
+.banner button {
+  margin-left: auto; min-height: 40px; padding: 0 14px; border-radius: 10px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-text); font: inherit;
 }
 
-.banner { background: var(--banner); }
-.banner p { margin-top: 0; }
+.steps { margin: 0 0 12px; padding-left: 1.4em; }
 
-h2 { margin: 0 0 8px; font-size: 1.15rem; }
-
-.muted { color: var(--muted); }
-
-dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
-  margin: 0 0 12px;
-}
-
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 0.95rem; }
 dt { color: var(--muted); }
 dd { margin: 0; overflow-wrap: anywhere; }
+.hash { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.85rem; }
 
-.hash { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.9rem; }
-
-button {
-  font: inherit;
+/* --- Formulieren en knoppen ------------------------------------------------- */
+label { display: block; font-weight: 600; margin: 12px 0 4px; font-size: 0.95rem; }
+input, select {
+  width: 100%;
   min-height: 48px;
-  padding: 10px 18px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
-  cursor: pointer;
+  font: inherit;
 }
-
-button:disabled { opacity: 0.5; cursor: default; }
-
-button.primary, .tab.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-
-.tab { flex: 1; }
-
-button:focus-visible {
-  outline: 3px solid var(--accent);
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 3px solid var(--moss);
   outline-offset: 2px;
 }
 
-.noscript { padding: 16px; }
+.btn {
+  display: block; width: 100%;
+  min-height: 52px; margin-top: 14px; padding: 10px 16px;
+  border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text);
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.btn.danger { background: var(--warn); color: #ffffff; border-color: var(--warn); }
+.btn.link { border: none; background: none; color: var(--accent); min-height: 44px; font-weight: 500; margin-top: 6px; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+
+/* --- Herstelsleutel ----------------------------------------------------------- */
+.key {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 1.1rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px dashed var(--moss);
+  text-align: center;
+  user-select: none;
+}
+
+/* --- Lijsten ------------------------------------------------------------------ */
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { border-bottom: 1px solid var(--border); }
+.list li:last-child { border-bottom: none; }
+.list li, .list .row-btn {
+  display: flex; align-items: center; gap: 14px; min-height: 52px;
+}
+.list .row-btn {
+  width: 100%; padding: 8px 2px; border: none; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.list li > .lead:first-child { margin-left: 2px; }
+.list .label { flex: 1; }
+.list .value { color: var(--muted); font-size: 0.9rem; text-align: right; }
+.list select { width: auto; min-height: 40px; padding: 4px 8px; }
+.lead { width: 22px; height: 22px; flex: none; color: var(--text); }
+.chev { width: 18px; height: 18px; flex: none; color: var(--muted); }
+.icon { width: 20px; height: 20px; flex: none; }
+.danger-text { color: var(--warn); }
+
+.search { position: relative; margin-bottom: 8px; }
+.search .icon { position: absolute; left: 12px; top: 14px; color: var(--muted); }
+.search input { padding-left: 42px; border-radius: 12px; }
+
+.empty { text-align: center; padding: 28px 8px; color: var(--muted); }
+.empty-mark { width: 44px; height: 80px; color: var(--leaf); opacity: 0.6; }
+
+/* --- Navigatielint ------------------------------------------------------------- */
+.navbar {
+  position: sticky; bottom: 0; z-index: 2;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  background: var(--card); border-top: 1px solid var(--border);
+  padding: 8px 6px max(12px, env(safe-area-inset-bottom));
+}
+.navbar button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 58px; border: none; background: none; color: var(--text);
+  font: inherit; font-size: 0.75rem; border-radius: 14px; cursor: pointer;
+}
+.navbar svg { width: 24px; height: 24px; color: var(--accent); }
+.navbar button[aria-current="page"] {
+  background: color-mix(in srgb, var(--moss) 30%, transparent);
+  color: var(--accent); font-weight: 700;
+}
+
+/* --- Hoofdscherm: geheel groen ---------------------------------------------------- */
+.shell.green { background: #123f32; color: #eef4ee; }
+.shell.green .inner { padding-top: max(56px, env(safe-area-inset-top)); }
+.shell.green .hero { text-align: center; margin-bottom: 16px; }
+.shell.green .hero .mark { width: 96px; height: 172px; color: #ffffff; }
+.shell.green .hero h1 { margin: 8px 0 4px; font-size: 1.6rem; letter-spacing: 0.02em; color: #ffffff; }
+.shell.green .muted, .shell.green .hint { color: #b9cdbf; }
+.shell.green label { color: #eef4ee; }
+.shell.green input { background: rgba(255, 255, 255, 0.95); color: #17231d; border-color: transparent; }
+.shell.green .btn.primary { background: #ffffff; color: #123f32; border-color: #ffffff; }
+.shell.green .btn.link { color: #d8ead9; }
+.shell.green .note.warn { background: #fbeee0; color: #8a3b12; }
+.shell.green .fern-hero { right: -40px; bottom: -30px; width: 300px; height: 274px; opacity: 0.20; transform: rotate(8deg); }
