@@ -648,13 +648,15 @@ Stap 1–6 gebeuren in het geheugen; er wordt niets geschreven.
    unwrappen.
 3. Mislukt: `failed_unlocks` ophogen, verder niets.
 4. Gelukt: de rest van `meta` strikt controleren, subsleutels afleiden,
-   sleutelring unwrappen, snelle controle (§9.2). Elke afwijking leidt naar
-   §10.
-5. Reservering schrijven (§3.8 geval 2), dan regel `unlock` (§9.1).
+   sleutelring unwrappen, snelle controle (§9.2), en als de termijn
+   verstreken is ook de volledige controle (§9.4). Elke afwijking leidt naar
+   §10. **Tot en met deze stap wordt niets geschreven**, behalve bij een
+   mislukte ontgrendeling de teller van stap 3.
+5. Reservering schrijven (§3.8 geval 2), dan regel `unlock` (§9.1), plus
+   `integrity_check` als in stap 4 de volledige controle is uitgevoerd.
 6. Is `iterations` lager dan de huidige standaard, dan opnieuw wrappen met de
    `KEK_w` van stap 2 (§3.7) en `password_change` met detail `kdf_upgrade`
    loggen.
-7. Zo nodig de volledige controle (§9.4).
 
 ### 12.3 Herstel met de herstelsleutel (zelfde toestel)
 Na ontgrendelen met de herstelsleutel direct een nieuw wachtwoord laten

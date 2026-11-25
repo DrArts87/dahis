@@ -147,7 +147,9 @@ voor de alpha). In het kort:
    - herhaald herstel van dezelfde back-up (telkens een nieuwe
      schrijfsleutel).
 4. `store.js` (IndexedDB, append-only, atomair schrijven, Web Lock,
-   `persist()`).
+   `persist()`). Tests bij onderbreking: een transactie die wordt afgebroken
+   (onboarding, gewone schrijfactie, terugzetten) laat de opslag ongewijzigd,
+   en een nieuwe poging slaagt met een nieuwe salt waar dat hoort.
 5. Onboarding, ontgrendelen, vergrendelen, wachtwoord wijzigen, herstel,
    alles wissen, stoppen bij een afwijking. Meting op de OnePlus: PBKDF2 bij
    600.000 en bij het maximum van 10.000.000 rondes.
@@ -158,7 +160,9 @@ voor de alpha). In het kort:
    migratieketen, testbestand. Tests: terugzetten op een lege opslag met
    wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag
    leeg; twee keer dezelfde back-up terugzetten geeft twee verschillende
-   schrijfsleutels. Meting op de OnePlus: piekgeheugen, en of bij de maximale
+   schrijfsleutels; na terugzetten met de herstelsleutel en een nieuw
+   wachtwoord opent de app daarna normaal met dat nieuwe wachtwoord (en niet
+   meer met het oude), en de controles slagen. Meting op de OnePlus: piekgeheugen, en of bij de maximale
    bestandsgrootte een back-up nog te maken én te openen is.
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
@@ -203,7 +207,12 @@ alleen voor dit hulpmiddel).
   auditlog; een gemanipuleerd log wordt gedetecteerd.
 - `py_compile`, `node --check`, de Node-tests en `privacy_check.py` slagen.
 
-**Voorwaarde voor echte dossiers**: op de OnePlus is een back-up gemaakt en
-op een lege opslag teruggezet, zowel met het wachtwoord als met de
-herstelsleutel; de voorlopige limieten in `docs/formaat.md` §2.4 zijn gemeten
-en vastgesteld; het formaat is vastgesteld.
+**Voorwaarde voor echte dossiers**, allemaal op de OnePlus:
+- een back-up gemaakt en op een lege opslag teruggezet, zowel met het
+  wachtwoord als met de herstelsleutel;
+- na herstel met een nieuw wachtwoord opent de app weer normaal;
+- de tests bij onderbreking slagen: de app afsluiten tijdens onboarding,
+  tijdens een schrijfactie en tijdens terugzetten laat geen half ingerichte
+  opslag achter, en een nieuwe poging slaagt;
+- de voorlopige limieten in `docs/formaat.md` §2.4 zijn gemeten en
+  vastgesteld, en het formaat is vastgesteld.
