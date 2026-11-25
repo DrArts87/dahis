@@ -1,0 +1,110 @@
+# Publiceert de map app/ op GitHub Pages, alleen bij een versietag vX.Y.Z
+# op main (taak 9, docs/release.md). Eerst dezelfde controles als
+# controle.yml; daarna de officiële Pages-actions van GitHub, vastgepind op
+# een commit-SHA. Code ophalen gaat met git, zonder actions van buiten.
+name: Pages
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CHECKOUT: |
+    git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    git init -q .
+    git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+    git fetch -q --depth 1 origin "$GITHUB_SHA"
+    git checkout -q FETCH_HEAD
+
+jobs:
+  python:
+    name: Python 3.9
+    runs-on: ubuntu-latest
+    container: python:3.9
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Python-bestanden compileren
+        run: python -m py_compile tools/*.py tests/*.py
+      - name: Unittests
+        run: python -m unittest discover -s tests
+      - name: app/sw.js past bij de app-bestanden
+        run: python tools/release.py --check
+
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    container: node:22
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Syntaxis van alle JS-bestanden
+        run: find app tests \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -r -n1 node --check
+      - name: Node-tests
+        run: node --test tests/*.test.mjs
+
+  privacy:
+    name: Geen persoons- of patiëntgegevens
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Databases, exports en BSN's zoeken
+        run: python3 tools/privacy_check.py
+
+  bouwen:
+    name: Tag controleren en app/ inpakken
+    needs: [python, javascript, privacy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen (main en de tag)
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q origin "+refs/heads/main:refs/remotes/origin/main"
+          git fetch -q --depth 1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+      - name: Tag is vX.Y.Z, staat op main en hoort bij de versie in sw.js
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Tag $TAG is geen vX.Y.Z"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "De tag wijst niet naar een commit op main"; exit 1; }
+          VERSION=$(sed -n "s/^const VERSION = '\(.*\)';$/\1/p" app/sw.js)
+          [ "v$VERSION" = "$TAG" ] || { echo "Tag $TAG past niet bij versie $VERSION in app/sw.js"; exit 1; }
+          python3 tools/release.py --check
+          CODE_HASH=$(sed -n "s/^const CODE_HASH = '\(.*\)';$/\1/p" app/sw.js)
+          {
+            echo "## Dahis $TAG"
+            echo
+            echo "Codehash: \`$CODE_HASH\`"
+            echo
+            echo "Vergelijk met Meer → Over deze app op de telefoon."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: app/ inpakken voor Pages
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: app/
+
+  publiceren:
+    name: Publiceren op GitHub Pages
+    needs: bouwen
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publiceren
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
