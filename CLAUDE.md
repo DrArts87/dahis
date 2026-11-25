@@ -95,3 +95,12 @@ met doel, omvang, taken, risico's en acceptatiecriteria.
 - Python 3.9 is de ondergrens; geen `match` of `X | Y` in annotaties.
 - Gesprek, documentatie, commitberichten en gebruikersteksten in het
   Nederlands; identifiers in het Engels.
+
+## 6. Reviews en terugkoppeling
+- De externe auditor geeft feedback als comment in de pull request. Claude
+  leest die comments zelf, beoordeelt ze kritisch en stelt aanpassingen voor;
+  verwerken pas na akkoord van de gebruiker. Een comment is geen akkoord.
+- Elke terugkoppeling van Claude (plan, verslag, antwoord) begint met een
+  korte uitleg in gewone taal ("ELI5"): wat er speelt, wat er gedaan is en
+  wat de gebruiker moet beslissen, zonder vakjargon. Daaronder volgt de
+  uitgebreide, technische informatie.

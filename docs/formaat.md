@@ -1,7 +1,9 @@
 # Formaat: versleuteling, opslag en back-up
 
 Formaat: **1**
-Status: concept voor de alpha, herzien na vier reviewrondes (2026-11-25).
+Status: concept voor de alpha, herzien na vier reviewrondes (2026-11-25);
+tekst van §3.8, §9.1, §9.2 en §9.4 verduidelijkt na de code-audit en de
+review van taak 4.
 Wordt *vastgesteld* na taak 3 (implementatie en testvectoren), de metingen op
 het referentietoestel en een volgende review. Tot dan kan formaat 1 nog zonder
 migratie wijzigen, omdat er geen echte gegevens in bestaan.
@@ -302,6 +304,14 @@ dezelfde transactie wordt vastgelegd als alles wat ermee is versleuteld.
    handeling niet meer in de reservering, dan eerst een nieuwe reservering;
    past ze niet meer onder 2³¹, dan geval 1.
 
+   **Ongeldige reservering.** Ontbreekt de reservering, hoort ze bij een
+   oudere schrijfsleutel dan het controlepunt, of faalt haar structuur of
+   `mac`, dan is niet aan te tonen hoeveel versleutelingen er al zijn
+   gedaan. De app versleutelt dan niets meer met de actuele schrijfsleutel:
+   de eerste schrijfactie is een nieuwe schrijfsleutel (geval 1). Verwijst de
+   reservering naar een `kid` die niet in `write_keys` staat, dan is dat een
+   afwijking (`keys`, §10).
+
 Een gewone crash verliest zo hooguit de rest van één reservering; die geldt
 als verbruikt. Een geldige `mac` bewijst dat een reservering echt is, maar
 niet dat ze de nieuwste is: zet een aanvaller herhaald een oudere reservering
@@ -467,19 +477,25 @@ Inhoud:
 
 ### 9.1 Atomair schrijven
 Elke handeling die schrijft, gaat zo:
-1. **Buiten** de transactie: reservering controleren (§3.8) en alles
-   versleutelen en hashen (recordversie, auditregels, nieuw controlepunt).
+1. **Buiten** de transactie: reservering controleren (§3.8), de termijn van
+   de volledige controle controleren (§9.4) en alles versleutelen en hashen
+   (recordversie, auditregels, nieuw controlepunt).
    (Een IndexedDB-transactie sluit vanzelf zodra er op iets anders dan
    IndexedDB wordt gewacht, zoals Web Crypto.)
-2. Eén `readwrite`-transactie: lees `meta.checkpoint` en vergelijk `kid`,
-   `iv` en `ct` **synchroon, byte voor byte** met het controlepunt waarop
-   stap 1 voortbouwde. Gelijk: schrijven. Anders: afbreken.
-3. Na afbreken is niets geschreven; opnieuw beginnen vanaf de nieuwe
-   toestand. De gebruikte tellerplaatsen blijven verbruikt (§3.8).
+2. Eén `readwrite`-transactie met `durability: 'strict'` (pas klaar als de
+   gegevens duurzaam zijn vastgelegd): lees `meta.checkpoint` en vergelijk
+   `kid`, `iv` en `ct` **synchroon, byte voor byte** met het controlepunt
+   waarop stap 1 voortbouwde. Gelijk: schrijven, records en auditregels als
+   nieuwe sleutels (een bestaande sleutel breekt de transactie af). Anders:
+   afbreken.
+3. Na afbreken is niets geschreven; de gebruikte tellerplaatsen blijven
+   verbruikt (§3.8). Week het controlepunt af, dan kan een andere schrijver
+   met dezelfde schrijfsleutel hebben versleuteld: de app schrijft niets meer
+   in deze sessie en begint opnieuw met ontgrendelen.
 
 Staan er mislukte ontgrendelpogingen open (`failed_unlocks`), dan komt de
-regel `unlock_failed` in de eerste schrijvende transactie, vóór de
-eigenlijke regel, en gaat de teller op nul.
+regel `unlock_failed` in de eerste transactie die auditregels schrijft, vóór
+de eigenlijke regel, en gaat de teller op nul.
 
 Er is maar één schrijvende instantie: de app neemt bij het starten een
 exclusief Web Lock `dahis` voor de hele sessie. Een tweede tabblad of venster
@@ -489,7 +505,9 @@ krijgt de melding "Dahis is al geopend".
 Een pure controle; ze schrijft niets.
 1. Samenhang van de sleutelverwijzingen (§3.2, §3.6), inclusief beide
    registerdigests.
-2. Controlepunt ontsleutelen.
+2. Controlepunt ontsleutelen. Tijdens een sessie beschrijft het opgeslagen
+   controlepunt dezelfde toestand (zelfde `kid` en inhoud) als het
+   controlepunt waarop de sessie voortbouwt; anders `checkpoint` (§10).
 3. De laatste auditregel heeft dezelfde `seq` en `h`, en haar `h` klopt
    opnieuw berekend uit de `h` van de regel ervoor, `seq`, `kid`, `iv` en
    `ct`.
@@ -520,8 +538,11 @@ niets.
 
 **Termijn.** De app controleert bij ontgrendelen en vóór elke schrijvende
 handeling of de laatste geslaagde volledige controle (`integrity_check`,
-`export` of `import`) 7 dagen of langer geleden is. Zo ja, dan voert hij eerst
-de volledige controle uit en laat in die tijd geen handelingen toe. De
+`export` of `import`; direct na de installatie de regel `create` met detail
+`install`) 7 dagen of langer geleden is, of in de toekomst ligt. Zo ja, of is
+zo'n regel niet te vinden, dan voert hij eerst de volledige controle uit en
+laat in die tijd geen handelingen toe. De regel `integrity_check` komt in de
+eerstvolgende schrijfactie. De
 controle loopt onder het Web Lock en er wordt intussen niets geschreven. De
 termijn en de duur worden tijdens de alpha bijgesteld op basis van metingen
 bij een realistisch groot log.

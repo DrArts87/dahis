@@ -3,8 +3,14 @@
 // Een opslag is { meta, records, audit }, met dezelfde objecten als in
 // IndexedDB (§5). Schrijfacties worden eerst volledig voorbereid
 // (versleuteld en gehasht) en dan als *transactie* teruggegeven; applyTx past
-// zo'n transactie atomair toe op een opslag in het geheugen. store.js (taak 4)
+// zo'n transactie atomair toe op een opslag in het geheugen. store.js
 // doet hetzelfde in één IndexedDB-transactie (§9.1).
+//
+// De kluis bewaakt zelf de voorwaarden voor schrijven: een verschuldigde
+// volledige controle (§9.4), een vastgelegde reservering (§3.8 geval 2) en een
+// nieuwe schrijfsleutel na een ongeldige reservering (§3.8). Een schrijfactie
+// die daar niet aan voldoet, gooit een fout; nextPrelude() geeft de transactie
+// die eerst nodig is.
 import {
   FORMAT, DEFAULT_ITERATIONS, BUDGET_LIMIT, RESERVATION_BLOCK, MAX_KID, MAX_EPOCH, ZERO_HASH,
   FormatError, WrongSecretError, IntegrityError,
@@ -27,8 +33,31 @@ export class ConflictError extends Error {
 }
 
 export class ReservationNeededError extends Error {
-  constructor() { super('Eerst een nieuwe reservering vastleggen'); this.name = 'ReservationNeededError'; }
+  constructor(needed) {
+    super('Eerst een nieuwe reservering vastleggen');
+    this.name = 'ReservationNeededError';
+    this.needed = needed;
+  }
 }
+
+export class FullCheckDueError extends Error {
+  constructor() { super('Eerst de volledige controle uitvoeren (termijn verstreken)'); this.name = 'FullCheckDueError'; }
+}
+
+export class WriteKeyNeededError extends Error {
+  constructor() { super('Eerst een nieuwe schrijfsleutel (reservering ongeldig of ontbrekend)'); this.name = 'WriteKeyNeededError'; }
+}
+
+export class PasswordReuseError extends FormatError {
+  constructor() { super('Kies een nieuw wachtwoord dat nu niet in gebruik is.'); this.name = 'PasswordReuseError'; }
+}
+
+// Termijn van de volledige controle (§9.4).
+export const FULL_CHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Minimale ruimte in de reservering vóór een schrijfactie; een gewone
+// schrijfactie heeft er hooguit enkele nodig.
+export const PRELUDE_HEADROOM = 64;
 
 function iso(now) {
   return (now || new Date()).toISOString();
@@ -57,6 +86,9 @@ export class Session {
     this.counter = 0;                 // gebruikte tellerplaatsen (§3.8)
     this.until = 0;                   // vastgelegde reservering
     this.checkpointContent = null;
+    this.lastFullCheckAt = null;      // ms van de laatste gelogde volledige controle
+    this.fullCheckPending = false;    // geslaagd in deze sessie, nog niet gelogd
+    this.needsNewWriteKey = false;    // reservering ongeldig of ontbrekend (§3.8)
     this.setWriteKeys(writeKeys || []);
   }
 
@@ -84,7 +116,7 @@ export class Session {
   // Neemt tellerplaatsen in gebruik; ze blijven verbruikt, ook als de
   // transactie daarna mislukt (§3.8).
   take(n) {
-    if (this.counter + n > this.until) throw new ReservationNeededError();
+    if (this.counter + n > this.until) throw new ReservationNeededError(n);
     const start = this.counter;
     this.counter += n;
     return start;
@@ -93,7 +125,7 @@ export class Session {
 
 // --- Transacties ------------------------------------------------------------------
 
-function sameCheckpoint(a, b) {
+export function sameCheckpoint(a, b) {
   if (!a || !b) return a === b;
   return a.kid === b.kid && equalBytes(a.iv, b.iv) && equalBytes(a.ct, b.ct);
 }
@@ -120,13 +152,34 @@ export function emptyStore() {
 // Kern van elke schrijfactie (§9.1): versleutelt records, auditregels en het
 // nieuwe controlepunt met de actuele schrijfsleutel.
 // auditItems: inhoud of functie (versiehashes) -> inhoud.
-async function buildTx(store, session, { records = [], auditItems = [], putMeta = {}, deleteRecordIds = [], now }) {
+// prelude: een voorafgaande transactie (nieuwe schrijfsleutel); de regel
+// integrity_check komt dan in de eigenlijke schrijfactie.
+// fullCheckAction: de regel zelf telt als volledige controle (create, export,
+// import).
+async function buildTx(store, session, {
+  records = [], auditItems = [], putMeta = {}, deleteRecordIds = [], now, prelude = false, fullCheckAction = false,
+}) {
+  const at = now || new Date();
+  if (session.needsNewWriteKey) throw new WriteKeyNeededError();
+  if (!fullCheckAction && fullCheckDue(session, at)) throw new FullCheckDueError();
+  putMeta = Object.assign({}, putMeta);
+  const items = [];
+  const failed = store.meta.failed_unlocks;
+  if (failed && isUint(failed.count, 1, Number.MAX_SAFE_INTEGER) && !('failed_unlocks' in putMeta)) {
+    // §9.1: openstaande mislukte pogingen in de eerste schrijvende transactie.
+    items.push({ action: 'unlock_failed', detail: failed.count });
+    putMeta.failed_unlocks = { count: 0, last_at: null };
+  }
+  items.push(...auditItems);
+  const logCheck = session.fullCheckPending && !prelude && !fullCheckAction;
+  if (logCheck) items.push({ action: 'integrity_check' });
+  auditItems = items;
   const needed = records.length + auditItems.length + 1;
   session.take(needed);
   const kid = session.kid;
   const epoch = session.epochOf(kid);
   const keys = await session.subkeys(kid);
-  const ts = iso(now);
+  const ts = iso(at);
 
   const rows = [];
   const hashes = [];
@@ -171,13 +224,46 @@ async function buildTx(store, session, { records = [], auditItems = [], putMeta 
     putAudit: auditRows,
     deleteRecordIds,
     checkpointContent: content,
-    onCommit: () => { session.checkpointContent = content; },
+    onCommit: () => {
+      session.checkpointContent = content;
+      if (logCheck || fullCheckAction) {
+        session.lastFullCheckAt = at.getTime();
+        session.fullCheckPending = false;
+      }
+    },
   };
+}
+
+// Is de volledige controle verschuldigd (§9.4)? Ook als de laatste controle
+// in de toekomst ligt (klok verzet).
+export function fullCheckDue(session, now = new Date()) {
+  if (session.fullCheckPending) return false;
+  const last = session.lastFullCheckAt;
+  const t = now.getTime();
+  return last === null || t < last || t - last >= FULL_CHECK_INTERVAL_MS;
+}
+
+// De transactie die vóór een schrijfactie nodig is, of null. De aanroeper
+// past ze toe en vraagt daarna opnieuw. Een verschuldigde volledige controle
+// (fullCheckDue) voert de aanroeper vooraf zelf uit; zonder die controle
+// weigert elke schrijfactie.
+export async function nextPrelude(store, session, { now } = {}) {
+  if (session.needsNewWriteKey || session.counter + PRELUDE_HEADROOM + 2 > BUDGET_LIMIT) {
+    return rollWriteKey(store, session, { now });
+  }
+  if (session.until - session.counter < PRELUDE_HEADROOM) {
+    return prepareReservation(store, session, PRELUDE_HEADROOM);
+  }
+  return null;
 }
 
 // Reservering voor een bestaande schrijfsleutel (§3.8 geval 2). Geeft null
 // als de huidige reservering volstaat.
+// Weigert zolang een nieuwe schrijfsleutel nodig is (§3.8, ongeldige
+// reservering): de tellerstand van de huidige sleutel is dan niet te
+// vertrouwen.
 export async function prepareReservation(store, session, needed) {
+  if (session.needsNewWriteKey) throw new WriteKeyNeededError();
   if (session.counter + needed <= session.until) return null;
   if (session.counter + needed + 2 > BUDGET_LIMIT) {
     throw new FormatError('Budget van de schrijfsleutel op: eerst rollWriteKey');
@@ -202,8 +288,12 @@ async function withNewWriteKey(store, session, epoch, build) {
   const entry = { kid, epoch, salt: randomBytes(16) };
   const newList = writeKeys.concat([entry]);
 
-  const saved = { kid: session.kid, counter: session.counter, until: session.until, writeKeys: session.writeKeys };
+  const saved = {
+    kid: session.kid, counter: session.counter, until: session.until, writeKeys: session.writeKeys,
+    needsNewWriteKey: session.needsNewWriteKey,
+  };
   session.setWriteKeys(newList);
+  session.needsNewWriteKey = false;   // alleen binnen deze transactie, met de nieuwe sleutel
   session.kid = kid;
   session.counter = 0;
   session.until = BUDGET_LIMIT;   // binnen deze transactie; de echte reservering volgt hieronder
@@ -214,13 +304,14 @@ async function withNewWriteKey(store, session, epoch, build) {
     tx.putMeta.reservation = await makeReservation(keys.reserve, kid, until);
     tx.putMeta.write_keys = newList;
     const used = session.counter;
-    const content = tx.checkpointContent;
+    const inner = tx.onCommit;
     tx.onCommit = () => {
       session.setWriteKeys(newList);
       session.kid = kid;
       session.counter = used;
       session.until = until;
-      session.checkpointContent = content;
+      session.needsNewWriteKey = false;
+      inner();
     };
     return tx;
   } finally {
@@ -232,15 +323,18 @@ async function withNewWriteKey(store, session, epoch, build) {
     session.counter = saved.counter;
     session.until = saved.until;
     session.writeKeys = saved.writeKeys;
+    session.needsNewWriteKey = saved.needsNewWriteKey;
   }
 }
 
 // Wissel naar een nieuwe schrijfsleutel als het budget op raakt (§3.8).
+// Ook na een ongeldige of ontbrekende reservering (session.needsNewWriteKey).
 export async function rollWriteKey(store, session, { now } = {}) {
   return withNewWriteKey(store, session, session.epoch, (newList, kid) => buildTx(store, session, {
     auditItems: [{ action: 'write_key', detail: kid }],
     putMeta: { write_keys: newList },
     now,
+    prelude: true,
   }));
 }
 
@@ -312,6 +406,7 @@ export async function createInstallation({ password, now, deviceId = uuid() }) {
         auditItems: [{ action: 'create', detail: 'install' }],
         putMeta: { write_keys: newList },
         now,
+        fullCheckAction: true,
       }));
     Object.assign(tx.putMeta, {
       format: FORMAT,
@@ -399,8 +494,9 @@ async function openSession(meta, records, audit, dataKey) {
 
 // Geeft {session} bij succes. Gooit WrongSecretError bij een onjuist geheim
 // (gebruik dan failedUnlockTx), FormatError als de route onbruikbaar is, en
-// IntegrityError bij een afwijking (§10). De volledige controle bij een
-// verstreken termijn (§9.4) voert de aanroeper vóór unlockTx uit.
+// IntegrityError bij een afwijking (§10). Is de volledige controle
+// verschuldigd (fullCheckDue), dan weigert elke schrijfactie tot fullCheck is
+// geslaagd; de regel integrity_check volgt dan vanzelf.
 export async function unlock(store, secret) {
   const meta = store.meta;
   validateRoute(meta, secret);
@@ -415,35 +511,52 @@ export async function unlock(store, secret) {
   }
   const session = await openSession(meta, store.records, store.audit, dataKey);
   await quickCheck(store, session);
+  // §3.8: alleen een geldige reservering voor de actuele schrijfsleutel telt.
+  // Ontbreekt ze, hoort ze bij een oudere sleutel of klopt ze niet, dan is de
+  // tellerstand niet te vertrouwen: eerst een nieuwe schrijfsleutel.
   let reserved = 0;
-  if (meta.reservation) {
-    const keys = await session.subkeys(session.kid);
-    if (await reservationValid(keys.reserve, meta.reservation, session.kid)) reserved = meta.reservation.until;
+  const r = meta.reservation;
+  const keys = await session.subkeys(session.kid);
+  if (r && r.kid === session.kid && await reservationValid(keys.reserve, r, session.kid)) {
+    reserved = r.until;
+  } else {
+    session.needsNewWriteKey = true;
   }
   session.counter = budgetStart(session.checkpointContent.counter, reserved);
   session.until = session.counter;
   session.route = route;
+  session.lastFullCheckAt = await findLastFullCheck(store, session);
   return { session };
 }
 
-// Regels na een geslaagde ontgrendeling (§12.2 stap 5). Vooraf moet een
-// reservering zijn vastgelegd (prepareReservation met unlockNeeded(store)).
-export function unlockNeeded(store, extra = 0) {
-  const pending = store.meta.failed_unlocks && store.meta.failed_unlocks.count > 0 ? 1 : 0;
-  return 1 + pending + extra + 1;
+// Tijdstip (ms) van de laatste regel die als volledige controle telt, van
+// achter naar voren gezocht. Lukt dat niet (ontbrekende of onleesbare regel),
+// dan null: de controle is dan verschuldigd en vindt de oorzaak zelf.
+const FULL_CHECK_ACTIONS = new Set(['integrity_check', 'export', 'import']);
+
+async function findLastFullCheck(store, session) {
+  const rows = sortedAudit(store.audit);
+  try {
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const row = rows[i];
+      if (row.seq !== i + 1) return null;
+      const hPrev = i > 0 ? rows[i - 1].h : ZERO_HASH;
+      const c = await openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev);
+      if (FULL_CHECK_ACTIONS.has(c.action) || (c.action === 'create' && c.detail === 'install')) {
+        const t = Date.parse(c.ts);
+        return Number.isFinite(t) ? t : null;
+      }
+    }
+  } catch (err) {
+    return null;
+  }
+  return null;
 }
 
-export async function unlockTx(store, session, { now, integrityChecked = false } = {}) {
-  const items = [];
-  const failed = store.meta.failed_unlocks;
-  const putMeta = {};
-  if (failed && failed.count > 0) {
-    items.push({ action: 'unlock_failed', detail: failed.count });
-    putMeta.failed_unlocks = { count: 0, last_at: null };
-  }
-  items.push({ action: 'unlock', detail: session.route });
-  if (integrityChecked) items.push({ action: 'integrity_check' });
-  return buildTx(store, session, { auditItems: items, putMeta, now });
+// Regels na een geslaagde ontgrendeling (§12.2 stap 5). unlock_failed en
+// integrity_check voegt buildTx zelf toe als ze openstaan.
+export async function unlockTx(store, session, { now } = {}) {
+  return buildTx(store, session, { auditItems: [{ action: 'unlock', detail: session.route }], now });
 }
 
 // --- Controles (§9.2, §9.3) -------------------------------------------------------------
@@ -452,8 +565,39 @@ function sortedAudit(audit) {
   return audit.slice().sort((a, b) => a.seq - b.seq);
 }
 
-export async function quickCheck(store, session) {
+// Ontsleutelt het opgeslagen controlepunt en eist dat het dezelfde toestand
+// beschrijft als het controlepunt waarop de sessie voortbouwt. Zo valt een
+// controlepunt op dat na het ontgrendelen in de opslag is vervangen, ook met
+// dezelfde kid (review PR #9).
+const CHECKPOINT_KEYS = ['seq', 'h', 'state', 'records', 'counter', 'write_keys_digest', 'keyring_digest'];
+
+async function checkStoredCheckpoint(store, session) {
+  const wrapper = store.meta.checkpoint;
+  try { validateCheckpointWrapper(wrapper); } catch (err) { throw new IntegrityError('checkpoint', err.message); }
+  if (!session.writeKeys.has(wrapper.kid) || session.epochOf(wrapper.kid) !== store.meta.epoch) {
+    throw new IntegrityError('keys', 'Controlepunt hoort niet bij de actuele epoch');
+  }
+  if (wrapper.kid !== session.kid) {
+    throw new IntegrityError('checkpoint', 'Controlepunt onder een andere schrijfsleutel dan de sessie');
+  }
+  const stored = await openCheckpoint((await session.subkeys(wrapper.kid)).checkpoint, store.meta.epoch, wrapper);
   const cp = session.checkpointContent;
+  if (CHECKPOINT_KEYS.some((k) => stored[k] !== cp[k])) {
+    throw new IntegrityError('checkpoint', 'Controlepunt in de opslag wijkt af van het geauthenticeerde controlepunt');
+  }
+}
+
+export async function quickCheck(store, session) {
+  return quickCheckInner(store, session, false);
+}
+
+// backup = true alleen vanuit inspectBackup(): daar is de opslag de inhoud van
+// een back-up waarvan het bestand al is geauthenticeerd, en staat het
+// controlepunt onversleuteld in die inhoud. Bewust niet geëxporteerd, zodat
+// geen aanroeper dit pad voor de echte opslag kan gebruiken (review PR #9).
+async function quickCheckInner(store, session, backup) {
+  const cp = session.checkpointContent;
+  if (!backup) await checkStoredCheckpoint(store, session);
   await checkCoherence(store.meta, store.meta.checkpoint.kid, cp, store.records, store.audit);
   const rows = sortedAudit(store.audit);
   const last = rows[rows.length - 1];
@@ -473,6 +617,10 @@ export async function quickCheck(store, session) {
 }
 
 export async function fullCheck(store, session) {
+  return fullCheckInner(store, session, false);
+}
+
+async function fullCheckInner(store, session, backup) {
   const rows = sortedAudit(store.audit);
   let hPrev = ZERO_HASH;
   for (let i = 0; i < rows.length; i++) {
@@ -488,7 +636,15 @@ export async function fullCheck(store, session) {
   for (const row of store.records) {
     await openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row);
   }
-  await quickCheck(store, session);
+  await quickCheckInner(store, session, backup);
+  session.fullCheckPending = true;
+}
+
+// Volledige controle op verzoek (§9.4): controleren en de regel
+// integrity_check schrijven.
+export async function integrityCheckTx(store, session, { now } = {}) {
+  if (!session.fullCheckPending) await fullCheck(store, session);
+  return buildTx(store, session, { now });
 }
 
 // --- Records ----------------------------------------------------------------------------
@@ -555,8 +711,24 @@ export async function changePasswordTx(store, session, { current, newPassword, d
 
 // --- Sleutels vernieuwen (§12.5) ------------------------------------------------------------
 
+// Opent dit wachtwoord de huidige wachtwoordwrap? (audit A4)
+async function opensCurrentWrap(meta, password) {
+  try {
+    const { raw } = await unwrapCurrent(meta, { password });
+    wipe(raw);
+    return true;
+  } catch (err) {
+    if (err instanceof WrongSecretError) return false;
+    throw err;
+  }
+}
+
+// Weigert een nieuw wachtwoord dat de huidige wrap opent: na een mogelijk lek
+// moet het nieuwe wachtwoord onbekend zijn bij wie het oude kent (audit A4).
 export async function rotateKeysTx(store, session, { current, newPassword, now }) {
   const meta = store.meta;
+  checkNewPassword(newPassword);
+  if (await opensCurrentWrap(meta, newPassword)) throw new PasswordReuseError();
   const { raw } = await unwrapCurrent(meta, current);
   const olds = [{ epoch: meta.epoch, raw }];
   const fresh = randomBytes(32);
@@ -638,10 +810,9 @@ function payloadToStore(payload) {
 // Back-up maken (§11.3): eerst volledige controle, dan de regel export.
 // Geeft de transactie; na toepassen bouwt buildFile het bestand.
 export async function exportTx(store, session, { now } = {}) {
-  await fullCheck(store, session);
+  if (!session.fullCheckPending) await fullCheck(store, session);
   const state = session.checkpointContent.state;
-  const tx = await buildTx(store, session, { auditItems: [{ action: 'export', state }], now });
-  return tx;
+  return buildTx(store, session, { auditItems: [{ action: 'export', state }], now, fullCheckAction: true });
 }
 
 export async function buildBackupFile(store, session, { now, appVersion = '0.0.0' } = {}) {
@@ -707,7 +878,7 @@ export async function inspectBackup(bytes, secret) {
     session.kid = cpKid;
     session.checkpointContent = content;
     const fake = { meta: Object.assign({}, meta, { checkpoint: { kid: cpKid } }), records: data.records, audit: data.audit };
-    await fullCheck(fake, session);
+    await fullCheckInner(fake, session, true);
     return { header, data, session, raw, route };
   } catch (err) {
     wipe(raw);
@@ -735,7 +906,7 @@ export async function restoreTx(bytes, secret, { newPassword, now, deviceId = uu
       const items = [{ action: 'write_key', detail: kid }];
       if (route === 'recovery') items.push({ action: 'recovery_used' }, { action: 'password_change', detail: 'recovery' });
       items.push({ action: 'import' });
-      return buildTx(base, session, { auditItems: items, putMeta: { write_keys: newList }, now });
+      return buildTx(base, session, { auditItems: items, putMeta: { write_keys: newList }, now, fullCheckAction: true });
     });
     Object.assign(tx.putMeta, {
       format: FORMAT,

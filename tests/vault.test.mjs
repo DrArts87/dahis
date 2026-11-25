@@ -14,8 +14,15 @@ async function commit(store, tx) {
   if (tx) V.applyTx(store, tx);
 }
 
-async function write(store, session, needed, factory) {
-  await commit(store, await V.prepareReservation(store, session, needed));
+// Voorafgaande transacties (nieuwe schrijfsleutel, reservering) zoals de
+// schrijfwachtrij in store.js ze uitvoert.
+async function prelude(store, session, now = NOW) {
+  let tx;
+  while ((tx = await V.nextPrelude(store, session, { now }))) V.applyTx(store, tx);
+}
+
+async function write(store, session, factory) {
+  await prelude(store, session);
   const tx = await factory();
   V.applyTx(store, tx);
   return tx;
@@ -30,12 +37,12 @@ async function setup() {
 
 async function unlockAndLog(store, secret) {
   const { session } = await V.unlock(store, secret);
-  await write(store, session, V.unlockNeeded(store), () => V.unlockTx(store, session, { now: NOW }));
+  await write(store, session, () => V.unlockTx(store, session, { now: NOW }));
   return session;
 }
 
 async function putRecord(store, session, fields) {
-  return write(store, session, 2, () => V.putRecordTx(store, session, Object.assign({ now: NOW }, fields)));
+  return write(store, session, () => V.putRecordTx(store, session, Object.assign({ now: NOW }, fields)));
 }
 
 async function auditActions(store, session) {
@@ -108,7 +115,7 @@ test('herstelsleutel: ontgrendelen, nieuw wachtwoord; oud werkt niet meer, nieuw
   const { store, recoveryKey } = await setup();
   const messy = recoveryKey.toLowerCase().replace(/-/g, ' ');
   const { session } = await V.unlock(store, { recoveryKey: messy });
-  await write(store, session, 3, () => V.changePasswordTx(store, session,
+  await write(store, session, () => V.changePasswordTx(store, session,
     { current: { recoveryKey }, newPassword: PASSWORD2, detail: 'recovery', now: NOW }));
   await assert.rejects(V.unlock(store, { password: PASSWORD }), C.WrongSecretError);
   const s2 = await unlockAndLog(store, { password: PASSWORD2 });
@@ -129,10 +136,10 @@ test('versies, verwijderen en vernietigen', async () => {
   const id = (await putRecord(store, session, { kind: 'test_persoon', data: { v: 1 } })).putRecords[0].id;
   await putRecord(store, session, { id, kind: 'test_persoon', data: { v: 2 } });
   assert.equal((await V.readRecord(store, session, id)).content.data.v, 2);
-  await write(store, session, 2, () => V.deleteRecordTx(store, session, { id, now: NOW }));
+  await write(store, session, () => V.deleteRecordTx(store, session, { id, now: NOW }));
   assert.equal((await V.readRecord(store, session, id)).content.deleted, true);
   assert.equal(store.records.filter((r) => r.id === id).length, 3);
-  await write(store, session, 2, () => V.destroyRecordTx(store, session, { id, now: NOW }));
+  await write(store, session, () => V.destroyRecordTx(store, session, { id, now: NOW }));
   assert.equal(store.records.length, 0);
   await V.fullCheck(store, session);
 });
@@ -181,7 +188,7 @@ test('mislukte transactie, herstart, nieuwe versleuteling: geen tellerplaats opn
   const usedBeforeCrash = s1.counter;
   const { session: s2 } = await V.unlock(store, { password: PASSWORD });
   assert.ok(s2.counter >= usedBeforeCrash, 'teller na herstart moet voorbij alle gebruikte plaatsen liggen');
-  await V.prepareReservation(store, s2, V.unlockNeeded(store)).then((r) => commit(store, r));
+  await prelude(store, s2);
   V.applyTx(store, await V.unlockTx(store, s2, { now: NOW }));
   await V.fullCheck(store, s2);
 });
@@ -199,7 +206,7 @@ test('concurrerende transactie wordt geweigerd en verandert niets', async () => 
 });
 
 async function makeBackup(store, session) {
-  await write(store, session, 2, () => V.exportTx(store, session, { now: NOW }));
+  await write(store, session, () => V.exportTx(store, session, { now: NOW }));
   return C.utf8(await V.buildBackupFile(store, session, { now: NOW, appVersion: '0.1.0' }));
 }
 
