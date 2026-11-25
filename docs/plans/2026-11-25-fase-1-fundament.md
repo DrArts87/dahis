@@ -59,33 +59,37 @@ Als er later toch een tweede site nodig is:
 - [`docs/formaat.md`](../formaat.md): specificatie van versleuteling, opslag
   en back-up (formaat 1).
 
-### Crypto (`app/js/crypto.js`), alleen Web Crypto
-- **Datasleutel**: AES-GCM-256, willekeurig; na unwrappen niet-exporteerbaar
-  geïmporteerd.
-- **Wachtwoordsleutel**: PBKDF2-SHA256, 600.000 rondes, salt van 16 bytes.
-  Parameters staan in `meta` zodat ze later omhoog kunnen.
-- **Herstelsleutel**: 256 bits willekeurig, getoond als 13 groepen van 4
-  tekens (Crockford base32) plus een controlegroep; sleutelafleiding met HKDF.
-- **Records**: per record een willekeurige IV van 96 bits; formaatversie, id,
-  kind en versie in de AAD.
-- Wachtwoord wijzigen = datasleutel opnieuw wrappen. Herstel = ontgrendelen
-  met de herstelsleutel en direct een nieuw wachtwoord instellen.
-- Geen eigen crypto-primitieven.
-
-### Opslag (`app/js/store.js`): IndexedDB, schema v1
-- `meta`: formaatversie, KDF-parameters, gewrapte datasleutels, apparaat-id,
-  tijdstip laatste back-up, kop van de auditketen (versleuteld), teller
-  mislukte ontgrendelpogingen.
-- `records`: `{id, version, kind, updated_at, iv, ciphertext}` met sleutel
-  `[id, version]`. Append-only: een wijziging maakt een nieuwe versie
-  (versiegeschiedenis voor WGBO/AVG, geschikt voor latere synchronisatie).
-  Vernietigen op verzoek wist alle versies.
-- `audit`: versleutelde regels met hashketen (§4 auditlog).
-- `navigator.storage.persist()` aanvragen en de status tonen.
+### Crypto, opslag, auditlog en back-up
+De details staan in [`docs/formaat.md`](../formaat.md) (formaat 1, concept
+voor de alpha). In het kort:
+- **Sleutels**: een datasleutel per epoch, gewrapt met een sleutel uit het
+  hoofdwachtwoord (PBKDF2-SHA256, 600.000 rondes) en een uit de herstelsleutel
+  (HKDF). Versleuteld wordt met subsleutels van een *schrijfsleutel*; na elk
+  herstel komt er een nieuwe. Een reservering in de opslag bewaakt het
+  IV-budget, ook na een crash. Elke back-up heeft een eigen sleutel.
+- **Opslag** (`app/js/store.js`, IndexedDB, schema v1): `meta`, `records`
+  (append-only, sleutel `[id, version]`) en `audit`. Atomair schrijven met
+  een vergelijking van het controlepunt; één venster tegelijk via een Web
+  Lock. `navigator.storage.persist()` aanvragen en de status tonen.
+- **Auditlog** (NEN 7513): versleutelde regels met hashketen, zonder namen of
+  medische gegevens. Een versleuteld **controlepunt** bindt de kop van de
+  keten aan een digest van alle recordversies en aan de sleutelregisters.
+  Snelle controle bij elke ontgrendeling, volledige controle minstens
+  wekelijks en bij export.
+- **Bij een afwijking** stopt de app met normaal gebruik; herstel via "alles
+  wissen" en een back-up terugzetten. Forensisch bestand en afwijking
+  accepteren komen na de alpha.
+- **Back-up** (`.dahis`): canonieke header plus één versleuteld blok; terug
+  te zetten met wachtwoord of herstelsleutel op een lege opslag. Export via
+  het deelmenu, downloaden als terugval. Twee controles: interne integriteit,
+  en gelijk aan de export. Herinnering na 7 dagen. Bewaarbeleid: de laatste
+  vier wekelijkse back-ups.
+- Geen eigen crypto-primitieven; alleen Web Crypto.
 
 ### Ontgrendelen en vergrendelen
-- Onboarding: uitleg → wachtwoord kiezen (minimaal 14 tekens) → herstelsleutel
-  tonen → twee groepen overtypen ter controle → eerste back-up.
+- Onboarding: uitleg → wachtwoord kiezen (minimaal 14 tekens, advies voor een
+  wachtzin van 5 woorden) → herstelsleutel tonen → twee groepen overtypen ter
+  controle → eerste back-up.
 - Vergrendelen bij `visibilitychange` naar verborgen en na inactiviteit
   (standaard 3 minuten, instelbaar).
 - Bij vergrendelen herlaadt de pagina: de enige betrouwbare manier om sleutel
@@ -93,28 +97,6 @@ Als er later toch een tweede site nodig is:
   niet gegarandeerd wissen; restrisico in `docs/compliance/nen7510.md`.
 - Bij onboarding de duur van PBKDF2 meten en tonen.
 - "Alles wissen" met bevestiging.
-
-### Auditlog (NEN 7513)
-- Per regel: tijdstip, actie, kind, record-id, resultaat, apparaat-id;
-  versleuteld; geen namen of medische gegevens.
-- Elke regel bevat de hash van de vorige; de laatste hash staat versleuteld in
-  `meta` en in de back-up.
-- Mislukte ontgrendelpogingen worden onversleuteld geteld en bij de volgende
-  geslaagde ontgrendeling gelogd.
-
-### Back-up (`.dahis`)
-- Onversleutelde header: magic, formaatversie, KDF-parameters, gewrapte
-  sleutels. De hele inhoud als één AES-GCM-blok, met de header als AAD; lekt
-  dus ook geen aantallen of tijdstippen.
-- Terug te zetten met wachtwoord of herstelsleutel, op elk toestel.
-- Export via het deelmenu (Web Share API), downloaden als terugval.
-- "Back-up controleren": bestand teruglezen en vergelijken met de huidige
-  gegevens.
-- Import in fase 1 alleen op een leeg toestel; samenvoegen later.
-- Herinnering als de laatste back-up meer dan 7 dagen oud is.
-- Migratieketen per formaatversie, met een vast testbestand (formaat 1,
-  verzonnen inhoud, bekend testwachtwoord, extensie niet `.dahis` zodat
-  `privacy_check.py` en `.gitignore` gelden zoals nu).
 
 ### Service worker en CSP
 - Alle bestanden uit een cache per versie; geen `skipWaiting` zonder akkoord.
@@ -144,7 +126,7 @@ Als er later toch een tweede site nodig is:
   testen op het referentietoestel.
 
 ### Tests (geen npm-pakketten)
-- `node --test tests/`: crypto, formaat, hashketen, back-up en herstel,
+- `node --test tests/*.test.mjs`: crypto, formaat, hashketen, back-up en herstel,
   migratie. Opslag in het geheugen nagebootst. PBKDF2-rondes instelbaar zodat
   tests snel zijn, plus één test op de standaardwaarde.
 - `tests/browser.html` voor echte IndexedDB, lokaal met een wegwerpprofiel.
@@ -153,12 +135,31 @@ Als er later toch een tweede site nodig is:
 
 1. Dit plan; daarna `docs/formaat.md`.
 2. App-shell, manifest, service worker met handmatige update, CSP, iconen.
-3. `crypto.js` met tests.
-4. `store.js` (IndexedDB, append-only, `persist()`).
+3. `crypto.js` met tests: sleutels en wraps, herstelsleutel,
+   schrijfsleutels en reservering (beide gevallen van formaat §3.8),
+   registerdigests, records, auditketen, controlepunt, back-upformaat met
+   strikt inlezen. Testvectoren in `tests/fixtures/vectoren.json`, ook
+   negatief, onder meer:
+   - een gewijzigde oudere auditregel met ongewijzigde opgeslagen `h`;
+   - een mislukte transactie, herstart en nieuwe versleuteling;
+   - een back-up met een gewijzigde `write_keys` of een controlepunt uit een
+     eerdere epoch;
+   - herhaald herstel van dezelfde back-up (telkens een nieuwe
+     schrijfsleutel).
+4. `store.js` (IndexedDB, append-only, atomair schrijven, Web Lock,
+   `persist()`).
 5. Onboarding, ontgrendelen, vergrendelen, wachtwoord wijzigen, herstel,
-   alles wissen.
-6. Auditlog met hashketen.
-7. Back-up: export, controle, import, herinnering, migratieketen, testbestand.
+   alles wissen, stoppen bij een afwijking. Meting op de OnePlus: PBKDF2 bij
+   600.000 en bij het maximum van 10.000.000 rondes.
+6. Auditlog met hashketen, controlepunt, snelle en volledige controle. Meting
+   op de OnePlus: duur van de volledige controle bij een realistisch groot
+   log.
+7. Back-up: export, beide controles, terugzetten, herinnering,
+   migratieketen, testbestand. Tests: terugzetten op een lege opslag met
+   wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag
+   leeg; twee keer dezelfde back-up terugzetten geeft twee verschillende
+   schrijfsleutels. Meting op de OnePlus: piekgeheugen, en of bij de maximale
+   bestandsgrootte een back-up nog te maken én te openen is.
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
@@ -167,6 +168,11 @@ Als er later toch een tweede site nodig is:
    andere Pages-sites op het account (apart te vragen).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
 
+**Na de alpha** (eigen ontwerp en review): forensisch bestand, een afwijking
+accepteren, scherm "Sleutels vernieuwen", noodontsleutelaar in Python met
+`cryptography` (de enige toegestane uitzondering op de dependency-regel,
+alleen voor dit hulpmiddel).
+
 ## 6. Risico's
 
 | Risico | Maatregel |
@@ -174,7 +180,9 @@ Als er later toch een tweede site nodig is:
 | Gedrag van Chrome op Android wijkt af (updates, persist, delen) | Vroeg testen op het referentietoestel |
 | PBKDF2 traag op het toestel | Meten bij onboarding; parameters in `meta` |
 | Formaat is een contract met bestaande back-ups | `docs/formaat.md` eerst, versienummer en testbestand vanaf dag één |
-| Back-up alleen leesbaar met de app | Na fase 1 een noodontsleutelaar in pure Python overwegen (stdlib heeft geen AES-GCM), getest tegen Web Crypto |
+| Back-up alleen leesbaar met de app | Na de alpha een noodontsleutelaar in Python met `cryptography`, getest met de testvectoren |
+| Afwijking in de opslag | App stopt; herstel via een back-up, wijzigingen sinds die back-up gaan verloren; daarom wekelijkse back-ups |
+| Limieten (PBKDF2, bestandsgrootte) te hoog voor het toestel | Meten op de OnePlus vóór echte dossiers; zo nodig verlagen |
 | Andere Pages-site op hetzelfde account | Regel in `nen7510.md`, controle in releasechecklist; tweede site alleen op eigen domein |
 | Origin wijzigt na ingebruikname | Alleen via back-up en opnieuw installeren |
 | Geheugen niet te wissen in JavaScript | Herladen bij vergrendelen; restrisico documenteren |
@@ -194,3 +202,8 @@ Als er later toch een tweede site nodig is:
 - Ontgrendelen, wachtwoord wijzigen, export, import en herstel staan in het
   auditlog; een gemanipuleerd log wordt gedetecteerd.
 - `py_compile`, `node --check`, de Node-tests en `privacy_check.py` slagen.
+
+**Voorwaarde voor echte dossiers**: op de OnePlus is een back-up gemaakt en
+op een lege opslag teruggezet, zowel met het wachtwoord als met de
+herstelsleutel; de voorlopige limieten in `docs/formaat.md` §2.4 zijn gemeten
+en vastgesteld; het formaat is vastgesteld.

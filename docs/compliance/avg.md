@@ -31,6 +31,18 @@ niet in deze repository.
 - **Informeren**: elke betrokkene weet dat er een dossier wordt bijgehouden
   en waarom (mondeling volstaat; vastleggen in het dossier).
 
+## Back-ups
+- Back-ups zijn versleuteld (zie `docs/formaat.md`) en worden minstens
+  wekelijks gemaakt; de app herinnert eraan.
+- **Bewaarbeleid**: bewaar de laatste vier wekelijkse back-ups en verwijder
+  oudere.
+- **Vernietiging** (WGBO art. 7:455): de app wist een vernietigd dossier uit
+  de actieve opslag, maar kan back-upbestanden buiten de app niet wissen.
+  Door het bewaarbeleid bestaan vernietigde gegevens hooguit ongeveer vier
+  weken in back-ups. Maak na een vernietiging direct een nieuwe back-up. Wie
+  een back-up van vóór een vernietiging terugzet, voert de vernietiging
+  opnieuw uit.
+
 ## DPIA
 Een DPIA is verplicht bij grootschalige verwerking van gezondheidsgegevens.
 Dat is hier niet het geval, maar een korte DPIA wordt aanbevolen omdat het om
