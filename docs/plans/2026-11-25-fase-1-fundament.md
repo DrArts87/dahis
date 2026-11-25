@@ -56,7 +56,8 @@ Als er later toch een tweede site nodig is:
 - `app/`: wordt gepubliceerd. `index.html`, `manifest.webmanifest`, `sw.js`,
   `js/*.js` (ES-modules), `css/`, iconen.
 - `tests/`: niet gepubliceerd.
-- `docs/formaat.md`: specificatie van versleuteling, opslag en back-up.
+- [`docs/formaat.md`](../formaat.md): specificatie van versleuteling, opslag
+  en back-up (formaat 1).
 
 ### Crypto (`app/js/crypto.js`), alleen Web Crypto
 - **Datasleutel**: AES-GCM-256, willekeurig; na unwrappen niet-exporteerbaar
