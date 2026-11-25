@@ -1,0 +1,29 @@
+# Persoons- en patiëntgegevens: nooit committen
+data/*
+!data/.gitkeep
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+*.dump
+*.sql
+*.csv
+*.xlsx
+*.pdf
+*.dahis
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/

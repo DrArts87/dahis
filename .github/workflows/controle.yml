@@ -1,0 +1,45 @@
+# Controleert elke pull request en elke wijziging op main. Gebruikt geen
+# actions van buiten deze repository: de code wordt met git opgehaald en
+# Python komt uit de officiële Docker-images.
+name: Controle
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CHECKOUT: |
+    git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    git init -q .
+    git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+    git fetch -q --depth 1 origin "$GITHUB_SHA"
+    git checkout -q FETCH_HEAD
+
+jobs:
+  python:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    container: python:${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Python-bestanden compileren
+        run: python -m py_compile tools/*.py
+
+  privacy:
+    name: Geen persoons- of patiëntgegevens
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Databases, exports en BSN's zoeken
+        run: python3 tools/privacy_check.py
