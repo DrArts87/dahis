@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 260 226" role="img" aria-labelledby="galago-open-titel">
+  <title id="galago-open-titel">Galago met gespreide armen op een tak</title>
+
+  <defs>
+    <path id="galago-open-tak" d="
+      M30 194C67 190 109 188 149 187C181 186 208 182 234 176
+      C214 187 183 193 150 195C106 196 62 198 30 201Z"/>
+
+    <path id="galago-open-voeten" d="
+      M112 174C109 179 105 185 106 190
+      C107 193 111 193 113 190C114 194 119 194 121 191
+      C124 194 129 191 129 187L129 175Z
+      M138 175L138 187C138 191 142 193 145 190
+      C147 193 151 193 153 189C156 191 160 189 159 185
+      C157 180 153 176 150 173Z"/>
+
+    <clipPath id="galago-open-tak-clip">
+      <use href="#galago-open-tak"/>
+    </clipPath>
+    <mask id="galago-open-voetmasker" maskUnits="userSpaceOnUse"
+          x="0" y="0" width="260" height="226">
+      <rect width="260" height="226" fill="white"/>
+      <use href="#galago-open-voeten" fill="black"/>
+    </mask>
+
+    <mask id="galago-open-details" maskUnits="userSpaceOnUse"
+          x="0" y="0" width="260" height="226">
+      <rect width="260" height="226" fill="white"/>
+
+      <!-- Binnenoren -->
+      <path fill="black" d="
+        M80 65C67 52 50 44 34 45C37 60 52 72 72 77Z
+        M181 64C194 51 212 43 228 44C225 60 210 71 190 77Z"/>
+
+      <!-- Oogranden en lichtpuntjes -->
+      <ellipse cx="103" cy="88" rx="22" ry="24" fill="black"/>
+      <ellipse cx="159" cy="88" rx="22" ry="24" fill="black"/>
+      <ellipse cx="103" cy="89" rx="17.5" ry="19.5" fill="white"/>
+      <ellipse cx="159" cy="89" rx="17.5" ry="19.5" fill="white"/>
+      <circle cx="97" cy="82" r="4.5" fill="black"/>
+      <circle cx="153" cy="82" r="4.5" fill="black"/>
+
+      <!-- Snuit en scheiding tussen kop en lijf -->
+      <path fill="black" d="M125 111Q131 107 137 111Q135 116 131 116Q127 116 125 111Z"/>
+      <path d="M127 120Q131 125 136 120M104 134Q131 146 158 133"
+            fill="none" stroke="black" stroke-width="2"
+            stroke-linecap="round"/>
+    </mask>
+  </defs>
+
+  <g fill="#4B725F" opacity=".32" mask="url(#galago-open-details)">
+    <!-- Lange staart met open krul -->
+    <path d="M117 169C103 174 87 170 72 175
+             C58 180 52 193 58 201C63 209 76 209 82 201"
+          fill="none" stroke="#4B725F" stroke-width="8"
+          stroke-linecap="round"/>
+
+    <use href="#galago-open-tak"/>
+    <path d="M45 195C35 189 29 181 27 172
+             C38 175 46 183 48 194Z
+             M209 185C213 174 224 166 236 165
+             C231 175 221 183 209 185Z"/>
+
+    <!-- Compact lijf en schuin geheven armen -->
+    <path d="M107 122C101 132 102 149 108 163
+             C112 176 119 181 132 181
+             C146 181 154 174 158 161
+             C163 146 161 132 154 122Z"/>
+    <path d="M109 137C97 132 77 120 60 104
+             C54 98 49 91 44 92C37 93 39 102 43 108
+             C56 129 79 149 108 151Z
+             M151 137C164 130 183 117 200 101
+             C206 95 211 89 216 91C223 94 219 102 215 108
+             C199 128 177 147 153 152Z"/>
+
+    <!-- Kleine vingers aan de uiteinden van de armen -->
+    <path d="M47 102Q33 102 31 96Q30 92 39 93
+             Q31 86 35 83Q39 81 45 90Q42 80 46 79
+             Q51 79 53 94Z
+             M213 101Q227 101 230 95Q231 91 222 92
+             Q229 85 225 82Q221 80 215 89Q218 79 214 78
+             Q209 78 207 93Z"/>
+    <use href="#galago-open-voeten"/>
+
+    <!-- Brede oren en afgeronde kop -->
+    <path d="M86 50C70 34 45 30 24 38
+             C24 62 44 79 73 85Z
+             M175 50C193 33 218 29 238 37
+             C237 62 218 79 189 85Z"/>
+    <path d="M131 33C143 33 155 36 166 42
+             C183 51 194 67 194 85
+             C194 115 170 137 132 138
+             C94 138 68 117 68 87
+             C68 60 91 38 119 34
+             Q122 30 120 25Q128 27 130 32
+             Q134 29 133 24Q140 29 140 34Z"/>
+  </g>
+
+  <!-- Witte afgrenzing op de tak, buiten het silhouet van de voeten. -->
+  <g clip-path="url(#galago-open-tak-clip)"
+     mask="url(#galago-open-voetmasker)">
+    <use href="#galago-open-voeten" fill="none" stroke="#FFFFFF"
+         stroke-width="3.2" stroke-linejoin="round"/>
+  </g>
+</svg>

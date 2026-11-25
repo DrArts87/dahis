@@ -396,9 +396,9 @@ vh  = SHA-256(aad ‖ iv ‖ ct)                   (versiehash)
 
 | kind | schema | Sinds | Omschrijving |
 |---|---|---|---|
-| — | — | — | — |
+| `settings` | 1 | app 0.1.0 (taak 5) | Instellingen van de app: `data` is een object met vaste sleutels uit `app/js/settings.js`; onbekende sleutels en ongeldige waarden gelden als de standaard. Eén record per installatie |
 
-Formaat 1 begint zonder kinds; tests gebruiken `test_*`.
+Tests gebruiken `test_*`.
 
 ## 7. Toestandsdigest
 De digest vat **alle** recordversies samen, zonder ontsleutelen:

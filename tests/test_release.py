@@ -137,10 +137,31 @@ class IconenTest(unittest.TestCase):
         self.assertEqual(rond[0][3], 0)      # alfa van pixel (0, 0)
         self.assertEqual(vol[0][3], 255)
 
-    def test_midden_is_kruis(self):
-        rijen = iconen.teken(32, False)
-        midden = rijen[16][16 * 4:16 * 4 + 4]
-        self.assertEqual(bytes(midden), b"\xff\xff\xff\xff")
+    def test_logopad_compleet(self):
+        polygonen = iconen.lees_pad("".join(iconen.LOGO_PAD))
+        self.assertEqual(len(polygonen), "".join(iconen.LOGO_PAD).count("M"))
+        x0, y0, x1, y1 = iconen.grenzen(polygonen)
+        self.assertEqual([round(v) for v in (x0, y0, x1, y1)], [246, 73, 644, 834])
+
+    def test_logo_wit_op_groen(self):
+        rijen = iconen.teken(64, True)
+        pixels = [rij[i:i + 4] for rij in rijen for i in range(0, len(rij), 4)]
+        wit = sum(1 for p in pixels if p[:3] == b"\xff\xff\xff")
+        groen = sum(1 for p in pixels if p[:3] == bytes(iconen.ACHTERGROND))
+        self.assertTrue(0.03 * len(pixels) < wit < 0.4 * len(pixels))
+        self.assertGreater(groen, 0.5 * len(pixels))
+
+    def test_oog_is_gat(self):
+        # Even-odd: het oog van de slang (rond 573, 350) is niet gevuld.
+        grootte = 256
+        polygonen = iconen.lees_pad("".join(iconen.LOGO_PAD))
+        x0, y0, x1, y1 = iconen.grenzen(polygonen)
+        schaal = iconen.HOOGTE[True] * grootte / (y1 - y0)
+        px = int(grootte / 2 + (573 - (x0 + x1) / 2) * schaal)
+        py = int(grootte / 2 + (350 - (y0 + y1) / 2) * schaal)
+        dekking = iconen.logo_dekking(grootte, iconen.HOOGTE[True])
+        self.assertLess(dekking[py][px], iconen.SUBPIXELS ** 2 // 2)
+        self.assertEqual(dekking[py][px - 6], iconen.SUBPIXELS ** 2)   # kop van de slang
 
     def test_deterministisch(self):
         a = iconen.png(24, iconen.teken(24, False))

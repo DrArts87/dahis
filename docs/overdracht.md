@@ -1,6 +1,6 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 4 (opslag in IndexedDB). Dit document is het
+Bijgewerkt: 2026-11-25, na taak 5 (onboarding, ontgrendelen, vergrendelen). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -15,11 +15,12 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #5, #7 | `docs/formaat.md` (formaat 1, **concept**) na vier reviewrondes; CI-uitbreiding en pre-commit-hook (taak 8) |
 | #6 | App-shell: manifest, service worker met handmatige updates en hashcontrole, strikte CSP met trusted types, iconen (taak 2) |
 | #8 | `app/js/crypto.js` en `app/js/vault.js` met tests en testvectoren (taak 3) |
-| (nieuw) | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4). **Let op**: bij het schrijven van dit document stond deze PR nog open en ging hij naar de auditor; controleer dat hij gemerged is |
+| #9 | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4) |
+| (nieuw) | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1, 2, 3, 4 en 8 klaar; **volgende: de review van taak 4 verwerken**,
-daarna taak 5, 6, 7, 9 en 10.
+taak 1, 2, 3, 4, 5 en 8 klaar (5 nog zonder metingen op de OnePlus);
+**volgende: taak 6** (auditlog en controles in de app), daarna 7, 9 en 10.
 
 ## Belangrijkste documenten
 
@@ -33,7 +34,10 @@ daarna taak 5, 6, 7, 9 en 10.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
   afspraken daarover; A2 en A4 verwerkt, A1 deels, A3 in taak 7.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
-  NEN 7510.
+  NEN 7510 (met restrisico's van sessies).
+- [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
+  [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
+  instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md).
 
 ## Besluiten in het kort
 
@@ -46,6 +50,10 @@ daarna taak 5, 6, 7, 9 en 10.
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
 | Back-ups | Wekelijks; bewaar de laatste vier |
+| UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
+| Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
+| Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
+| Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen |
 | Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld) |
 
 ## Werkwijze met Claude (cloudsessie)
@@ -76,28 +84,32 @@ daarna taak 5, 6, 7, 9 en 10.
 
 | Pad | Wat |
 |---|---|
-| `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | App-shell, schermen Start en Over, DOM zonder `innerHTML` |
+| `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | Schermen (alleen tekenen), logo en iconen als SVG-symbolen in `index.html`, DOM zonder `innerHTML` |
+| `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen, herstel, wachtwoord, instellingen, controle, meting, vergrendelen (herladen), alles wissen, stoppen bij een afwijking |
+| `app/js/settings.js`, `app/js/i18n.js`, `app/js/i18n/nl.js` | Vaste lijst instellingen; teksten met vaste sleutels |
+| `app/img/` | Randen (SVG) en varen (PNG) van de gebruiker |
 | `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py` |
 | `app/js/crypto.js` | Bouwstenen formaat 1 (Web Crypto) |
 | `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`) |
-| `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft), Web Lock (`openStorage`), opslagstatus. Nog niet aangesloten op de app |
+| `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft), Web Lock (`openStorage`), opslagstatus |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs`; Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
+| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
 
 ## Volgende stap
 
-De review van PR #9 (taak 4) is verwerkt (R1, R2); na een tweede blik van
-de auditor en de merge volgt taak 5. Browsertests: repository serveren met
-`python3 -m http.server` en `/tests/browser.html` openen in een
-wegwerpprofiel (in de cloudsessie met Playwright; het stuurscript voor
-herladen midden in een schrijfactie en twee tabbladen staat niet in de
-repository).
+Taak 5 is gebouwd; na de review en de merge volgt taak 6 (auditlog en
+controles in de app). Open uit taak 5: de metingen op de OnePlus (Meer →
+Snelheid meten, bij 600.000 en 10.000.000 rondes).
 
-Daarna taak 5 (onboarding, ontgrendelen, vergrendelen, stoppen bij een
-afwijking, metingen op de OnePlus), 6 (auditlog en controles in de app),
-7 (back-up in de app, audit A3), 9 (Pages-workflow en releaseprocedure) en
-10 (acceptatietest op de OnePlus).
+Browsercontrole: repository serveren met `python3 -m http.server` en
+`/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
+wegwerpprofiel; in de cloudsessie met Playwright, stuurscripts niet in de
+repository.
+
+Daarna taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
+verbergt de app en vergrendelt die nu), 9 (Pages-workflow en
+releaseprocedure) en 10 (acceptatietest op de OnePlus).
 
 ## Openstaande beslissingen
 
