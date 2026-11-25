@@ -21,7 +21,7 @@ plaats van te gokken.
 - Een externe dependency toevoegen (alleen Python-standaardbibliotheek en
   platte HTML/CSS/JS; dat is een ontwerpprincipe).
 - Het databaseschema of het versleutelingsformaat wijzigen.
-- Repository-instellingen of GitHub-workflows aanpassen.
+- Repository-instellingen, GitHub Pages of GitHub-workflows aanpassen.
 - Alles buiten deze repository, inclusief hosting en de installatie op de
   telefoon.
 
@@ -30,7 +30,7 @@ plaats van te gokken.
 - Echte persoons- of medische gegevens lezen, tonen of committen: de
   database in `data/`, back-ups, exports, recepten, BSN's, namen,
   geboortedata, diagnoses. Ook niet als voorbeeld in code, tests, issues of
-  documentatie. Ook al is de repository private.
+  documentatie. De repository en de Pages-site zijn **public**.
 - Patiëntgegevens onversleuteld opslaan, loggen of over het netwerk sturen.
 - Externe scripts, CDN's, analytics of fonts laden, of andere
   netwerkverbindingen dan het ophalen van de eigen app-code.
@@ -38,19 +38,31 @@ plaats van te gokken.
 
 ## 2. Workflows
 
+Ontwikkelomgeving: Windows met PowerShell. Geef commando's in een vorm die
+in PowerShell werkt: `python3` (of `py`), geen `&&`-ketens voor PowerShell 5,
+geen Unix-only commando's als `grep`, `sed` of `rm -rf`. Paden met `/` werken
+in git en Python ook op Windows.
+
+Begin van een sessie
+1. `git switch main` en daarna `git pull`
+
 Na een codewijziging
 1. `python3 -m py_compile tools/*.py` en `node --check` op de JS-bestanden.
 2. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
 
 Voor een commit
-1. `git status`: niets uit `data/`, geen database, export of PDF.
+1. `git status`: niets uit `data/`, geen database, export, back-up of PDF.
 2. `git diff --staged` lezen.
 3. `python3 tools/privacy_check.py`. Namen en diagnoses herkent het script
    niet; die blijf je zelf nalopen.
 
 ## 3. Branches en commits
-- `main` is beschermd: alleen via pull request, lineaire geschiedenis.
+- `main` is beschermd: alleen via pull request, lineaire geschiedenis
+  (squash merge).
+- Alle commits zijn ondertekend met een SSH-sleutel (`commit.gpgsign=true`,
+  `gpg.format=ssh`); GitHub toont ze als *Verified*. Een niet-ondertekende
+  commit niet pushen maar opnieuw maken.
 - Topic-branches: `feat/...`, `fix/...`, `docs/...`, `refactor/...`, `chore/...`.
 - Conventional Commits met Nederlandse omschrijving.
 

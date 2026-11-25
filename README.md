@@ -8,6 +8,9 @@ synchronisatie via Home Assistant zijn toekomstwensen.
 
 **Status:** in ontwerp. Zie [het projectplan](docs/plans/2026-11-25-projectplan.md).
 
+De code is openbaar in te zien, maar er is (nog) geen licentie: alle
+rechten voorbehouden.
+
 ## Principes
 - **Versleuteld en lokaal.** Alle persoons- en medische gegevens worden op
   de telefoon versleuteld opgeslagen; er is geen server.

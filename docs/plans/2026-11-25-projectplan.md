@@ -1,7 +1,7 @@
 # Projectplan DrArtsHIS (Dahis)
 
 Status: concept, wacht op goedkeuring
-Datum: 2026-11-25 (herzien: alleen lokaal op telefoon, private repository)
+Datum: 2026-11-25 (herzien: alleen lokaal op telefoon; public repository met GitHub Pages)
 
 ## 1. Doel
 
@@ -25,7 +25,8 @@ verwijsbrieven, documenten). Waar mogelijk conform AVG en NEN 7510.
 | Opslag | **Alleen lokaal op de telefoon** (IndexedDB), versleuteld | Geen server = geen server die gehackt kan worden |
 | Techniek | Platte HTML/CSS/JS + Web Crypto; Python-standaardbibliotheek alleen voor hulpscripts | Geen dependencies, klein aanvalsoppervlak |
 | Gebruikers | Alleen de arts zelf, één account | Geen rollen of autorisatie nodig in v1 |
-| Repository | **Private**, `dahis` | Code en data blijven gescheiden; data komt er sowieso nooit in |
+| Repository | **Public**, `dahis`, zonder licentie (alle rechten voorbehouden) | Gratis GitHub Pages en branchbescherming; code en data strikt gescheiden |
+| Hosting app-code | GitHub Pages | Gratis bij een public repository; alleen app-code, nooit data |
 | Medicatiedata | Open data (CBG) + links naar NHG/Kompas | Prescriptor en G-Standaard vragen een licentie |
 | Toekomst | Browser op laptop, synchronisatie via server op Home Assistant | Zie §7; het ontwerp houdt hier nu al rekening mee |
 
@@ -50,15 +51,15 @@ Een PWA moet één keer vanaf een HTTPS-adres worden geladen om te kunnen
 installeren; daarna werkt hij volledig offline. Op dat adres staat alleen de
 app-code (HTML/JS/CSS en de geneesmiddelenlijst), nooit patiëntgegevens.
 
-Opties (keuze open, zie §11):
-- **GitHub Pages**: vraagt bij een private repository een betaald
-  GitHub-abonnement; de site zelf is dan wel openbaar (alleen de code).
-- **Cloudflare Pages of Netlify** vanuit de private repository: gratis, ook
-  openbaar.
-- **Later Home Assistant**: alleen bereikbaar via VPN.
+Besluit: **GitHub Pages** (`https://<gebruikersnaam>.github.io/dahis/`).
+- Alleen de map met de app (in fase 1 `app/`) wordt gepubliceerd, niet de
+  hele repository. Hoe precies (een workflow met de officiële
+  Pages-actions van GitHub, of een aparte branch) wordt in fase 1 besloten;
+  zie §12.
+- Later eventueel Home Assistant, alleen bereikbaar via VPN.
 
-Omdat de code openbaar te downloaden is via de site, mag de beveiliging
-niet afhangen van geheimhouding van de code.
+Code en site zijn openbaar; de beveiliging mag dus nooit afhangen van
+geheimhouding van de code.
 
 ### Bescherming tegen gewijzigde code
 De hostingdienst kan in theorie andere code serveren. Daarom:
@@ -154,7 +155,9 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 - [x] Projectplan, werkafspraken (`CLAUDE.md`), `SECURITY.md`
 - [x] Compliance-documenten AVG en NEN 7510 (beginversie)
 - [x] `tools/privacy_check.py` + GitHub-workflow
-- [ ] Private repository `dahis` op GitHub, eerste commit
+- [x] Repository `dahis` op GitHub (public), eerste commit
+- [ ] Branchbescherming `main`: pull request, ondertekende commits, lineaire geschiedenis
+- [ ] Private vulnerability reporting en secret scanning aan
 
 ### Fase 1: fundament
 - [ ] App-shell, manifest, service worker met handmatige updates
@@ -163,7 +166,7 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 - [ ] Versleutelde opslag in IndexedDB, `storage.persist()`
 - [ ] Versleutelde export en import (back-up), herinnering
 - [ ] Auditlog met hashketen
-- [ ] Hosting kiezen en inrichten
+- [ ] GitHub Pages inrichten (alleen `app/` publiceren)
 - [ ] Tests: crypto-ronde, back-up en herstel, migratie van het formaat
 
 ### Fase 2: patiëntenbestand
@@ -206,7 +209,11 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 
 - Nooit echte persoons- of medische gegevens in de repository, ook niet in
   tests, voorbeelden of issues; alleen verzonnen gegevens met een BSN dat
-  de 11-proef niet haalt. Dit geldt ook nu de repository private is.
+  de 11-proef niet haalt. De repository is **public**: alles wat erin komt,
+  is voor iedereen leesbaar en blijft vindbaar in de geschiedenis.
+- Mocht er toch iets in terechtkomen: niet alleen verwijderen, maar de
+  geschiedenis opschonen, GitHub Support vragen caches te wissen en het
+  behandelen als datalek (zie `docs/compliance/avg.md`).
 - `.gitignore` en `tools/privacy_check.py` (lokaal en in CI).
 - Geen wachtwoorden of persoonlijke instellingen in de repository.
 
@@ -237,7 +244,6 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 
 1. iPhone of Android (en welke versie)? Bepaalt o.a. biometrisch
    ontgrendelen en afdrukken.
-2. Hosting van de app-code: GitHub Pages (betaald abonnement), Cloudflare
-   Pages, Netlify, of iets anders?
-3. Licentie: voorlopig geen (alle rechten voorbehouden), zie toelichting
-   in het gesprek.
+2. Publiceren naar Pages: met de officiële Pages-actions van GitHub
+   (`actions/upload-pages-artifact`, `actions/deploy-pages`) of zonder
+   actions vanaf een aparte branch? Besluit in fase 1.

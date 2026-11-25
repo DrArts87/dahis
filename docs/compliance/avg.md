@@ -16,7 +16,7 @@ niet in deze repository.
 | Betrokkenen | De arts zelf, gezinsleden, vrienden |
 | Gegevens | Naam, geboortedatum, geslacht, adres, contactgegevens, BSN (optioneel), huisarts, apotheek, verzekering, allergieën, voorgeschiedenis, medicatie, recepten |
 | Ontvangers | Geen. Recepten gaan op papier naar de apotheek via de patiënt |
-| Verwerkers | Geen: gegevens staan alleen op de eigen telefoon. Back-ups in iCloud/Google Drive zijn versleuteld met een sleutel die de dienst niet heeft; de hostingdienst van de app-code ziet nooit gegevens |
+| Verwerkers | Geen: gegevens staan alleen op de eigen telefoon. Back-ups in iCloud/Google Drive zijn versleuteld met een sleutel die de dienst niet heeft; GitHub (code en Pages) ziet nooit gegevens |
 | Doorgifte buiten EER | Geen |
 | Bewaartermijn | 20 jaar na de laatste wijziging van het dossier (WGBO art. 7:454), of langer als goed hulpverlenerschap dat vraagt; daarna vernietigen |
 | Beveiliging | Versleuteld op het toestel (AES-GCM-256), hoofdwachtwoord + schermvergrendeling, automatisch vergrendelen, auditlog; zie `nen7510.md` |
