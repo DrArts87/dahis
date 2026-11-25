@@ -33,7 +33,21 @@ jobs:
       - name: Code ophalen
         run: eval "$CHECKOUT"
       - name: Python-bestanden compileren
-        run: python -m py_compile tools/*.py
+        run: python -m py_compile tools/*.py tests/*.py
+      - name: Unittests
+        run: python -m unittest discover -s tests
+      - name: app/sw.js past bij de app-bestanden
+        run: python tools/release.py --check
+
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    container: node:22
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Syntaxis van alle JS-bestanden
+        run: find app tests \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -r -n1 node --check
 
   privacy:
     name: Geen persoons- of patiëntgegevens
