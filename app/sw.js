@@ -189,10 +189,17 @@ async function register() {
 // versies zonder registratie, zoals 0.1.0), behalve de goedgekeurde. Een
 // nieuwere versie die nog wordt geïnstalleerd of wacht, blijft dus staan
 // (review PR #12, ronde 3).
+//
+// Volgorde van lezen: eerst de caches, dan het register. Een installatie
+// registreert zich vóór ze haar cache aanmaakt; elke cache in de eerste lijst
+// staat dus ook in het daarna gelezen register. Andersom kon een installatie
+// die tussen de twee leesacties begon, als onbekend worden verwijderd (review
+// PR #12, ronde 4).
 async function removeOlderCaches(approvedCache) {
+  const names = await caches.keys();
   const list = await readRegistry();
   const me = list.indexOf(CACHE);
-  for (const name of await caches.keys()) {
+  for (const name of names) {
     if (!name.startsWith(CACHE_PREFIX) || name === APPROVAL_CACHE || name === CACHE || name === approvedCache) continue;
     const i = list.indexOf(name);
     if (i === -1 || (me !== -1 && i < me)) await caches.delete(name);
