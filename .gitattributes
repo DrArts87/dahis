@@ -1,0 +1,5 @@
+# Overal LF, ook bij een checkout op Windows. De service worker controleert de
+# SHA-256 van elk app-bestand; met CRLF in de werkmap zou tools/release.py
+# andere hashes berekenen dan GitHub Pages serveert.
+* text=auto eol=lf
+*.png binary

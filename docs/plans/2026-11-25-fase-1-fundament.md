@@ -124,9 +124,14 @@ Als er later toch een tweede site nodig is:
   versleutelde database lezen, maar niet ontsleutelen.
 - Pages zet geen eigen headers: CSP in een `<meta>`-tag, en de service worker
   zet de headers (inclusief `frame-ancestors 'none'`) op antwoorden uit de
-  cache. Uitgangspunt: `default-src 'none'; script-src 'self';
-  style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self';
-  connect-src 'self'; base-uri 'none'; form-action 'none'`.
+  cache:
+  `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self';
+  manifest-src 'self'; worker-src 'self'; connect-src 'none'; base-uri 'none';
+  form-action 'none'; require-trusted-types-for 'script';
+  trusted-types dahis-sw` (in de header ook `frame-ancestors 'none'`).
+  Trusted types blokkeren `innerHTML` en vergelijkbare constructies; de enige
+  toegestane policy, `dahis-sw`, laat alleen `sw.js` door voor het registreren
+  van de service worker.
 - Instellingen tonen versienummer en SHA-256 van de app-bestanden, te
   vergelijken met de release op GitHub.
 
