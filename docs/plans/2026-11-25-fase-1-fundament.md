@@ -168,7 +168,7 @@ voor de alpha). In het kort:
    1,5 s).
 6. ✅ Auditlog met hashketen, controlepunt, snelle en volledige controle. Meting
    op de OnePlus: duur van de volledige controle bij een realistisch groot
-   log (nog open). Uitgewerkt in [plan taak 6](2026-11-25-taak-6-auditlog.md).
+   log (gemeten: 20.000 regels 0,8 s, 100.000 regels 4,6 s). Uitgewerkt in [plan taak 6](2026-11-25-taak-6-auditlog.md).
 7. Back-up: export, beide controles, terugzetten, herinnering,
    migratieketen, testbestand. Tests: terugzetten op een lege opslag met
    wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag

@@ -103,7 +103,11 @@ hele codebase (wissen bij een geblokkeerd verzoek, grens van de
 back-upschrijver, update zonder Bijwerken). Zie
 [reviews](../reviews/2026-11-25-reviews.md).
 
-## Open na deze taak
-- Meting op de OnePlus: Meer → Snelheid meten → Controle van de opslag, bij
-  beide groottes. De uitslag gaat naar formaat §9.4; daarna termijn (nu 7
-  dagen) bevestigen of bijstellen.
+## Meting op de OnePlus (2026-11-25, versie 0.2.0)
+| Grootte | Volledig | Snel | Opbouw |
+|---|---|---|---|
+| 20.000 regels, 2.000 versies | 0,8 s | 0,04 s | 1,2 s |
+| 100.000 regels, 10.000 versies | 4,6 s | 0,14 s | 5,3 s |
+
+PBKDF2 bij dezelfde versie: 600.000 rondes 0,1 s, 10.000.000 rondes 1,4 s.
+Uitslag in formaat §2.4 en §9.4; de termijn van 7 dagen blijft.

@@ -157,7 +157,8 @@ gaan ze omlaag.
 
 **Gemeten** op het referentietoestel (OnePlus 13R, Chrome; Meer → Snelheid
 meten, 2026-11-25): PBKDF2-SHA256 met 600.000 rondes 0,1 s, met 10.000.000
-rondes 1,5 s. Het maximum is dus werkbaar en de grens van `kdf.iterations`
+rondes 1,5 s, bij een tweede meting (versie 0.2.0) 0,1 s en 1,4 s. Het
+maximum is dus werkbaar en de grens van `kdf.iterations`
 is vastgesteld. Een hogere standaardwaarde dan 600.000 is mogelijk; dat is
 een apart besluit.
 
@@ -550,8 +551,7 @@ zo'n regel niet te vinden, dan voert hij eerst de volledige controle uit en
 laat in die tijd geen handelingen toe. De regel `integrity_check` komt in de
 eerstvolgende schrijfactie. De
 controle loopt onder het Web Lock en er wordt intussen niets geschreven. De
-termijn en de duur worden tijdens de alpha bijgesteld op basis van metingen
-bij een realistisch groot log.
+termijn van 7 dagen is na de meting hieronder bevestigd (2026-11-25).
 
 **Meting.** Een realistisch log telt 0–10 regels per dag, dus ongeveer
 18.000 regels in 5 jaar. De app meet de controles op een nep-opslag in het
@@ -563,7 +563,16 @@ snel 0,04 s en 0,2 s.
 
 | Toestel | 20.000 regels: volledig / snel | 100.000 regels: volledig / snel |
 |---|---|---|
-| OnePlus 13R | nog te meten | nog te meten |
+| OnePlus 13R (versie 0.2.0, 2026-11-25) | 0,8 s / 0,04 s | 4,6 s / 0,14 s |
+
+Opbouw van de nep-opslag op de OnePlus: 1,2 s en 5,3 s (telt niet mee).
+Conclusie: bij een realistisch log (≈ 18.000 regels na 5 jaar) duurt de
+volledige controle minder dan een seconde, ook bij vijf keer zoveel regels
+minder dan 5 seconden, plus het inlezen uit IndexedDB. De snelle controle bij
+elk ontgrendelen blijft ruim onder 0,2 s. De termijn van 7 dagen blijft;
+een kortere termijn is mogelijk zonder merkbare vertraging, maar levert
+weinig op zolang de snelle controle het controlepunt al bij elke
+ontgrendeling toetst (§1).
 
 ## 10. Gedrag bij een afwijking
 De app **stopt met normaal gebruik**: geen records openen, geen
