@@ -51,6 +51,8 @@ Begin van een sessie
 2. Eenmalig per checkout: `git config core.hooksPath .githooks`. De
    pre-commit-hook werkt `app/sw.js` bij met `tools/release.py` en stopt de
    commit als er iets veranderd is.
+3. Lees [`docs/overdracht.md`](docs/overdracht.md) voor de stand van zaken,
+   de werkwijze en de volgende stap.
 
 Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
