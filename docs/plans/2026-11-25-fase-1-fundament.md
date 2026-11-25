@@ -15,34 +15,40 @@ gegevens.
 
 | Onderwerp | Besluit |
 |---|---|
-| Origin | Eigen subdomein (bijv. `dahis.<domein>.nl`) als custom domain op GitHub Pages, zodat Dahis een eigen origin heeft (§3) |
+| Origin | `https://<gebruikersnaam>.github.io/dahis/`; op dit GitHub-account komt geen andere Pages-site (§3) |
 | Doeltoestel | Android, nieuwste versie, Chrome; referentietoestel OnePlus 13R |
 | Updates | Geen netwerkverkeer behalve het controleren op en ophalen van app-code; een nieuwe versie wordt pas actief na eigen akkoord (herformulering van het criterium in projectplan §11) |
 | Testtool | Node (`node --test`, `node --check`), zonder npm-pakketten; later ook in CI |
 | Publiceren | Officiële Pages-actions van GitHub (`actions/upload-pages-artifact`, `actions/deploy-pages`), vastgepind op een commit-SHA, alleen bij een versietag `vX.Y.Z` |
 | Databaseschema | Schema v1 zoals in §4; vastgelegd met dit plan |
 
-## 3. Waarom een eigen subdomein
+## 3. Origin: één Pages-site per account
 
 IndexedDB, de Cache-API en service workers zijn per *origin* gescheiden, niet
-per pad. Op `drarts87.github.io/dahis/` zou elke andere Pages-site op hetzelfde
-account de versleutelde database kunnen lezen en de cache van Dahis kunnen
-overschrijven met gewijzigde code die het wachtwoord afvangt. Een eigen
-subdomein is een eigen origin en sluit dat uit.
+per pad. Elke Pages-site op `<gebruikersnaam>.github.io` deelt die origin: een
+andere site op hetzelfde account zou de versleutelde database kunnen lezen en
+de cache van Dahis kunnen overschrijven met gewijzigde code die het wachtwoord
+afvangt.
 
-Gevolg: gegevens en installatie zijn gebonden aan de origin. Het subdomein
-ligt vast vóór de eerste installatie met echte gegevens; later van domein
-wisselen kan alleen via een back-up.
+Besluit: Dahis blijft op `https://<gebruikersnaam>.github.io/dahis/` en er
+komt op dit account **geen andere Pages-site**, ook geen gebruikerssite
+(repository `<gebruikersnaam>.github.io`).
 
-Inrichting (door de gebruiker, buiten de repository):
-1. Domein in bezit hebben of registreren bij een registrar met DNSSEC.
-2. Domein verifiëren op het GitHub-account (account-instellingen → Pages →
-   *Add a domain*; TXT-record `_github-pages-challenge-<gebruikersnaam>`).
-   Dit voorkomt dat iemand anders het subdomein op GitHub claimt.
-3. DNS: `CNAME` van `dahis` naar `<gebruikersnaam>.github.io.`
-4. Na de Pages-workflow (taak 9): repository-instellingen → Pages →
-   *Custom domain* invullen en *Enforce HTTPS* aanzetten.
-5. Optioneel: CAA-record dat alleen Let's Encrypt toestaat.
+Maatregelen:
+- Vastleggen in `docs/compliance/nen7510.md` (bij taak 9) als regel voor het
+  account.
+- Releasechecklist (taak 9): controleren dat geen andere repository op het
+  account Pages aan heeft.
+
+Als er later toch een tweede site nodig is:
+- Voorkeur: geef díe site een eigen (sub)domein. GitHub stuurt
+  `<gebruikersnaam>.github.io/<repo>/` dan door naar dat domein, zodat de
+  site niet op de origin van Dahis draait. Dahis zelf blijft ongewijzigd.
+  Restrisico: valt dat custom domain weg, dan draait de site weer op de
+  gedeelde origin.
+- Of Dahis naar een eigen subdomein verhuizen. Gegevens en installatie zijn
+  aan de origin gebonden, dus dat kan alleen via een back-up en opnieuw
+  installeren.
 
 ## 4. Ontwerp
 
@@ -149,8 +155,8 @@ Inrichting (door de gebruiker, buiten de repository):
 7. Back-up: export, controle, import, herinnering, migratieketen, testbestand.
 8. CI: Node-job in `controle.yml` (apart te vragen; vierde verplichte
    controle in de branchbescherming).
-9. Pages-workflow op versietag en releaseprocedure (apart te vragen);
-   custom domain instellen (gebruiker).
+9. Pages-workflow op versietag en releaseprocedure, inclusief controle op
+   andere Pages-sites op het account (apart te vragen).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
 
 ## 6. Risico's
@@ -161,7 +167,8 @@ Inrichting (door de gebruiker, buiten de repository):
 | PBKDF2 traag op het toestel | Meten bij onboarding; parameters in `meta` |
 | Formaat is een contract met bestaande back-ups | `docs/formaat.md` eerst, versienummer en testbestand vanaf dag één |
 | Back-up alleen leesbaar met de app | Na fase 1 een noodontsleutelaar in pure Python overwegen (stdlib heeft geen AES-GCM), getest tegen Web Crypto |
-| Origin wijzigt na ingebruikname | Subdomein vastleggen vóór echte gegevens |
+| Andere Pages-site op hetzelfde account | Regel in `nen7510.md`, controle in releasechecklist; tweede site alleen op eigen domein |
+| Origin wijzigt na ingebruikname | Alleen via back-up en opnieuw installeren |
 | Geheugen niet te wissen in JavaScript | Herladen bij vergrendelen; restrisico documenteren |
 
 ## 7. Acceptatiecriteria

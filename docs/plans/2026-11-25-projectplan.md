@@ -245,4 +245,5 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 Beantwoord voor fase 1, zie [plan fase 1](2026-11-25-fase-1-fundament.md):
 1. Toestel: Android, nieuwste versie, Chrome (referentie: OnePlus 13R).
 2. Publiceren: officiële Pages-actions van GitHub, vastgepind op een
-   commit-SHA, alleen bij een versietag; op een eigen subdomein.
+   commit-SHA, alleen bij een versietag; op `<gebruikersnaam>.github.io/dahis/`,
+   zonder andere Pages-sites op het account.
