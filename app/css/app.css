@@ -172,7 +172,12 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 .btn.danger { background: var(--warn); color: #ffffff; border-color: var(--warn); }
 .btn.link { border: none; background: none; color: var(--accent); min-height: 44px; font-weight: 500; margin-top: 6px; }
+.btn.small { min-height: 44px; margin-top: 10px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
+input[type="file"] { padding: 10px; }
+
+/* Herinnering aan een back-up op het hoofdscherm (taak 7). */
+.note.reminder { margin-bottom: 12px; }
 
 /* --- Herstelsleutel ----------------------------------------------------------- */
 .key {

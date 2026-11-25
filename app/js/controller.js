@@ -8,7 +8,8 @@
 //   starting           opslag wordt geopend
 //   already-open       Dahis is al geopend in een ander venster
 //   error              opslag niet te openen (state.message)
-//   onboarding         inrichten; state.step: intro, password, key, check, done
+//   onboarding         inrichten; state.step: intro, password, key, check, done,
+//                      of terugzetten: restore, restored (taak 7)
 //   locked             vergrendeld; ontgrendelen met wachtwoord of herstelsleutel
 //   recovery-password  na de herstelsleutel eerst een nieuw wachtwoord (§12.3)
 //   ready              ontgrendeld en in orde
@@ -20,14 +21,14 @@
 import {
   FormatError, WrongSecretError, RecoveryKeyTypoError, IntegrityError,
   MIN_PASSWORD_LENGTH, DEFAULT_ITERATIONS, MAX_ITERATIONS,
-  isUint, normalizePassword, pbkdf2Bytes, randomBytes,
+  MAX_BACKUP_BYTES, isUint, isTimestamp, normalizePassword, pbkdf2Bytes, randomBytes, utf8,
 } from './crypto.js';
 import * as V from './vault.js';
 import {
   AlreadyOpenError, IdbBackend, openStorage, storageStatus, requestPersist,
 } from './store.js';
 import { SETTINGS_KIND, SETTINGS_SCHEMA, defaultSettings, normalizeSettings, withSetting } from './settings.js';
-import { measureChecks } from './benchmark.js';
+import { measureChecks, measureBackup } from './benchmark.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
@@ -38,6 +39,60 @@ export const MEASURE_CHECK_SIZES = Object.freeze([
   Object.freeze({ auditRows: 20000, recordVersions: 2000 }),
   Object.freeze({ auditRows: 100000, recordVersions: 10000 }),
 ]);
+// Meting van grote back-ups (taak 7): ongeveer deze bestandsgroottes, de
+// laatste net onder de grens van 256 MiB (formaat §2.4).
+export const MEASURE_BACKUP_MIB = Object.freeze([64, 128, 250]);
+
+// Herinnering aan een back-up (plan fase 1: na 7 dagen).
+export const BACKUP_REMINDER_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Is een herinnering nodig? Ook als er nooit een back-up is gemaakt, of als
+// het tijdstip in de toekomst ligt (klok verzet).
+export function backupDue(lastBackupAt, now = Date.now()) {
+  if (lastBackupAt === null || lastBackupAt === undefined) return true;
+  return now - lastBackupAt >= BACKUP_REMINDER_MS || lastBackupAt > now;
+}
+
+function lastBackupOf(meta) {
+  const v = meta && meta.last_backup_at;
+  return typeof v === 'string' && isTimestamp(v) ? Date.parse(v) : null;
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// Bestandsnaam dahis-backup-JJJJMMDD-UUMM.dahis in lokale tijd (§11.2).
+export function backupFileName(date) {
+  return 'dahis-backup-' + date.getFullYear() + pad2(date.getMonth() + 1) + pad2(date.getDate())
+    + '-' + pad2(date.getHours()) + pad2(date.getMinutes()) + '.dahis';
+}
+
+// Te groot bestand: geweigerd vóór het inlezen (§11.5 stap 1).
+class FileTooLargeError extends Error {
+  constructor() { super('Bestand groter dan 256 MiB'); this.name = 'FileTooLargeError'; }
+}
+
+// Leest een gekozen bestand ({size, arrayBuffer()}, zoals File) in, maar pas
+// na de controle van de grootte.
+async function readChosenFile(file) {
+  if (!file || typeof file.size !== 'number' || typeof file.arrayBuffer !== 'function') {
+    throw new FormatError('Geen bestand gekozen');
+  }
+  if (file.size > MAX_BACKUP_BYTES) throw new FileTooLargeError();
+  return new Uint8Array(await file.arrayBuffer());
+}
+
+// Meldingen bij een gekozen back-upbestand (terugzetten, controleren).
+const FILE_ERRORS = Object.freeze({
+  FileTooLargeError: 'backup.tooBig',
+  UnknownBackupFormatError: 'backup.newerFormat',
+  WrongSecretError: 'file.wrongPassword',
+  WrongRecoveryError: 'file.wrongRecovery',
+  RecoveryKeyTypoError: 'unlock.typo',
+  IntegrityError: 'file.damaged',
+  FormatError: 'file.unusable',
+});
 
 // Weergaven waarin sleutels of geheimen in het geheugen kunnen staan; bij
 // verbergen van de app wordt dan vergrendeld.
@@ -82,6 +137,7 @@ export class AppController {
       openStorage: () => openStorage(),
       deleteDatabase: (options) => IdbBackend.deleteDatabase(undefined, options),
       measureChecks,
+      measureBackup,
       reload: () => globalThis.location.reload(),
       clock: () => new Date(),
       timer: () => globalThis.performance.now(),
@@ -100,6 +156,7 @@ export class AppController {
     this.checkKind = null;        // lopende controle: 'quick' of 'full'
     this.auditToken = 0;          // hoger bij openen of sluiten van het logboek
     this.auditOpen = false;
+    this.backupFile = null;       // gemaakte en gecontroleerde back-up: {text, name}
     this.state = {
       view: 'starting',
       step: null,
@@ -119,6 +176,10 @@ export class AppController {
       audit: null,                // logboek: {entries, next}
       measurements: {},
       checkMeasurements: {},      // index in MEASURE_CHECK_SIZES -> {buildMs, fullMs, quickMs}
+      backupMeasurements: {},     // MiB uit MEASURE_BACKUP_MIB -> {bytes, buildMs, writeMs, readMs} of {error}
+      lastBackupAt: null,         // ms of null (meta.last_backup_at)
+      backup: null,               // klaar om te delen: {name, bytes, createdAt}
+      fileCheck: null,            // uitslag van een gecontroleerd bestand (vergrendelscherm)
     };
   }
 
@@ -195,8 +256,9 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
+    this.backupFile = null;
     this.set({
-      view: 'halted', haltCode: code, haltCheck: this.checkKind, checking: false,
+      view: 'halted', backup: null, haltCode: code, haltCheck: this.checkKind, checking: false,
       step: null, recoveryKey: null, audit: null,
     });
     this.checkKind = null;
@@ -245,8 +307,9 @@ export class AppController {
   goToStep(step) {
     if (this.state.view !== 'onboarding' || this.state.busy) return;
     const allowed = {
-      intro: ['password'],
+      intro: ['password', 'restore'],
       password: ['intro'],
+      restore: ['intro'],
       key: ['check'],
       check: ['key'],
     };
@@ -345,6 +408,7 @@ export class AppController {
       } else {
         this.set({ view: 'ready', failedUnlocks: 0, lastFullCheckAt: session.lastFullCheckAt });
       }
+      this.set({ lastBackupAt: lastBackupOf(this.backend.store.meta), fileCheck: null });
     });
   }
 
@@ -442,6 +506,161 @@ export class AppController {
     });
   }
 
+  // --- Back-up (§11, taak 7) -------------------------------------------------------
+
+  // Back-up maken (§11.3, §11.4): volledige controle op een vers ingelezen
+  // opslag en de regel export; het bestand bouwen; dat bestand direct
+  // controleren tegen de export (gelijk aan een export); pas dan
+  // verify_backup met detail equal en last_backup_at (audit A3). Daarna staat
+  // het bestand klaar om te delen of te downloaden; er wordt dan niets meer
+  // geschreven, zodat vergrendelen achter het deelmenu niets kost.
+  async makeBackup({ appVersion = '0.0.0' } = {}) {
+    if (this.state.view !== 'ready') return false;
+    this.backupFile = null;
+    this.set({ backup: null });
+    let ok = true;
+    const done = await this.guard(async (gen) => {
+      let ms = null;
+      await this.queue.run(this.session, async (store, s, now) => {
+        this.checkKind = 'full';
+        this.set({ checking: true });
+        const t0 = this.deps.timer();
+        let fresh;
+        try {
+          fresh = await this.backend.reload();
+          if (!s.fullCheckPending) await V.fullCheck(fresh, s);
+        } finally {
+          this.set({ checking: false });
+        }
+        ms = Math.round(this.deps.timer() - t0);
+        this.checkKind = null;
+        return V.exportTx(fresh, s, { now });
+      });
+      this.alive(gen);
+      this.set({ lastFullCheckAt: this.session.lastFullCheckAt, lastCheckMs: ms });
+      const at = this.deps.clock();
+      let text;
+      try {
+        text = await V.buildBackupFile(this.backend.store, this.session, { now: at, appVersion });
+      } catch (err) {
+        if (err instanceof FormatError) { ok = false; this.say('backup.tooLarge'); return; }
+        throw err;
+      }
+      this.alive(gen);
+      const bytes = utf8(text);
+      try {
+        await V.verifyExportedBackup(this.backend.store, this.session, bytes);
+      } catch (err) {
+        if (err instanceof V.BackupMismatchError) { ok = false; this.say('backup.failed'); return; }
+        throw err;
+      }
+      this.alive(gen);
+      await this.queue.run(this.session, (store, s, now) => V.verifyBackupTx(store, s, { detail: 'equal', now }));
+      this.alive(gen);
+      const name = backupFileName(at);
+      this.backupFile = { text, name };
+      this.set({
+        backup: { name, bytes: bytes.length, createdAt: at.getTime() },
+        lastBackupAt: lastBackupOf(this.backend.store.meta),
+        lastFullCheckAt: this.session.lastFullCheckAt,
+      });
+      this.say('backup.ready');
+    });
+    return done && ok;
+  }
+
+  // Het gemaakte bestand (tekst en naam) voor delen of downloaden.
+  backupForShare() {
+    return this.state.view === 'ready' ? this.backupFile : null;
+  }
+
+  closeBackup() {
+    this.backupFile = null;
+    if (this.state.backup !== null) this.set({ backup: null });
+  }
+
+  // Interne integriteit van een (ouder) bestand, vanaf het vergrendelscherm
+  // (§11.4, besluit gebruiker 2026-11-25): er is geen sessie, dus er wordt
+  // niets geschreven, ook geen mislukte poging. Een beschadigd bestand is
+  // geen afwijking van de opslag: de app stopt niet.
+  async checkFile(file, secret) {
+    if (this.state.view !== 'locked') return false;
+    this.set({ fileCheck: null });
+    let ok = true;
+    const done = await this.guard(async (gen) => {
+      let result;
+      try {
+        const bytes = await readChosenFile(file);
+        result = { ok: true, summary: await V.checkBackupFile(bytes, secret) };
+      } catch (err) {
+        this.alive(gen);
+        const key = this.fileErrorKey(err, secret);
+        if (!key) throw err;
+        ok = false;
+        if (err instanceof IntegrityError) result = { ok: false, code: err.code };
+        this.say(key);
+        if (result) this.set({ fileCheck: result });
+        return;
+      }
+      this.alive(gen);
+      this.set({ fileCheck: result });
+      this.say('fileCheck.ok');
+    });
+    return done && ok;
+  }
+
+  // Uitslag van een eerder gecontroleerd bestand weghalen: bij een ander
+  // bestand of bij het verlaten van het controlescherm (review PR #14, 1).
+  clearFileCheck() {
+    if (this.state.fileCheck !== null || this.state.message !== null) this.set({ fileCheck: null, message: null });
+  }
+
+  // Tekstsleutel bij een fout met een gekozen bestand; null: onverwacht.
+  // Volgorde telt: UnknownBackupFormatError en IntegrityError vóór
+  // FormatError.
+  fileErrorKey(err, secret) {
+    const recovery = Boolean(secret && typeof secret.recoveryKey === 'string');
+    const name = err instanceof FileTooLargeError ? 'FileTooLargeError'
+      : err instanceof V.UnknownBackupFormatError ? 'UnknownBackupFormatError'
+        : err instanceof WrongSecretError ? (recovery ? 'WrongRecoveryError' : 'WrongSecretError')
+          : err instanceof RecoveryKeyTypoError ? 'RecoveryKeyTypoError'
+            : err instanceof IntegrityError ? 'IntegrityError'
+              : err instanceof FormatError ? 'FormatError' : null;
+    return name ? FILE_ERRORS[name] : null;
+  }
+
+  // Terugzetten op een lege opslag (§11.5). Bij de herstelsleutel is een
+  // nieuw wachtwoord verplicht (§3.7). Alles gebeurt eerst in het geheugen;
+  // de opslag wordt pas in één transactie gevuld als hij nog leeg is. Een
+  // fout laat de opslag leeg. Daarna vergrendelt de app: ontgrendelen met het
+  // (nieuwe) wachtwoord toont meteen dat het werkt.
+  async restoreBackup(file, secret, password, repeat) {
+    if (this.state.view !== 'onboarding' || this.state.step !== 'restore') return false;
+    const recovery = Boolean(secret && typeof secret.recoveryKey === 'string');
+    if (recovery && !this.checkPasswordPair(password, repeat)) return false;
+    let ok = true;
+    const done = await this.guard(async (gen) => {
+      let prepared;
+      try {
+        const bytes = await readChosenFile(file);
+        prepared = await V.restoreTx(bytes, secret, { newPassword: recovery ? password : undefined, now: this.deps.clock() });
+      } catch (err) {
+        this.alive(gen);
+        const key = this.fileErrorKey(err, secret);
+        if (!key) throw err;
+        ok = false;
+        this.say(key);
+        return;
+      }
+      this.alive(gen);
+      await this.queue.runPlain(() => prepared.tx);
+      this.alive(gen);
+      prepared = null;
+      this.set({ step: 'restored' });
+    });
+    return done && ok;
+  }
+
   // --- Logboek ---------------------------------------------------------------------
 
   // Eerste bladzijde (nieuwste regels) van het auditlog. Alleen lezen; een
@@ -519,6 +738,17 @@ export class AppController {
     });
   }
 
+  // Duur van een grote nep-back-up maken en weer openen, in het geheugen
+  // (benchmark.js); er wordt niets opgeslagen of gedeeld.
+  async measureBackup(mib) {
+    if (!MEASURE_BACKUP_MIB.includes(mib)) return false;
+    return this.guard(async (gen) => {
+      const result = await this.deps.measureBackup({ targetBytes: mib * 1024 * 1024, timer: this.deps.timer, now: this.deps.clock() });
+      this.alive(gen);
+      this.set({ backupMeasurements: Object.assign({}, this.state.backupMeasurements, { [mib]: result }) });
+    });
+  }
+
   // --- Vergrendelen en wissen ---------------------------------------------------------
 
   // Laat sessie en geheimen los, sluit opslag en slot, en herlaadt de pagina:
@@ -530,11 +760,12 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
+    this.backupFile = null;
     this.auditToken += 1;
     this.auditOpen = false;
     this.set({
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
-      audit: null, checking: false,
+      audit: null, checking: false, backup: null, fileCheck: null,
     });
     try {
       if (this.storage) await this.storage.close();
@@ -560,6 +791,7 @@ export class AppController {
     this.session = null;
     this.pending = null;
     this.recoverySecret = null;
+    this.backupFile = null;
     this.set({ busy: true, message: null });
     const storage = this.storage;
     let ok = true;

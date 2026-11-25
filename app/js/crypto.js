@@ -131,21 +131,32 @@ const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 const B64_INDEX = new Int8Array(128).fill(-1);
 for (let i = 0; i < B64_ALPHABET.length; i++) B64_INDEX[B64_ALPHABET.charCodeAt(i)] = i;
 
+// Schrijft de tekens als ASCII-bytes en decodeert die in één keer: geen
+// string die teken voor teken groeit (dat kostte bij een back-up van 64 MiB
+// enkele GB geheugen; meting taak 7).
+const B64_CODES = new TextEncoder().encode(B64_ALPHABET);
+const ASCII = new TextDecoder();
+
 export function b64(bytes) {
-  const parts = [];
-  const chunk = 3 * 4096;
-  for (let start = 0; start < bytes.length; start += chunk) {
-    const end = Math.min(start + chunk, bytes.length);
-    let s = '';
-    for (let i = start; i < end; i += 3) {
-      const n = (bytes[i] << 16) | ((i + 1 < end ? bytes[i + 1] : 0) << 8) | (i + 2 < end ? bytes[i + 2] : 0);
-      s += B64_ALPHABET[(n >> 18) & 63] + B64_ALPHABET[(n >> 12) & 63];
-      if (i + 1 < end) s += B64_ALPHABET[(n >> 6) & 63];
-      if (i + 2 < end) s += B64_ALPHABET[n & 63];
-    }
-    parts.push(s);
+  const n = bytes.length;
+  const full = n - (n % 3);
+  const rest = n - full;
+  const out = new Uint8Array((full / 3) * 4 + (rest ? rest + 1 : 0));
+  let o = 0;
+  for (let i = 0; i < full; i += 3) {
+    const v = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    out[o++] = B64_CODES[(v >> 18) & 63];
+    out[o++] = B64_CODES[(v >> 12) & 63];
+    out[o++] = B64_CODES[(v >> 6) & 63];
+    out[o++] = B64_CODES[v & 63];
   }
-  return parts.join('');
+  if (rest) {
+    const v = (bytes[full] << 16) | (rest === 2 ? bytes[full + 1] << 8 : 0);
+    out[o++] = B64_CODES[(v >> 18) & 63];
+    out[o++] = B64_CODES[(v >> 12) & 63];
+    if (rest === 2) out[o++] = B64_CODES[(v >> 6) & 63];
+  }
+  return ASCII.decode(out);
 }
 
 export function fromB64(text) {

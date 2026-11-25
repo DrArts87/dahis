@@ -15,10 +15,10 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.2.0';
-const CODE_HASH = '7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691';
+const VERSION = '0.3.0';
+const CODE_HASH = 'da223701f732135f900bf9fe5657d83775e5ee973623fe2731f25280de238dcc';
 const FILES = {
-  'css/app.css': '4f4d7cf3ba136df5212fcb2c4a8848992a061b6c725133c8465cec46e2a1bf39',
+  'css/app.css': 'b2787981242e11641bc8fef116bc9c875c63bcf0f75a9b415c83a28935b93b3a',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
   'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
   'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
@@ -27,16 +27,16 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
-  'js/app.js': '47db5ceab09c2aa6b111e8a09acd70c19dd370e2307de46ca7688b00eec77423',
-  'js/benchmark.js': '9b4a9ebd60d3bf84023ffdcb38043fcbbe2d203bb70d9021f4f199219cc3eae6',
-  'js/controller.js': '38e2c49057786d8500c7790cda33080c87878420391f5a40d02d3282f552bc33',
-  'js/crypto.js': '0fd77fa48dc434dbb7a58310acc7a367c69c6bf8c752196b0f456e270d606c50',
-  'js/dom.js': '2f27e24228dbb71b902f77741db744f214663e4f00df0fc81412323766c599cf',
+  'js/app.js': '1331b2f076a544b60083e8f2350fa31ba79c968f82e23016e86e5a6dfe4789c5',
+  'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
+  'js/controller.js': 'e41d8ee4451ddc70540201ed3e68ba36a321519b5b0042e78ec03cf617f220b1',
+  'js/crypto.js': '03b4de941390607641121e50311982af6f910bf662cdd2bf28b148a2cc39f7e2',
+  'js/dom.js': '527df54fe4dce2a7e2fb775bb1c358e3b885817de6d79d582b12eafa83552fea',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': '06de7ac929ac94777efb4c4f23a27185402f498954fe795b9c55b0f45aaabc1f',
+  'js/i18n/nl.js': 'a14a15182a2dc8ee455094e27bad69ce64c261accba8bd6e0cc72b6357dacc4e',
   'js/settings.js': '66752e3878cfdef67a91f3349063d688b31a8f33b67f21a232180a85f3435745',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
-  'js/vault.js': 'd1d5bdc3db7e9724bedfb0bb975f8971167494756cf08541261a38d6d40df9be',
+  'js/vault.js': 'a6a979cc7ebeb6b2b8885f01940318f00ffae212eb08fa931a9cfca0b96b9b45',
   'manifest.webmanifest': 'f40056063d21cbfdf42cbf89d93f8d737f421ca41d3b789f34eab206e8e9a606',
 };
 // EINDE RELEASE

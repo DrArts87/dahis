@@ -1,7 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 6 (auditlog en controles in de app) en de
-metingen op de OnePlus. Dit document is het
+Bijgewerkt: 2026-11-25, na taak 7 (back-up maken, controleren en
+terugzetten in de app). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -20,7 +20,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #10 | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
 | #12 | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert); versie 0.2.0 |
-| (nieuw) | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| #13 | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd |
+| (nieuw) | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 
 **Live**: Pages is ingericht; release `v0.2.0` (codehash
 `7f512a0a36a188aa7a5894d68f3683c82b2288d57622a175278a4a10c018c691`) staat op
@@ -34,8 +35,9 @@ vastgesteld). Controles (formaat §9.4): 20.000 regels volledig 0,8 s, snel
 bevestigd.
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1–6, 8 en 9 klaar, inclusief de metingen op de OnePlus;
-**volgende: taak 7** (back-up in de app, audit A3), daarna 10.
+taak 1–9 klaar; van taak 7 staan de metingen en de proef met delen op de
+OnePlus nog open. **Volgende: taak 10** (acceptatietest op de OnePlus), na
+een release `v0.3.0`.
 
 ## Belangrijkste documenten
 
@@ -47,14 +49,14 @@ taak 1–6, 8 en 9 klaar, inclusief de metingen op de OnePlus;
 - [`docs/formaat.md`](formaat.md): het versleutelings- en opslagformaat.
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
-  afspraken daarover; A1, A2 en A4 verwerkt, A3 deels
-  (grens aan de schrijvende kant), rest in taak 7.
+  afspraken daarover; A1–A4 verwerkt.
 - [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
   NEN 7510 (met restrisico's van sessies).
 - [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
   [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
   instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md),
-  [plan taak 6](plans/2026-11-25-taak-6-auditlog.md).
+  [plan taak 6](plans/2026-11-25-taak-6-auditlog.md),
+  [plan taak 7](plans/2026-11-25-taak-7-backup.md).
 
 ## Besluiten in het kort
 
@@ -67,7 +69,7 @@ taak 1–6, 8 en 9 klaar, inclusief de metingen op de OnePlus;
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
 | Publiceren | Alleen bij een versietag `vX.Y.Z` op `main` (release op GitHub), via `pages.yml`; zie [`docs/release.md`](release.md) |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
-| Back-ups | Wekelijks; bewaar de laatste vier |
+| Back-ups | Wekelijks; bewaar de laatste vier. Herinnering na 7 dagen. Deelt Chrome `.dahis` niet, dan met `.txt` achter de naam (akkoord gebruiker). `last_backup_at` en `verify_backup` vóór het delen (het deelmenu vergrendelt de app); delen standaard, downloaden als tweede knop; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
 | Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
@@ -106,24 +108,30 @@ taak 1–6, 8 en 9 klaar, inclusief de metingen op de OnePlus;
 |---|---|
 | `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | Schermen (alleen tekenen), logo en iconen als SVG-symbolen in `index.html`, DOM zonder `innerHTML` |
 | `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen, herstel, wachtwoord, instellingen, controle (met duur en soort bij een afwijking), logboek, metingen, vergrendelen (herladen), alles wissen, stoppen bij een afwijking |
-| `app/js/benchmark.js` | Meting van de controles op een nep-opslag in het geheugen (wegwerpsleutels, niets opgeslagen) |
+| `app/js/benchmark.js` | Meting van de controles en van grote back-ups op een nep-opslag in het geheugen (wegwerpsleutels, niets opgeslagen) |
 | `app/js/settings.js`, `app/js/i18n.js`, `app/js/i18n/nl.js` | Vaste lijst instellingen; teksten met vaste sleutels |
 | `app/img/` | Randen (SVG) en varen (PNG) van de gebruiker |
 | `app/sw.js` | Service worker; blok tussen `BEGIN RELEASE` en `EINDE RELEASE` alleen via `tools/release.py`. Serveert de goedgekeurde versie (cache `dahis-akkoord`), ook als Chrome een nieuwere worker zelf heeft geactiveerd |
 | `app/js/crypto.js` | Bouwstenen formaat 1 (Web Crypto) |
-| `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage` |
+| `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage`. Back-up: `exportTx`, `buildBackupFile`, `verifyExportedBackup`, `verifyBackupTx`, `checkBackupFile`, `restoreTx`; lezer per formaatnummer |
 | `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft; meldt een verschuldigde controle via `onCheck`), Web Lock (`openStorage`), opslagstatus |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
+| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); testbestand formaat 1 in `tests/fixtures/testbestand-formaat-1.json` (`maak_testbestand.mjs`, idem); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
 | `.github/workflows/pages.yml` | Publiceren van `app/` op Pages bij een versietag, na dezelfde controles en een controle van tag en versie |
 
 ## Volgende stap
 
-Taak 6 is klaar en `v0.2.0` staat live; de metingen staan in formaat §2.4
-en §9.4. Volgende: taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
-verbergt de app en vergrendelt die nu) en 10 (acceptatietest op de
-OnePlus).
+Taak 7 is klaar in de code. Na de merge: release `v0.3.0` volgens
+[`docs/release.md`](release.md), bijwerken op de OnePlus, en dan op de
+telefoon:
+- Meer → Snelheid meten → Grote back-up (64, 128 en 250 MiB): lukt het, en
+  hoe lang duurt het? Daarna de grens van 256 MiB vaststellen of verlagen
+  (formaatwijziging, apart besluit);
+- Meer → Back-up: maken en **delen** proberen (komt het deelmenu, met
+  `.dahis` of met `.txt` erachter?), en Downloaden;
+- daarna taak 10: de acceptatietest met checklist, inclusief terugzetten via
+  beide routes op een lege opslag en de tests bij onderbreking.
 
 Browsercontrole: repository serveren met `python3 -m http.server` en
 `/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
@@ -134,7 +142,8 @@ repository.
 
 - Browsertests in CI (job met de Chrome van de runner, zonder npm):
   wijziging van de workflow, dus apart te vragen.
-- Een nieuwe review na taak 7 (volledige keten in de app).
+- Een nieuwe review nu taak 7 klaar is (volledige keten in de app).
+- De grens van 256 MiB voor een back-up: na de meting op de OnePlus.
 - Een hogere standaardwaarde voor PBKDF2 dan 600.000 rondes (de meting laat
   ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe).
 

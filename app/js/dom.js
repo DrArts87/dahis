@@ -3,6 +3,7 @@
 // als tekst in de pagina, nooit als HTML.
 
 // el('p', {class: 'x', onclick: fn}, 'tekst', kindElement)
+// Kinderen mogen (geneste) lijsten zijn; null, undefined en false vallen weg.
 export function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -16,7 +17,7 @@ export function el(tag, props = {}, ...children) {
       throw new Error('Niet toegestaan attribuut: ' + key);
     } else node.setAttribute(key, value === true ? '' : String(value));
   }
-  for (const child of children.flat()) {
+  for (const child of children.flat(Infinity)) {
     if (child !== null && child !== undefined && child !== false) node.append(child);
   }
   return node;

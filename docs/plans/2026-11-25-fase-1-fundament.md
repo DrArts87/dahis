@@ -169,7 +169,7 @@ voor de alpha). In het kort:
 6. ✅ Auditlog met hashketen, controlepunt, snelle en volledige controle. Meting
    op de OnePlus: duur van de volledige controle bij een realistisch groot
    log (gemeten: 20.000 regels 0,8 s, 100.000 regels 4,6 s). Uitgewerkt in [plan taak 6](2026-11-25-taak-6-auditlog.md).
-7. Back-up: export, beide controles, terugzetten, herinnering,
+7. ✅ Back-up: export, beide controles, terugzetten, herinnering,
    migratieketen, testbestand. Tests: terugzetten op een lege opslag met
    wachtwoord én met herstelsleutel; een ongeldig bestand laat de opslag
    leeg; twee keer dezelfde back-up terugzetten geeft twee verschillende
@@ -179,7 +179,9 @@ voor de alpha). In het kort:
    de herstelsleutel en een nieuw
    wachtwoord opent de app daarna normaal met dat nieuwe wachtwoord (en niet
    meer met het oude), en de controles slagen. Meting op de OnePlus: piekgeheugen, en of bij de maximale
-   bestandsgrootte een back-up nog te maken én te openen is.
+   bestandsgrootte een back-up nog te maken én te openen is (meting in de
+   app onder Meer → Snelheid meten; op de OnePlus nog te doen, samen met
+   taak 10). Uitgewerkt in [plan taak 7](2026-11-25-taak-7-backup.md).
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
