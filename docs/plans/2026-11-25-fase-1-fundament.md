@@ -183,8 +183,10 @@ voor de alpha). In het kort:
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
    (gebruiker). `node --test` sinds taak 3.
-9. Pages-workflow op versietag en releaseprocedure, inclusief controle op
-   andere Pages-sites op het account (apart te vragen).
+9. ✅ Pages-workflow op versietag en releaseprocedure, inclusief controle op
+   andere Pages-sites op het account (akkoord gebruiker 2026-11-25; naar
+   voren gehaald om de app op de telefoon te kunnen proberen). Zie
+   [`docs/release.md`](../release.md).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
 
 **Na de alpha** (eigen ontwerp en review): forensisch bestand, een afwijking

@@ -1,6 +1,6 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 5 (onboarding, ontgrendelen, vergrendelen). Dit document is het
+Bijgewerkt: 2026-11-25, na taak 9 (GitHub Pages en releaseprocedure). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -16,11 +16,12 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #6 | App-shell: manifest, service worker met handmatige updates en hashcontrole, strikte CSP met trusted types, iconen (taak 2) |
 | #8 | `app/js/crypto.js` en `app/js/vault.js` met tests en testvectoren (taak 3) |
 | #9 | `app/js/store.js`: IndexedDB, schrijfwachtrij, Web Lock; audit A1 (deels), A2, A4 (taak 4) |
-| (nieuw) | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
+| (nieuw) | UI-opbouw en voorbeeldschermen; schermen voor inrichten, ontgrendelen, vergrendelen, herstel, wachtwoord wijzigen, alles wissen en afwijking; instellingen in de kluis; teksten in `i18n/nl.js`; logo, varen en randen van de gebruiker; logo als app-icoon (taak 5); review P1, P2 verwerkt |
+| (nieuw) | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9). **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1, 2, 3, 4, 5 en 8 klaar (5 nog zonder metingen op de OnePlus);
-**volgende: taak 6** (auditlog en controles in de app), daarna 7, 9 en 10.
+taak 1, 2, 3, 4, 5, 8 en 9 klaar (5 nog zonder metingen op de OnePlus);
+**volgende: taak 6** (auditlog en controles in de app), daarna 7 en 10.
 
 ## Belangrijkste documenten
 
@@ -48,6 +49,7 @@ taak 1, 2, 3, 4, 5 en 8 klaar (5 nog zonder metingen op de OnePlus);
 | Techniek | Platte HTML/CSS/JS + Web Crypto; Python-stdlib voor hulpscripts; Node zonder npm voor tests |
 | Enige uitzondering op dependencies | `cryptography` (Python), alleen voor de latere noodontsleutelaar |
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
+| Publiceren | Alleen bij een versietag `vX.Y.Z` op `main` (release op GitHub), via `pages.yml`; zie [`docs/release.md`](release.md) |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
 | Back-ups | Wekelijks; bewaar de laatste vier |
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
@@ -95,10 +97,12 @@ taak 1, 2, 3, 4, 5 en 8 klaar (5 nog zonder metingen op de OnePlus);
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
 | `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
+| `.github/workflows/pages.yml` | Publiceren van `app/` op Pages bij een versietag, na dezelfde controles en een controle van tag en versie |
 
 ## Volgende stap
 
-Taak 5 is gebouwd; na de review en de merge volgt taak 6 (auditlog en
+Taak 5 en 9 zijn gebouwd; na de merge van taak 9 stelt de gebruiker Pages
+in en publiceert `v0.1.0` (`docs/release.md`). Daarna taak 6 (auditlog en
 controles in de app). Open uit taak 5: de metingen op de OnePlus (Meer →
 Snelheid meten, bij 600.000 en 10.000.000 rondes).
 
@@ -108,8 +112,8 @@ wegwerpprofiel; in de cloudsessie met Playwright, stuurscripts niet in de
 repository.
 
 Daarna taak 7 (back-up in de app, audit A3; let op: het Android-deelmenu
-verbergt de app en vergrendelt die nu), 9 (Pages-workflow en
-releaseprocedure) en 10 (acceptatietest op de OnePlus).
+verbergt de app en vergrendelt die nu) en 10 (acceptatietest op de
+OnePlus).
 
 ## Openstaande beslissingen
 
