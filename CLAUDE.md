@@ -55,8 +55,9 @@ Begin van een sessie
 Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
    service worker de nieuwe bestanden), `python3 -m py_compile tools/*.py`,
-   `python3 -m unittest discover -s tests` en `node --check` op de
-   JS-bestanden. CI (`controle.yml`) controleert hetzelfde.
+   `python3 -m unittest discover -s tests`, `node --check` op de
+   JS-bestanden en `node --test tests/*.test.mjs`. CI (`controle.yml`)
+   controleert hetzelfde.
 2. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
 

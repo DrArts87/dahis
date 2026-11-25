@@ -135,7 +135,7 @@ voor de alpha). In het kort:
 
 1. Dit plan; daarna `docs/formaat.md`.
 2. App-shell, manifest, service worker met handmatige update, CSP, iconen.
-3. `crypto.js` met tests: sleutels en wraps, herstelsleutel,
+3. ✅ `crypto.js` (bouwstenen) en `vault.js` (bewerkingen in het geheugen) met tests: sleutels en wraps, herstelsleutel,
    schrijfsleutels en reservering (beide gevallen van formaat §3.8),
    registerdigests, records, auditketen, controlepunt, back-upformaat met
    strikt inlezen. Testvectoren in `tests/fixtures/vectoren.json`, ook
@@ -167,7 +167,7 @@ voor de alpha). In het kort:
 8. ✅ CI: unittests, `release.py --check` en een job JavaScript in
    `controle.yml`, plus een pre-commit-hook in `.githooks/`. De job
    JavaScript wordt een verplichte controle in de branchbescherming
-   (gebruiker). Bij taak 3 komt `node --test` erbij.
+   (gebruiker). `node --test` sinds taak 3.
 9. Pages-workflow op versietag en releaseprocedure, inclusief controle op
    andere Pages-sites op het account (apart te vragen).
 10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
