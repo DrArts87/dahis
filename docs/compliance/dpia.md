@@ -81,7 +81,8 @@ Uitgewerkt in [`nen7510.md`](nen7510.md). In het kort:
 | Restrisico | Toelichting | Besluit |
 |---|---|---|
 | OneDrive privé zonder verwerkersovereenkomst | Microsoft bewaart de versleutelde back-ups en de compliance-documenten; de back-ups zijn zonder wachtwoord of herstelsleutel niet te lezen, maar een offline aanval op een back-up is onbeperkt in de tijd mogelijk. Maatregel: sterk wachtwoord, PBKDF2 2.000.000 | Geaccepteerd door de gebruiker, 2026-11-26 |
-| Sleutels in het geheugen tijdens de wachttijd | Binnen de wachttijd na wisselen van app (standaard 5 minuten) blijft de app open; het voorbeeld in *Recente apps* kan het laatste scherm tonen (`nen7510.md`) | Geaccepteerd door de gebruiker, 2026-11-26; wachttijd 0 is mogelijk |
+| Sleutels in het geheugen tijdens de wachttijd | Binnen de wachttijd na wisselen van app (standaard 5 minuten) blijft de app open | Geaccepteerd door de gebruiker, 2026-11-26; wachttijd 0 is mogelijk |
+| Gegevens in het voorbeeld van *Recente apps* | Android toont het laatste scherm van Dahis in het wisselscherm, ook na vergrendelen en met afdekken (proef 0.4.2); een web-app kan dat niet blokkeren | Geaccepteerd door de gebruiker, 2026-11-26; maatregel biometrische schermvergrendeling; [#33](https://github.com/DrArts87/dahis/issues/33) |
 | Geheugen niet te wissen in JavaScript | Resten van sleutels kunnen tot herladen in het geheugen van Chrome staan | Restrisico, zie `nen7510.md` |
 | Gewijzigde code via de hosting | De app ziet een nieuwe versie pas na eigen akkoord en toont de codehash; een aanvaller met toegang tot het GitHub-account kan een release maken | Besloten in het besluit op OneDrive; maatregel tweestapsverificatie op GitHub, bevestigd 2026-11-26 |
 | Verlies van beide geheimen | Geen achterdeur: dossiers onherstelbaar | Restrisico, zie herstelprocedure §3 |
