@@ -1,7 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A van
-het vervolgplan (werkwijze met issues). Dit document is het
+Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A en B
+van het vervolgplan (werkwijze met issues, browsertests in CI). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -26,6 +26,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #16 | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. Release `v0.3.1` |
 | #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
 | #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
+| #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -45,8 +46,8 @@ taak 1–10 klaar. De acceptatietest
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
 echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
-[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap B**
-(browsertests in CI).
+[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap C**
+(compliance-toets).
 
 ## Belangrijkste documenten
 
@@ -116,8 +117,11 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    Claude leest die daar (de comments van de PR), beoordeelt ze kritisch,
    stelt aanpassingen voor en verwerkt ze pas na akkoord van de gebruiker. Het formaat
    wijzigen vraagt altijd apart akkoord.
-7. **Browsercontrole** in de cloudsessie met de voorgeïnstalleerde Chromium
-   (Playwright), wegwerpprofiel, testscripts niet in de repository.
+7. **Browsercontrole**: de browsertests draaien in CI en lokaal met
+   `node tests/run_browser.mjs`. Daarnaast in de cloudsessie met de
+   voorgeïnstalleerde Chromium (Playwright) en een wegwerpprofiel, onder
+   meer voor de hulpproeven (`?alleen=hulp`); die Playwright-scripts staan
+   niet in de repository.
 8. **Issues**: fouten, wensen en schermpunten als issue via de formulieren.
    Claude stelt issues voor die het tegenkomt maar niet direct oppakt, en
    maakt ze aan na toestemming. Een PR sluit issues met `Closes #n`
@@ -137,25 +141,26 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage`. Back-up: `exportTx`, `buildBackupFile`, `verifyExportedBackup`, `verifyBackupTx`, `checkBackupFile`, `restoreTx`; lezer per formaatnummer |
 | `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft; meldt een verschuldigde controle via `onCheck`), Web Lock (`openStorage`), opslagstatus |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); testbestand formaat 1 in `tests/fixtures/testbestand-formaat-1.json` (`maak_testbestand.mjs`, idem); browser: `browser.html` en `browser.mjs` (echte IndexedDB, niet in CI) |
-| `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, privacy |
+| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); testbestand formaat 1 in `tests/fixtures/testbestand-formaat-1.json` (`maak_testbestand.mjs`, idem); browser: `browser.html` en `browser.mjs` (echte IndexedDB, 16 tests), in CI en lokaal via `run_browser.mjs` (Chrome zonder scherm, wegwerpprofiel, alleen Node-standaardmodules) |
+| `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, Browsertests (Chrome), privacy |
 | `.github/workflows/pages.yml` | Publiceren van `app/` op Pages bij een versietag, na dezelfde controles en een controle van tag en versie |
 
 ## Volgende stap
 
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A
-(werkwijze met issues) is klaar na de merge. Daarna **B** browsertests in CI,
-**C** compliance-toets, **D1** wachttijd bij wisselen van app en PBKDF2,
+(werkwijze met issues) en B (browsertests in CI) zijn klaar na de merge;
+zet daarna de controle **Browsertests (Chrome)** op verplicht in de
+branchbescherming. Daarna **C** compliance-toets, **D1** wachttijd bij wisselen van app en PBKDF2,
 **D2** voorschrijver, **E** fase 2. Begin elk plan met de open issues
 (`CLAUDE.md` §4). Open issues nu:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later) en
 [#19](https://github.com/DrArts87/dahis/issues/19) (herinnering om
 back-ups op te ruimen; bekijken bij D1).
 
-Browsercontrole: repository serveren met `python3 -m http.server` en
-`/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
-wegwerpprofiel; in de cloudsessie met Playwright, stuurscripts niet in de
-repository.
+Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
+repository serveren met `python3 -m http.server` en `/app/` (de app) of
+`/tests/browser.html` (IndexedDB-tests) openen in een wegwerpprofiel; in de
+cloudsessie ook met Playwright (stuurscripts niet in de repository).
 
 ## Openstaande beslissingen
 

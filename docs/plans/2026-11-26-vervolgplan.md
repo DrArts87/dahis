@@ -76,3 +76,37 @@ het plan van D1.
   geen leeg issue.
 - `CLAUDE.md`, dit plan en de overdracht zijn bijgewerkt; de controles uit
   `CLAUDE.md` §2 slagen.
+
+Uitgevoerd in #20; formulieren na de merge door de gebruiker gecontroleerd.
+
+## Stap B: browsertests in CI
+
+**Open issues nagelopen**: #18 en #19 raken stap B niet.
+
+### Taken
+1. `tests/run_browser.mjs` (alleen Node-standaardmodules, Node 18+): een
+   webserver op 127.0.0.1 serveert de repository en een startpagina die
+   `tests/browser.html` in een frame laadt en de uitslag
+   (`window.dahisResults`) terugstuurt; Chrome zonder scherm met een
+   wegwerpprofiel. Uitvoer per test en de browserversie; exitcode 1 bij een
+   mislukte test, een time-out (standaard 180 s) of een gestopte Chrome.
+2. Job **Browsertests (Chrome)** in `controle.yml`, direct op
+   `ubuntu-latest` (Chrome en Node staan daar), `--no-sandbox` alleen in CI,
+   `timeout-minutes: 10`.
+3. `CLAUDE.md` §2 en §3, dit plan en de overdracht.
+
+Buiten de omvang: de hulpproeven met `?alleen=hulp` (herladen midden in een
+schrijfactie, twee tabbladen); die blijven met Playwright in de cloudsessie.
+
+### Risico's
+| Risico | Maatregel |
+|---|---|
+| Chrome op de runner wordt vanzelf bijgewerkt | Browserversie in de uitvoer |
+| Sandbox van Chrome geblokkeerd op de runner | `--no-sandbox`, alleen in CI; de pagina laadt alleen eigen code |
+| Job blijft hangen | Time-out in het script en op de job |
+
+### Acceptatiecriteria
+- De job is groen in de PR met 16 geslaagde tests en de browserversie.
+- Lokaal aangetoond: een bewust mislukte test en een laadfout (time-out)
+  geven exitcode 1.
+- Na de merge zet de gebruiker de controle op verplicht.

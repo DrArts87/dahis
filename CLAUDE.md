@@ -62,7 +62,8 @@ Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
    service worker de nieuwe bestanden), `python3 -m py_compile tools/*.py`,
    `python3 -m unittest discover -s tests`, `node --check` op de
-   JS-bestanden en `node --test tests/*.test.mjs`. CI (`controle.yml`)
+   JS-bestanden, `node --test tests/*.test.mjs` en de browsertests
+   (`node tests/run_browser.mjs`, Chrome via `CHROME`). CI (`controle.yml`)
    controleert hetzelfde.
 2. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
@@ -74,8 +75,9 @@ Voor een commit
    niet; die blijf je zelf nalopen.
 
 ## 3. Branches en commits
-- `main` is beschermd, ook voor beheerders: alleen via pull request, de drie
-  controles uit `controle.yml` moeten groen zijn, ondertekende commits,
+- `main` is beschermd, ook voor beheerders: alleen via pull request, de
+  controles uit `controle.yml` (Python, JavaScript, browsertests, privacy)
+  moeten groen zijn, ondertekende commits,
   lineaire geschiedenis. Alleen squash merge; de branch wordt na het mergen
   automatisch verwijderd.
 - Mergen doet de gebruiker op GitHub (*Squash and merge*), nooit Claude.
