@@ -7,8 +7,10 @@ Bijgewerkt in de compliance-toets van 2026-11-26; zie ook de
 
 ## Verwerkingsverantwoordelijke
 De arts die de app gebruikt, in de rol van BIG-geregistreerd
-zorgverlener. Naam en BIG-nummer staan in de eigen instellingen van de app,
-niet in deze repository.
+zorgverlener. De eigen gegevens als voorschrijver (naam, beroep, BIG-nummer,
+AGB-code, praktijk, adres, telefoon, e-mail) staan vanaf versie 0.5.0
+versleuteld in de app (record `prescriber`, vaste stap na de eerste
+ontgrendeling) en gaan mee in de back-up; nooit in deze repository.
 
 ## Verwerking: persoonlijk patiëntendossier
 

@@ -155,3 +155,10 @@ Eigen plan: [plan D1](2026-11-26-d1-vergrendelen.md) (akkoord gebruiker
 2026-11-26, met de beslispunten KDF-upgrade bij ontgrendelen, #19 mee,
 wachttijd alleen ontgrendeld zonder handeling, terugkomen telt als
 activiteit). Versie 0.4.0.
+
+## Stap D2: voorschrijver registreren
+
+Eigen plan: [plan D2](2026-11-26-d2-voorschrijver.md) (akkoord gebruiker
+2026-11-26): record `prescriber`, alle velden verplicht, vaste stap na de
+eerste ontgrendeling, wijzigen onder Instellingen. Versie 0.5.0. Daarna mogen
+de eigen gegevens van de voorschrijver in de app.

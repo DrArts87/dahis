@@ -7,7 +7,8 @@ compliance-toets van 2026-11-26. Vink af in de PR waarin het gebeurt, met
 bewijs.
 
 **Eigen gegevens van de voorschrijver** (de gebruiker zelf) mogen na stap D2,
-ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
+ook voordat deze lijst af is (besluit gebruiker 2026-11-26). Stap D2 zit in
+versie 0.5.0: vanaf die release mogen de eigen gegevens in de app.
 
 ## Techniek
 | | Punt | Wie | Bewijs of stap |

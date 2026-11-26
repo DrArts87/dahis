@@ -15,8 +15,8 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.4.4';
-const CODE_HASH = '99d5c60c9ad0938f086425ed9ae6abc270a4b3cfb5618602417c469094d1b120';
+const VERSION = '0.5.0';
+const CODE_HASH = 'f4e5d1f1f7137896cb9673292ef7bcd9e0d0460b815ad946c309885387a98e1f';
 const FILES = {
   'css/app.css': 'dfd1194055a1866c957d72a6876a2a08c3c0b706cfef563f83b963c30f6f7205',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -27,13 +27,14 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': 'c909a7e4a0b5e83ed275128c886b78afd2e1a44e67d348a98a52f17e6ea0083b',
-  'js/app.js': '2e743feaa1c93ffd0269d700baec51e5f61c35dca32c1fb8019543805a94a414',
+  'js/app.js': '26002492bb97c402b4a12891ddf1ae9b4ce1495d886b97e34123df125e7e1e72',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
-  'js/controller.js': '8a69b50af525b93d4159b571d6728f2ae08b993ad6210b45a20ecc211c43cae5',
+  'js/controller.js': '525e5f38d1c8fd25e0ab82d7447037748fd2f9fb0e015a83f411b302617ddc49',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',
   'js/dom.js': 'd01992736527ffc6a30e9c6654d04494c1ca68c6f3af4685d6448c07633415b9',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': '60da369ef9a276673db636304dbb8818cbefb815faa2ab907a49c453630c0e85',
+  'js/i18n/nl.js': 'b1093abf878098fddc2a873734611cf146f039f6920fa703a584b95490fe7155',
+  'js/prescriber.js': 'a941979b7ce4e9395ddc276b604b209c44a48aa093a6f7b0405853d22ac9153a',
   'js/settings.js': '21880f5f06ea53f9a24784bb19fe1b37c90df2ebec1abb4b28c3482892dffa6e',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
   'js/vault.js': '6c82f9f8c68e451591b2795e6a849bc35c66e04b24168c8e2ed24c31d06f1119',

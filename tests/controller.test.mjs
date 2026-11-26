@@ -13,7 +13,7 @@ import {
 } from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
-import { TEST_ITERATIONS, REAL_ITERATIONS } from './helpers/kluis.mjs';
+import { TEST_ITERATIONS, REAL_ITERATIONS, TEST_PRESCRIBER } from './helpers/kluis.mjs';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -94,6 +94,17 @@ async function onboardFull(dev) {
   assert.equal(await app.confirmRecoveryGroups(answers), true);
   assert.equal(app.state.step, 'done');
   await app.lock();
+  // Vaste stap D2: na de eerste ontgrendeling de voorschrijver invullen.
+  dev.open = false;
+  const first = dev.controller();
+  await first.start();
+  assert.equal(await first.unlock({ password: PASSWORD }), true);
+  assert.equal(first.state.view, 'prescriber');
+  assert.equal(await first.savePrescriber(TEST_PRESCRIBER), true);
+  assert.equal(first.state.view, 'ready');
+  await first.lock();
+  dev.reloads -= 1;   // zoals voorheen: één herlading per onboarding
+  dev.closes -= 1;
   return { recoveryKey };
 }
 
@@ -281,7 +292,8 @@ test('volledige controle op verzoek wordt gelogd', async () => {
 test('afwijking bij ontgrendelen: gestopt, opslag ongewijzigd', async () => {
   const dev = device();
   await onboard(dev);
-  const row = dev.backend.disk.audit.find((r) => r.seq === 1);
+  const last = Math.max(...dev.backend.disk.audit.map((r) => r.seq));
+  const row = dev.backend.disk.audit.find((r) => r.seq === last);
   row.h = new Uint8Array(32);                 // kop van de keten klopt niet meer
   const before = canon(dev.backend.disk);
   const app = dev.controller();
@@ -1119,14 +1131,15 @@ test('review PR #23 P1-3: mislukte commit van unlock met KDF-upgrade: niets gelo
   // Opnieuw met hetzelfde (juiste) wachtwoord: lukt, één keer kdf_upgrade.
   const oldSalt = C.b64(dev.backend.disk.meta.kdf.salt);
   assert.equal(await a.unlock({ password: fixture.wachtwoord }), true);
-  assert.equal(a.state.view, 'ready');
+  // Het testbestand heeft geen voorschrijver: eerst de vaste stap (D2).
+  assert.equal(a.state.view, 'prescriber');
   assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
   assert.notEqual(C.b64(dev.backend.disk.meta.kdf.salt), oldSalt, 'nieuwe salt_w');
   // Volgende ontgrendeling: geen tweede upgrade; de opslag is in orde.
   await a.lock();
   dev.open = false;
   const again = await unlocked(dev, { password: fixture.wachtwoord });
-  assert.equal(again.state.view, 'ready');
+  assert.equal(again.state.view, 'prescriber');
   await V.fullCheck(dev.backend.disk, (await V.unlock(dev.backend.disk, { password: fixture.wachtwoord })).session);
   const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
   assert.equal(actions.filter((x) => x === 'password_change:kdf_upgrade').length, 1);
@@ -1270,4 +1283,148 @@ test('issue #26: de app zelf gebruikt de standaard (2.000.000); de controller ge
   const b = await unlocked(dev);
   assert.equal(await b.changePassword({ password: PASSWORD }, PASSWORD2, PASSWORD2), true);
   assert.equal(dev.backend.disk.meta.kdf.iterations, TEST_ITERATIONS);
+});
+
+// --- Stap D2: voorschrijver ------------------------------------------------------------------
+
+async function prescriberLog(store) {
+  const { session } = await V.unlock(store, { password: PASSWORD });
+  const rows = store.audit.slice().sort((a, b) => a.seq - b.seq);
+  const out = [];
+  let hPrev = C.ZERO_HASH;
+  for (const row of rows) {
+    out.push(await C.openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev));
+    hPrev = row.h;
+  }
+  return out;
+}
+
+test('D2: vaste stap na de eerste ontgrendeling; ongeldige invoer schrijft niets', async () => {
+  const dev = device();
+  const app = dev.controller();
+  await app.start();
+  app.goToStep('password');
+  await app.choosePassword(PASSWORD, PASSWORD);
+  app.goToStep('check');
+  await app.confirmRecoveryGroups(app.state.groups.map((g) => app.state.recoveryKey[g]));
+  await app.lock();
+  dev.open = false;
+  const b = dev.controller();
+  await b.start();
+  await b.unlock({ password: PASSWORD });
+  assert.equal(b.state.view, 'prescriber');
+  assert.equal(b.shouldLockOnHide(), true, 'sessie open');
+  const before = canon(dev.backend.disk);
+  const bad = Object.assign({}, TEST_PRESCRIBER, { big: '123', email: '' });
+  assert.equal(await b.savePrescriber(bad), false);
+  assert.deepEqual(b.state.prescriberErrors, { big: 'prescriber.error.big', email: 'prescriber.error.required' });
+  assert.equal(b.state.message.key, 'prescriber.invalid');
+  assert.equal(b.state.view, 'prescriber');
+  assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
+  // Andere handelingen kunnen nog niet.
+  assert.equal(await b.saveSetting('lock.idleMinutes', 5), false);
+  assert.equal(await b.makeBackup(), false);
+  assert.equal(await b.savePrescriber(TEST_PRESCRIBER), true);
+  assert.equal(b.state.view, 'ready');
+  assert.deepEqual(b.state.prescriberErrors, {});
+  assert.equal(b.state.message.key, 'prescriber.saved');
+});
+
+test('D2: in de vaste stap geldt de wachttijd (opzoeken in een andere app); vergrendelen wist de gegevens uit het geheugen', async () => {
+  // Opslag zonder voorschrijver: alleen de onboarding, nog niet de vaste stap.
+  const fresh = timedDevice();
+  const a = fresh.controller();
+  await a.start();
+  a.goToStep('password');
+  await a.choosePassword(PASSWORD, PASSWORD);
+  a.goToStep('check');
+  await a.confirmRecoveryGroups(a.state.groups.map((g) => a.state.recoveryKey[g]));
+  await a.lock();
+  fresh.open = false;
+  const b = fresh.controller();
+  await b.start();
+  await b.unlock({ password: PASSWORD });
+  assert.equal(b.state.view, 'prescriber');
+  b.hidden();
+  assert.equal(b.state.view, 'prescriber', 'niet direct vergrendeld');
+  fresh.advance(2 * MIN);
+  b.visible();
+  assert.equal(b.state.view, 'prescriber');
+  await b.savePrescriber(TEST_PRESCRIBER);
+  await b.lock();
+  assert.deepEqual(b.state.prescriber, {}, 'uit het geheugen');
+  assert.equal(b.prescriberId, null);
+});
+
+test('D2: wijzigen vanuit Instellingen; na opnieuw ontgrendelen terug; het logboek bevat geen waarden', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(app.state.view, 'ready');
+  assert.deepEqual(app.state.prescriber, Object.assign({}, TEST_PRESCRIBER));
+  app.showScreen('settings', 'prescriber');
+  assert.equal(app.state.work.sub, 'prescriber');
+  const changed = Object.assign({}, TEST_PRESCRIBER, { practice: 'Testpraktijk', postcode: '9999zz' });
+  assert.equal(await app.savePrescriber(changed), true);
+  assert.equal(app.state.view, 'ready');
+  assert.equal(app.state.prescriber.postcode, '9999 ZZ', 'genormaliseerd opgeslagen');
+  await app.lock();
+  dev.open = false;
+  const again = await unlocked(dev);
+  assert.equal(again.state.prescriber.practice, 'Testpraktijk');
+  const log = await prescriberLog(dev.backend.disk);
+  const mine = log.filter((c) => c.kind === 'prescriber');
+  assert.deepEqual(mine.map((c) => c.action), ['create', 'update']);
+  const text = JSON.stringify(log);
+  for (const v of ['Testpersoon', 'Teststraat', 'Testpraktijk', '00000000000', 'example.invalid']) {
+    assert.ok(!text.includes(v), 'geen waarde in het logboek: ' + v);
+  }
+});
+
+test('D2: de voorschrijver gaat mee in de back-up en komt terug bij terugzetten', async () => {
+  const a = device();
+  await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+  await app.lock();
+  b.open = false;
+  const opened = await unlocked(b);
+  assert.equal(opened.state.view, 'ready', 'geen vaste stap: al ingevuld');
+  assert.deepEqual(opened.state.prescriber, Object.assign({}, TEST_PRESCRIBER));
+});
+
+test('D2: na herstel met de herstelsleutel eerst de vaste stap als de gegevens ontbreken', async () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
+  const dev = device();
+  const app = dev.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(C.utf8(fixture.bestand)), { password: fixture.wachtwoord }), true);
+  await app.lock();
+  dev.open = false;
+  const b = await unlocked(dev, { recoveryKey: fixture.herstelsleutel });
+  assert.equal(b.state.view, 'recovery-password');
+  assert.equal(await b.setRecoveryPassword(PASSWORD2, PASSWORD2), true);
+  assert.equal(b.state.view, 'prescriber');
+});
+
+test('D2: een opgeslagen veld dat niet (meer) klopt, maakt de registratie onvolledig', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const id = app.prescriberId;
+  // Schrijf een ongeldige versie zoals een oudere of gewijzigde app dat zou doen.
+  await app.queue.run(app.session, (store, s, now) => V.putRecordTx(store, s, {
+    id, kind: 'prescriber', data: Object.assign({}, TEST_PRESCRIBER, { big: 'onzin' }), schema: 1, now,
+  }));
+  await app.lock();
+  dev.open = false;
+  const again = await unlocked(dev);
+  assert.equal(again.state.view, 'prescriber');
+  assert.equal(again.state.prescriber.big, undefined);
+  assert.equal(again.state.prescriber.name, TEST_PRESCRIBER.name, 'geldige velden blijven');
 });

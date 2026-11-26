@@ -12,6 +12,8 @@
 //                      of terugzetten: restore, restored (taak 7)
 //   locked             vergrendeld; ontgrendelen met wachtwoord of herstelsleutel
 //   recovery-password  na de herstelsleutel eerst een nieuw wachtwoord (§12.3)
+//   prescriber         ontgrendeld, maar de gegevens van de voorschrijver zijn
+//                      nog niet compleet: eerst invullen (stap D2, vaste stap)
 //   ready              ontgrendeld en in orde
 //   halted             afwijking gevonden (§10): alleen vergrendelen of wissen
 //   locking            bezig met vergrendelen of wissen; de pagina herlaadt
@@ -41,6 +43,9 @@ import {
 } from './store.js';
 import { SETTINGS_KIND, SETTINGS_SCHEMA, defaultSettings, normalizeSettings, withSetting } from './settings.js';
 import { measureChecks, measureBackup } from './benchmark.js';
+import {
+  PRESCRIBER_KIND, PRESCRIBER_SCHEMA, readPrescriber, validatePrescriber, isComplete,
+} from './prescriber.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
@@ -108,7 +113,11 @@ const FILE_ERRORS = Object.freeze({
 
 // Weergaven waarin sleutels of geheimen in het geheugen kunnen staan; bij
 // verbergen van de app wordt dan vergrendeld.
-const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'halted']);
+const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'prescriber', 'halted']);
+// Weergaven met een open sessie waarin de wachttijd na wisselen van app
+// geldt (de velden van de voorschrijver zijn geen geheimen; opzoeken in een
+// andere app moet kunnen).
+const AWAY_VIEWS = new Set(['ready', 'prescriber']);
 const SECRET_STEPS = new Set(['key', 'check', 'done']);
 // Subschermen in 'ready' met invoer van een wachtwoord of de herstelsleutel:
 // daar geldt geen wachttijd (review PR #23 P1-1).
@@ -117,7 +126,7 @@ export const SECRET_SUBS = new Set(['password']);
 // Schermen van de werkstand. Een onbekende waarde (bijvoorbeeld uit een
 // latere opslag) valt terug op het hoofdscherm.
 export const WORK_TABS = Object.freeze(['patients', 'recipes', 'settings', 'more']);
-export const WORK_SUBS = Object.freeze(['password', 'about', 'measure', 'erase', 'audit', 'backup']);
+export const WORK_SUBS = Object.freeze(['password', 'about', 'measure', 'erase', 'audit', 'backup', 'prescriber']);
 const MAX_WORK_FIELD = 10000;
 
 // Zo lang wacht vergrendelen of ontgrendelen hooguit op de opslag van de
@@ -255,7 +264,10 @@ export class AppController {
       fileCheck: null,            // uitslag van een gecontroleerd bestand (vergrendelscherm)
       work: defaultWork(),        // werkstand: scherm en formulier
       awayNotice: false,          // melding: nieuwe instelling wachttijd nog niet bewaard
+      prescriber: {},             // geldige velden van de voorschrijver (stap D2)
+      prescriberErrors: {},       // veld -> tekstsleutel van de fout bij opslaan
     };
+    this.prescriberId = null;
   }
 
   // --- Toestand ----------------------------------------------------------------
@@ -296,7 +308,7 @@ export class AppController {
   // lopende handeling, niet op een scherm voor geheime invoer, en met een
   // wachttijd groter dan 0 (besluit 3; review PR #23 P1-1).
   awayAllowed() {
-    return this.state.view === 'ready' && !this.state.busy && !this.erasing
+    return AWAY_VIEWS.has(this.state.view) && !this.state.busy && !this.erasing
       && !SECRET_SUBS.has(this.state.work.sub)
       && this.state.settings['lock.awayMinutes'] > 0;
   }
@@ -331,7 +343,7 @@ export class AppController {
     const ms = this.state.settings['lock.awayMinutes'] * 60 * 1000;
     this.clearAway();
     if (!this.shouldLockOnHide()) return;
-    if (away < 0 || away >= ms || this.state.view !== 'ready') { this.lock(); return; }
+    if (away < 0 || away >= ms || !AWAY_VIEWS.has(this.state.view)) { this.lock(); return; }
     this.activity();
   }
 
@@ -429,7 +441,7 @@ export class AppController {
     this.backupFile = null;
     this.set({
       view: 'halted', backup: null, haltCode: code, haltCheck: this.checkKind, checking: false,
-      step: null, recoveryKey: null, audit: null,
+      step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {},
     });
     this.checkKind = null;
     this.auditToken += 1;
@@ -578,6 +590,8 @@ export class AppController {
       this.alive(gen);
       await this.loadSettings(session);
       this.alive(gen);
+      await this.loadPrescriber(session);
+      this.alive(gen);
       const work = await this.loadWork(session);
       this.alive(gen);
       this.set({ work });
@@ -587,7 +601,7 @@ export class AppController {
         this.recoverySecret = secret.recoveryKey;
         this.set({ view: 'recovery-password', failedUnlocks: 0, lastFullCheckAt: session.lastFullCheckAt });
       } else {
-        this.set({ view: 'ready', failedUnlocks: 0, lastFullCheckAt: session.lastFullCheckAt });
+        this.set({ view: this.readyView(), failedUnlocks: 0, lastFullCheckAt: session.lastFullCheckAt });
       }
       this.set({ lastBackupAt: lastBackupOf(this.backend.store.meta), fileCheck: null });
     });
@@ -603,7 +617,7 @@ export class AppController {
       }));
       this.alive(gen);
       this.recoverySecret = null;
-      this.set({ view: 'ready', lastFullCheckAt: this.session.lastFullCheckAt });
+      this.set({ view: this.readyView(), lastFullCheckAt: this.session.lastFullCheckAt });
       this.say('recovery.done');
     });
   }
@@ -620,6 +634,56 @@ export class AppController {
       this.alive(gen);
       this.say('password.changed');
     }, { messages: { WrongSecretError: 'password.wrongCurrent', RecoveryKeyTypoError: 'unlock.typo' } });
+  }
+
+  // --- Voorschrijver (stap D2) ----------------------------------------------------------
+
+  // Na ontgrendelen: eerst de gegevens van de voorschrijver als die nog niet
+  // compleet zijn (vaste stap, besluit gebruiker 2026-11-26).
+  readyView() {
+    return isComplete(this.state.prescriber) ? 'ready' : 'prescriber';
+  }
+
+  async loadPrescriber(session = this.session) {
+    const store = this.backend.store;
+    const ids = Array.from(new Set(store.records.filter((r) => r.kind === PRESCRIBER_KIND).map((r) => r.id))).sort();
+    this.prescriberId = ids.length ? ids[0] : null;
+    let data = null;
+    if (this.prescriberId) {
+      const rec = await V.readRecord(store, session, this.prescriberId);
+      if (rec && !rec.content.deleted) data = rec.content.data;
+    }
+    this.set({ prescriber: readPrescriber(data), prescriberErrors: {} });
+  }
+
+  // Opslaan vanuit de vaste stap of vanuit Instellingen. Een ongeldig veld:
+  // een melding per veld en niets geschreven.
+  async savePrescriber(input) {
+    const view = this.state.view;
+    if (view !== 'ready' && view !== 'prescriber') return false;
+    const result = validatePrescriber(input);
+    if (result.errors) {
+      this.set({ prescriberErrors: result.errors });
+      this.say('prescriber.invalid');
+      return false;
+    }
+    return this.guard(async (gen) => {
+      const id = this.prescriberId || undefined;
+      const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordTx(store, s, {
+        id, kind: PRESCRIBER_KIND, data: result.data, schema: PRESCRIBER_SCHEMA, now,
+      }));
+      this.alive(gen);
+      this.prescriberId = tx.putRecords[0].id;
+      this.set({
+        prescriber: result.data, prescriberErrors: {}, lastFullCheckAt: this.session.lastFullCheckAt,
+        view: this.state.view === 'prescriber' ? 'ready' : this.state.view,
+      });
+      this.say('prescriber.saved');
+    });
+  }
+
+  clearPrescriberErrors() {
+    if (Object.keys(this.state.prescriberErrors).length) this.set({ prescriberErrors: {} });
   }
 
   // --- Instellingen -----------------------------------------------------------------
@@ -993,7 +1057,9 @@ export class AppController {
     this.set({
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
       audit: null, checking: false, backup: null, fileCheck: null, work: defaultWork(),
+      prescriber: {}, prescriberErrors: {},
     });
+    this.prescriberId = null;
     try {
       // Nu NullWorkStore: er wordt niets bewaard. Vergrendelen wacht hooguit
       // WORK_STORE_MS op de opslag van de werkstand (review PR #23).

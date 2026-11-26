@@ -10,6 +10,7 @@ import {
   AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, backupDue,
 } from './controller.js';
 import { SETTINGS, PRESETS, isPreset } from './settings.js';
+import { PRESCRIBER_FIELDS, formValues } from './prescriber.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
 // service worker de pagina serveert).
@@ -252,6 +253,7 @@ setInterval(() => app.idleTick(), 10 * 1000);
 
 const SUCCESS = new Set([
   k('recovery.done'), k('password.changed'), k('settings.saved'), k('check.ok'), k('backup.ready'), k('fileCheck.ok'),
+  k('prescriber.saved'),
 ]);
 
 const HALT_TEXT = {
@@ -695,6 +697,104 @@ function onboardingDone() {
   });
 }
 
+// --- Schermen: voorschrijver (stap D2) ------------------------------------------------------
+
+// Invoervelden per veld van de voorschrijver. Geen geheimen: werkvelden
+// (data-work) voor "verder waar je was" later.
+const PRESCRIBER_INPUT = {
+  name: { autocomplete: 'name', autocapitalize: 'words' },
+  profession: { autocapitalize: 'none' },
+  big: { inputmode: 'numeric', maxlength: 11 },
+  agb: { inputmode: 'numeric', maxlength: 8 },
+  practice: { autocapitalize: 'none' },
+  address: { autocomplete: 'street-address', autocapitalize: 'words' },
+  postcode: { autocomplete: 'postal-code', autocapitalize: 'characters', maxlength: 7 },
+  city: { autocomplete: 'address-level2', autocapitalize: 'words' },
+  phone: { type: 'tel', autocomplete: 'tel', inputmode: 'tel' },
+  email: { type: 'email', autocomplete: 'email', autocapitalize: 'none' },
+};
+
+// Teksten per veld; de foutsleutels komen uit prescriber.js.
+const PRESCRIBER_LABEL = {
+  name: k('prescriber.field.name'),
+  profession: k('prescriber.field.profession'),
+  big: k('prescriber.field.big'),
+  agb: k('prescriber.field.agb'),
+  practice: k('prescriber.field.practice'),
+  address: k('prescriber.field.address'),
+  postcode: k('prescriber.field.postcode'),
+  city: k('prescriber.field.city'),
+  phone: k('prescriber.field.phone'),
+  email: k('prescriber.field.email'),
+};
+const PRESCRIBER_ERRORS = [
+  k('prescriber.error.required'), k('prescriber.error.text'), k('prescriber.error.big'), k('prescriber.error.agb'),
+  k('prescriber.error.postcode'), k('prescriber.error.phone'), k('prescriber.error.email'), k('prescriber.error.unknown'),
+];
+
+function errorText(key) {
+  return PRESCRIBER_ERRORS.includes(key) ? t(key) : t('prescriber.error.text');
+}
+
+function prescriberValues() {
+  const out = {};
+  for (const f of PRESCRIBER_FIELDS) out[f.field] = value('p-' + f.field);
+  return out;
+}
+
+// Formulier zonder ui.clearInputs: bij een fout blijft de invoer staan.
+function prescriberForm(submitLabel, after) {
+  const start = formValues(app.state.prescriber);
+  const errors = app.state.prescriberErrors;
+  const fields = PRESCRIBER_FIELDS.map((f) => {
+    const id = 'p-' + f.field;
+    const extra = PRESCRIBER_INPUT[f.field] || {};
+    const err = errors[f.field];
+    const input = el('input', Object.assign({
+      id, name: id, type: 'text', 'data-work': '', spellcheck: 'false', required: true,
+      maxlength: f.max, value: start[f.field],
+      'aria-invalid': err ? 'true' : null, 'aria-describedby': id + '-hint',
+    }, extra));
+    return field(id, t(PRESCRIBER_LABEL[f.field]), input,
+      err ? errorText(err) : (f.field === 'practice' ? t('prescriber.hint.practice') : null));
+  });
+  return el('form', {
+    novalidate: true,
+    onsubmit: async (event) => {
+      event.preventDefault();
+      if (await app.savePrescriber(prescriberValues()) && after) after();
+    },
+  }, fields, submit(submitLabel));
+}
+
+// Vaste stap na het ontgrendelen zolang de gegevens niet compleet zijn.
+function prescriberSetupScreen() {
+  return page({
+    head: header({ title: t('prescriber.setupTitle'), sub: t('prescriber.setupSub'), lock: true }),
+    body: [
+      el('p', {}, t('prescriber.setupText')),
+      prescriberForm(t('prescriber.save')),
+      el('p', { class: 'muted' }, t('prescriber.encrypted')),
+    ],
+  });
+}
+
+// Wijzigen vanuit Instellingen.
+function prescriberEditScreen() {
+  const close = () => { app.showSub(null); app.clearPrescriberErrors(); render(); };
+  return page({
+    head: header({
+      title: t('prescriber.title'), lock: true,
+      back: backLink(t('nav.settings'), () => { close(); app.say(null); }),
+    }),
+    body: [
+      prescriberForm(t('prescriber.save'), close),
+      el('p', { class: 'muted' }, t('prescriber.encrypted')),
+    ],
+    navbar: true,
+  });
+}
+
 // --- Schermen: ontgrendelen en herstel ------------------------------------------------------
 
 function lockedScreen() {
@@ -866,6 +966,12 @@ function settingsTab() {
       direct ? el('p', { class: 'note warn' }, t('settings.directWarn')) : null),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
       listItem('i-key', t('settings.password'), { onclick: () => { app.showSub('password'); app.say(null); render(); } }))),
+    el('h3', {}, t('prescriber.title')),
+    el('section', { class: 'card' }, el('ul', { class: 'list' },
+      listItem('i-people', t('prescriber.edit'), {
+        value: app.state.prescriber.name || null,
+        onclick: () => { app.showSub('prescriber'); app.say(null); render(); },
+      }))),
     el('p', { class: 'muted' }, t('settings.encrypted')),
   ];
 }
@@ -1133,6 +1239,7 @@ function haltedScreen() {
 function readyScreen() {
   const { tab, sub } = app.state.work;
   if (sub === 'password') return changePasswordScreen();
+  if (sub === 'prescriber') return prescriberEditScreen();
   if (sub === 'about') return aboutScreen();
   if (sub === 'measure') return measureScreen();
   if (sub === 'audit') return auditScreen();
@@ -1162,6 +1269,7 @@ function view() {
     case 'recovery-password': return recoveryPasswordScreen();
     case 'halted': return haltedScreen();
     case 'ready': return readyScreen();
+    case 'prescriber': return prescriberSetupScreen();
     case 'onboarding':
       switch (s.step) {
         case 'password': return onboardingPassword();
