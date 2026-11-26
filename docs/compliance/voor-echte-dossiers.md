@@ -37,5 +37,6 @@ ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
 | ☑ | Herstelsleutel op papier op een veilige plek, niet bij de telefoon | Gebruiker | 2026-11-26, besluitenlog op OneDrive (alleen "gedaan", niet de plek) |
 | ☐ | Eerste hersteltest volgens de [herstelprocedure](herstelprocedure.md) §6 | Gebruiker | Januari 2027, of eerder |
 | ☐ | Cloudopslag van back-ups beoordeeld: toegestane bestemmingen, rol van de aanbieder, art. 28 AVG, doorgifte buiten de EER, verwijderen inclusief prullenbak en versiegeschiedenis | Gebruiker | [#25](https://github.com/DrArts87/dahis/issues/25); review PR #23 |
-| ☐ | Praktijkproef sessies en delen op de OnePlus (stap D1) | Gebruiker | [Plan D1](../plans/2026-11-26-d1-vergrendelen.md), proef |
+| ☑ | Praktijkproef sessies op de OnePlus (stap D1) | Gebruiker | 2026-11-26, versie 0.4.0, [plan D1](../plans/2026-11-26-d1-vergrendelen.md); delen mislukt (knop verwijderd in 0.4.2, [#30](https://github.com/DrArts87/dahis/issues/30)) |
+| ☐ | Voorbeeld in Recente apps zonder gegevens, of restrisico vastgelegd | Gebruiker | Proef 0.4.2 (afdekken bij verbergen); `nen7510.md` restrisico's sessies |
 | ☐ | Betrokkenen informeren dat er een dossier wordt bijgehouden (`avg.md`) | Gebruiker | Bij elk nieuw dossier, vastgelegd in het dossier |

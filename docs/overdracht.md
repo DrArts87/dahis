@@ -30,7 +30,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
 | #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd. Daarna door de gebruiker: sjablonen ingevuld, DPIA-besluit ondertekend, incidentenregister, checklist apparaten, tweestapsverificatie, herstelsleutel opgeborgen; agenda *App onderhoud* met drie terugkerende afspraken |
 | #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen in dezelfde transactie als `unlock` (`unlockTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`, opslag hooguit 1 s). Delen terug naast Downloaden (alleen met wachttijd > 0 en een deelbaar bestand; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). Review van de auditor verwerkt: geen wachttijd op *Wachtwoord wijzigen*, geheime velden gewist bij verbergen en nooit in een gewoon tekstveld (`dom.js`), waarschuwing bij een niet opgeslagen back-up, melding over de nieuwe wachttijd; issues #24 (bevestigde externe kopie) en #25 (cloud en art. 28). `nen7510.md` (Sessies ◐ tot de proef), `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `avg.md`, `SECURITY.md` bijgewerkt |
-| (PR) | Tests sneller ([plan](plans/2026-11-26-tests-sneller.md), #26), versie 0.4.1: optie `iterations` in `vault.js` en `deps.kdfIterations`/`deps.workStoreMs` in de controller (de app gebruikt altijd de standaard); testhulp `tests/helpers/kluis.mjs` (600.000 rondes); voorbereide testkluis in de controllertests; twee dubbele tests samengevoegd; Node-tests van ongeveer 57 naar 15 s. CI: job *Selectie* (`tools/ci_selectie.py`) slaat bij een PR met alleen documentatie de Node- en browsertests over. `CLAUDE.md` §2: wat je tussendoor draait. Issue #27 (UI-browsertest) aangemaakt |
+| #28 | Tests sneller ([plan](plans/2026-11-26-tests-sneller.md), #26), versie 0.4.1: optie `iterations` in `vault.js` en `deps.kdfIterations`/`deps.workStoreMs` in de controller (de app gebruikt altijd de standaard); testhulp `tests/helpers/kluis.mjs` (600.000 rondes); voorbereide testkluis in de controllertests; twee dubbele tests samengevoegd; Node-tests van ongeveer 57 naar 15 s. CI: job *Selectie* (`tools/ci_selectie.py`) slaat bij een PR met alleen documentatie de Node- en browsertests over. `CLAUDE.md` §2: wat je tussendoor draait. Issue #27 (UI-browsertest) aangemaakt |
+| (PR) | Fix 0.4.2 na de proef van D1 op de OnePlus (0.4.0: stap 1, 3–7 en 9 in orde; stap 2 melding gemist, verklaarbaar; stap 8 delen mislukt; stap 10 Recente apps toont gegevens): knop Delen verwijderd (alleen downloaden, issue #30); de app dekt de inhoud af bij verbergen (`body.covered`), proef van 0.4.2 moet uitwijzen of het voorbeeld in Recente apps dan leeg is. *Sessies* in `nen7510.md` ☑ |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -92,7 +93,7 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
 | Publiceren | Alleen bij een versietag `vX.Y.Z` op `main` (release op GitHub), via `pages.yml`; zie [`docs/release.md`](release.md) |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
-| Back-ups | Wekelijks; bewaar de laatste vier, met een herinnering na downloaden of delen (#19). Herinnering na 7 dagen. Delen via het deelmenu alleen met een wachttijd na wisselen van app (vanaf 0.4.0; zonder wachttijd vergrendelt het deelmenu de app); Downloaden altijd. `last_backup_at` en `verify_backup` vóór het downloaden; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
+| Back-ups | Wekelijks; bewaar de laatste vier, met een herinnering na downloaden (#19). Herinnering na 7 dagen. Alleen downloaden, naar de afgesproken cloudmap: Delen via het deelmenu mislukte op de OnePlus (0.4.0), uitzoeken in #30. `last_backup_at` en `verify_backup` vóór het downloaden; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
 | Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
@@ -159,11 +160,11 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 ## Volgende stap
 
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B, C
-en D1 (#23, versie 0.4.0) zijn klaar. Nu: de PR *tests sneller* (#26,
-versie 0.4.1), de release door de gebruiker en de proef op de OnePlus uit
-het [plan D1](plans/2026-11-26-d1-vergrendelen.md) (lukt **Delen** niet,
-dan gaat de knop eruit en stelt Claude een issue voor; daarna *Sessies* in
-`nen7510.md` naar ☑). Daarna **D2** voorschrijver en **E** fase 2. Begin
+en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1) en de proef van D1 op de
+OnePlus zijn klaar. Nu: de PR met fix 0.4.2 (Delen eruit, afdekken bij
+verbergen), de release door de gebruiker en een korte proef van 0.4.2
+(Recente apps bij wachttijd 0 en 5; downloaden). Daarna **D2** voorschrijver
+en **E** fase 2. Begin
 elk plan met de open issues (`CLAUDE.md` §4). Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
@@ -171,7 +172,9 @@ van de back-up; bij het vaststellen van formaat 1, blokkade vóór echte
 dossiers), [#25](https://github.com/DrArts87/dahis/issues/25) (cloudopslag
 en art. 28 AVG; vóór echte dossiers) en
 [#27](https://github.com/DrArts87/dahis/issues/27) (browsertest via de echte
-schermen; na #26, of samen met D2).
+schermen; samen met D2) en
+[#30](https://github.com/DrArts87/dahis/issues/30) (delen via het deelmenu
+mislukt; uitzoeken met de foutnaam).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
