@@ -136,6 +136,19 @@ Tweede ronde (auditor, 2026-11-26), verwerkt na akkoord:
 10. *Recente apps* na wisselen, bij wachttijd 0 en bij 5: wat toont het
     voorbeeld? Uitkomst in `nen7510.md` (restrisico's sessies).
 
+## Uitkomst proef (2026-11-26, versie 0.4.0)
+Uitgevoerd door de gebruiker met de checklist in een privé Claude-document;
+alleen testgegevens.
+
+| Stap | Uitkomst | Gevolg |
+|---|---|---|
+| 1, 3–7, 9 | In orde | *Sessies* in `nen7510.md` naar ☑ |
+| 2 | Melding over de nieuwe wachttijd niet gezien; waarschijnlijk gemist of terecht weg (instelling al bewaard) | Geen actie (besluit gebruiker) |
+| 8 | Delen mislukt ("Delen is niet gelukt"); annuleren niet te testen | Knop verwijderd in 0.4.2; [#30](https://github.com/DrArts87/dahis/issues/30) |
+| 10 | Voorbeeld in Recente apps toont gegevens, bij wachttijd 0 en 5 | 0.4.2 dekt de inhoud af bij verbergen; proef van 0.4.2 |
+
+**Proef 0.4.2**: versie en codehash; Recente apps bij wachttijd 0 en 5 (voorbeeld zonder gegevens?); terug binnen de wachttijd: inhoud weer zichtbaar; back-up maken en downloaden met de opruimmelding.
+
 ## Acceptatiecriteria
 - Binnen de wachttijd terug: hetzelfde scherm zonder ontgrendelen; erna het
   vergrendelscherm; bij 0 als voorheen. Inactiviteit werkt als voorheen.

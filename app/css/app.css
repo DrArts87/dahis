@@ -59,6 +59,10 @@ html, body {
 
 #app { max-width: 32rem; margin: 0 auto; }
 
+/* Afdekken bij verbergen (0.4.2): geen gegevens in het voorbeeld van
+   Recente apps. Alleen de achtergrond blijft zichtbaar. */
+body.covered #app { visibility: hidden; }
+
 /* --- Pagina ----------------------------------------------------------------- */
 .shell {
   display: flex;

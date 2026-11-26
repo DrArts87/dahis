@@ -221,15 +221,28 @@ for (const type of ['pointerdown', 'keydown', 'input', 'touchstart', 'wheel']) {
 
 // Bij verbergen eerst geheime invoer wissen, in elke toestand (review PR
 // #23 P1-1); daarna beslist de controller over vergrendelen.
+//
+// Afdekken (0.4.2): Android maakt het voorbeeld in Recente apps zodra de app
+// naar de achtergrond gaat, vóór vergrendelen of herladen (proef D1, stap
+// 10). Daarom eerst de inhoud verbergen; bij terugkomen binnen de wachttijd
+// weer tonen. Een web-app kan het voorbeeld niet blokkeren; of Android de
+// afgedekte pagina vastlegt, blijkt uit de proef.
+function cover(on) {
+  document.body.classList.toggle('covered', on);
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
+    cover(true);
     clearSecretInputs(root.querySelectorAll('input'));
     app.hidden();
   } else {
     app.visible();
+    cover(false);
   }
 });
-window.addEventListener('pagehide', () => app.pageClosed());
+window.addEventListener('pagehide', () => { cover(true); app.pageClosed(); });
+window.addEventListener('pageshow', () => cover(false));
 
 setInterval(() => app.idleTick(), 10 * 1000);
 
@@ -853,10 +866,9 @@ function appVersion() {
   return (sw.info && sw.info.version) || '0.0.0';
 }
 
-// Downloaden kan altijd. Delen via het deelmenu alleen met een wachttijd na
-// wisselen van app (stap D1): het deelmenu verbergt de app, en zonder
-// wachttijd vergrendelt die direct door te herladen, wat het delen afbreekt
-// (proef op de OnePlus, versie 0.3.0).
+// Alleen downloaden (0.4.2): Delen via het deelmenu mislukte op de OnePlus
+// in de proef van D1 (0.4.0); uitzoeken in issue #30. Onder 0.3.0 vergrendelde
+// het deelmenu de app (proef taak 7).
 function downloadBackup() {
   const b = app.backupForDownload();
   if (!b) return;
@@ -869,58 +881,14 @@ function downloadBackup() {
   setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
 }
 
-// Bestandstypen die Chrome op Android mag delen, staan vast; .dahis hoort
-// er niet bij. Dan dezelfde inhoud als tekstbestand met .txt achter de naam
-// (het bestand is UTF-8-tekst; de naam doet bij het inlezen niet mee).
-// Eén keer per back-up bepaald (ui.share), zodat opnieuw tekenen geen nieuwe
-// kopie van het bestand maakt. null: dit bestand is niet te delen.
-function shareFile(b) {
-  if (ui.share && ui.share.id === b.id) return ui.share.file;
-  let file = null;
-  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function') {
-    const candidates = [
-      new File([b.text], b.name, { type: 'application/octet-stream' }),
-      new File([b.text], b.name + '.txt', { type: 'text/plain' }),
-    ];
-    file = candidates.find((f) => { try { return navigator.canShare({ files: [f] }); } catch (err) { return false; } }) || null;
-  }
-  ui.share = { id: b.id, file };
-  return file;
-}
-
-// Knop Delen alleen met een wachttijd en als dit concrete bestand te delen
-// is (review PR #23, P2).
-function canShareBackup() {
-  if (app.state.settings['lock.awayMinutes'] <= 0) return false;
-  const b = app.backupForDownload();
-  return Boolean(b && shareFile(b));
-}
-
-async function shareBackup() {
-  const b = app.backupForDownload();
-  if (!b) return;
-  app.say(null);   // geen melding van een vorige poging laten staan
-  const file = shareFile(b);
-  if (!file) { app.say('backup.shareUnsupported'); return; }
-  const id = b.id;   // de export waarmee de gebruiker begon, niet de naam
-  try {
-    await navigator.share({ files: [file], title: file.name });
-    app.backupSaved(id);
-  } catch (err) {
-    // Zelf geannuleerd (AbortError): geen melding. Elke andere fout wel, maar
-    // alleen als dezelfde back-up nog openstaat (review PR #23, P2).
-    if ((!err || err.name !== 'AbortError') && app.backupOpen(id)) app.say('backup.shareFailed');
-  }
-}
-
 // Het back-upscherm verlaten (terug, of een tab). Is het bestand nog niet
-// gedownload of gedeeld, dan eerst één waarschuwing (review PR #23 P1-2).
+// gedownload, dan eerst één waarschuwing (review PR #23 P1-2).
 function leaveBackup(then) {
   if (!app.leaveBackup()) { render(); return; }
   then();
 }
 
-// Na downloaden of delen: alleen de laatste vier bewaren (#19), met de datum
+// Na downloaden: alleen de laatste vier bewaren (#19), met de datum
 // van de vorige back-up zodat zichtbaar is welke bestanden weg kunnen.
 function cleanupNote(b) {
   if (!b.saved) return null;
@@ -932,7 +900,6 @@ function cleanupNote(b) {
 
 function backupScreen() {
   const b = app.state.backup;
-  if (!b) ui.share = null;
   return page({
     head: header({
       title: t('backup.title'), lock: true,
@@ -945,9 +912,8 @@ function backupScreen() {
       el('p', { class: 'muted' }, t('backup.policy')),
       b ? [
         el('section', { class: 'card' }, el('p', { class: 'hash' }, t('backup.file', { name: b.name, size: fileSize(b.bytes) }))),
-        canShareBackup() ? button(t('backup.share'), shareBackup, 'primary') : null,
-        button(t('backup.download'), downloadBackup, canShareBackup() ? '' : 'primary'),
-        el('p', { class: 'muted' }, canShareBackup() ? t('backup.afterShare') : t('backup.afterDownload')),
+        button(t('backup.download'), downloadBackup, 'primary'),
+        el('p', { class: 'muted' }, t('backup.afterDownload')),
         b.saved ? null : el('p', { class: 'muted' }, t('backup.notSavedYet')),
         cleanupNote(b),
       ] : button(t('backup.make'), () => app.makeBackup({ appVersion: appVersion() }), 'primary'),

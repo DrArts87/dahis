@@ -670,14 +670,13 @@ mee.
    `last_backup_at` schrijven. De regel `export` betekent dus "poging"; een
    bruikbaar bestand blijkt uit de direct volgende `verify_backup` met
    `equal` (audit A3). Mislukt de controle, dan geen `verify_backup`.
-5. Pas daarna downloaden of delen; er wordt dan niets meer geschreven.
-   Delen via het deelmenu biedt de app alleen met een wachttijd na wisselen
-   van app (vanaf versie 0.4.0, stap D1): het deelmenu verbergt de app, en
-   zonder wachttijd vergrendelt die direct door te herladen, wat het delen
-   afbreekt (proef op de OnePlus, versie 0.3.0). Downloaden kan altijd; het
-   bestand gaat dan buiten het toestel via Bestanden → Downloads. Wie niet
-   downloadt of deelt, heeft wel een bijgewerkte `last_backup_at` maar geen
-   bestand; dat is geaccepteerd.
+5. Pas daarna downloaden; er wordt dan niets meer geschreven. De app biedt
+   **geen deelmenu**: onder 0.3.0 vergrendelde het deelmenu de app, en in
+   0.4.0 (met wachttijd) mislukte het delen op de OnePlus (proef D1; uitzoeken
+   in issue #30). Het bestand gaat buiten het toestel via Bestanden →
+   Downloads, naar de afgesproken cloudmap. Wie niet downloadt, heeft wel een
+   bijgewerkte `last_backup_at` maar geen bestand; dat is geaccepteerd tot
+   issue #24 (bevestigde externe kopie).
 
 ### 11.4 Controleren
 - **Interne integriteit** (elke back-up): §11.5 stap 1–5 zonder te schrijven.
