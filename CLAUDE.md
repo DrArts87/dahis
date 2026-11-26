@@ -58,6 +58,11 @@ Begin van een sessie
 3. Lees [`docs/overdracht.md`](docs/overdracht.md) voor de stand van zaken,
    de werkwijze en de volgende stap.
 
+UI-ontwerp
+- Grotere UI-wijzigingen en nieuwe schermen eerst op het ontwerpcanvas
+  *Dahis – Schermen*, volgens [`docs/ui/ontwerpcanvas.md`](docs/ui/ontwerpcanvas.md).
+  Na merge en release werkt Claude de pagina *Productie* bij.
+
 Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de
    service worker de nieuwe bestanden), `python3 -m py_compile tools/*.py`,

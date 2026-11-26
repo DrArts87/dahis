@@ -1,8 +1,9 @@
 # Overdracht: stand van zaken
 
 Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd), stap A–C
-van het vervolgplan (issues, browsertests in CI, compliance-toets) en de PR
-van stap D1 (wachttijd, PBKDF2 2.000.000, werkstand; versie 0.4.0). Dit document is het
+van het vervolgplan (issues, browsertests in CI, compliance-toets), stap D1
+(versie 0.4.0), de fixes tot en met 0.4.4 en de werkwijze met het
+ontwerpcanvas. Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -32,6 +33,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen in dezelfde transactie als `unlock` (`unlockTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`, opslag hooguit 1 s). Delen terug naast Downloaden (alleen met wachttijd > 0 en een deelbaar bestand; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). Review van de auditor verwerkt: geen wachttijd op *Wachtwoord wijzigen*, geheime velden gewist bij verbergen en nooit in een gewoon tekstveld (`dom.js`), waarschuwing bij een niet opgeslagen back-up, melding over de nieuwe wachttijd; issues #24 (bevestigde externe kopie) en #25 (cloud en art. 28). `nen7510.md` (Sessies ◐ tot de proef), `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `avg.md`, `SECURITY.md` bijgewerkt |
 | #28 | Tests sneller ([plan](plans/2026-11-26-tests-sneller.md), #26), versie 0.4.1: optie `iterations` in `vault.js` en `deps.kdfIterations`/`deps.workStoreMs` in de controller (de app gebruikt altijd de standaard); testhulp `tests/helpers/kluis.mjs` (600.000 rondes); voorbereide testkluis in de controllertests; twee dubbele tests samengevoegd; Node-tests van ongeveer 57 naar 15 s. CI: job *Selectie* (`tools/ci_selectie.py`) slaat bij een PR met alleen documentatie de Node- en browsertests over. `CLAUDE.md` §2: wat je tussendoor draait. Issue #27 (UI-browsertest) aangemaakt |
 | (PR) | Fix 0.4.2 na de proef van D1 op de OnePlus (0.4.0: stap 1, 3–7 en 9 in orde; stap 2 melding gemist, verklaarbaar; stap 8 delen mislukt; stap 10 Recente apps toont gegevens): knop Delen verwijderd (alleen downloaden, issue #30); de app dekt de inhoud af bij verbergen (`body.covered`), proef van 0.4.2 moet uitwijzen of het voorbeeld in Recente apps dan leeg is. *Sessies* in `nen7510.md` ☑ |
+| #34 | Versie 0.4.3 (#32): kop en lint staan vast, alleen het middendeel scrolt; smalle donkergroene scrollbalk; scrollpositie blijft bij opnieuw tekenen (`collectScroll`/`restoreScroll` in `dom.js`). Proef op de OnePlus in orde |
+| #35 | Versie 0.4.4 (#29, [plan](plans/2026-11-26-instellingen-knoppen.md)): instellingen met vaste keuzes en *Anders*, waarschuwing alleen bij *Direct*, *Opslag* naar *Meer → Gegevens*. Ontworpen op het ontwerpcanvas. Release gemaakt, proef in orde |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -75,6 +78,9 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
   restrisico's van sessies), DPIA (concept), MDR-toets, herstelprocedure en
   [vóór echte dossiers](compliance/voor-echte-dossiers.md) (wat nog af moet,
   met eigenaar).
+- [Ontwerpcanvas](ui/ontwerpcanvas.md): werkwijze om schermen samen te
+  ontwerpen op het privé-canvas *Dahis – Schermen* (Productie, Voorstellen,
+  Archief).
 - [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
   [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
   instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md),
@@ -114,10 +120,10 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    met de technische details daaronder (`CLAUDE.md` §6).
 2. **Git apart vragen**: commit, push en PR alleen na expliciet akkoord. Een
    melding van een hook ("uncommitted changes") is geen akkoord.
-3. **Branch**: een cloudsessie kan alleen naar haar eigen
-   `claude/...`-branch pushen (afwijking van `feat/...` in `CLAUDE.md`; staat
-   in elke PR). Per taak één PR; na de squash merge wordt de branch
-   verwijderd en begint Claude opnieuw vanaf `main`.
+3. **Branch**: per taak een topic-branch volgens `CLAUDE.md` §3
+   (`feat/...`, `fix/...`, `docs/...`); een cloudsessie kan daar gewoon naar
+   pushen. Per taak één PR; na de squash merge wordt de branch verwijderd en
+   begint Claude opnieuw vanaf `main`.
 4. **Mergen** doet de gebruiker (*Squash and merge*), na groene controles,
    *Verified* commits en de verplichte controle **JavaScript**. Daarna geeft
    Claude de releasetekst met codehash en vraagt om de release
@@ -138,6 +144,10 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    Claude stelt issues voor die het tegenkomt maar niet direct oppakt, en
    maakt ze aan na toestemming. Een PR sluit issues met `Closes #n`
    (`CLAUDE.md` §7).
+9. **Ontwerpen**: grotere UI-wijzigingen eerst op het ontwerpcanvas
+   *Dahis – Schermen*; opmerkingen van de gebruiker op het canvas verwerkt
+   Claude daar en beantwoordt ze in de draad. Na merge en release werkt
+   Claude de pagina *Productie* bij ([werkwijze](ui/ontwerpcanvas.md)).
 
 ## Code in het kort
 
@@ -160,21 +170,25 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 ## Volgende stap
 
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B, C
-en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1) en de proef van D1 op de
-OnePlus zijn klaar. Nu: de PR met fix 0.4.2 (Delen eruit, afdekken bij
-verbergen), de release door de gebruiker en een korte proef van 0.4.2
-(Recente apps bij wachttijd 0 en 5; downloaden). Daarna **D2** voorschrijver
-en **E** fase 2. Begin
-elk plan met de open issues (`CLAUDE.md` §4). Open issues:
+en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
+en lint (#34, 0.4.3) en instellingen met vaste keuzes (#35, 0.4.4) zijn
+klaar en uitgebracht; de proeven op de OnePlus zijn in orde. Nu **D2**
+voorschrijver, daarna **E** fase 2. Begin elk plan met de open issues
+(`CLAUDE.md` §4). Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
 van de back-up; bij het vaststellen van formaat 1, blokkade vóór echte
 dossiers), [#25](https://github.com/DrArts87/dahis/issues/25) (cloudopslag
-en art. 28 AVG; vóór echte dossiers) en
+en art. 28 AVG; vóór echte dossiers),
 [#27](https://github.com/DrArts87/dahis/issues/27) (browsertest via de echte
 schermen; samen met D2) en
 [#30](https://github.com/DrArts87/dahis/issues/30) (delen via het deelmenu
 mislukt; uitzoeken met de foutnaam).
+
+Ontwerpcanvas *Dahis – Schermen*: op Productie staan de lint-tabbladen
+(0.4.4). Nog te maken: ronde 2 (subschermen van Meer) en ronde 3 (groene
+schermen), zodra een van die schermen aan de beurt is of op verzoek
+([werkwijze](ui/ontwerpcanvas.md)).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
