@@ -191,7 +191,13 @@ voor de alpha). In het kort:
    andere Pages-sites op het account (akkoord gebruiker 2026-11-25; naar
    voren gehaald om de app op de telefoon te kunnen proberen). Zie
    [`docs/release.md`](../release.md).
-10. Acceptatietest op de OnePlus 13R door de gebruiker, met checklist.
+10. ✅ Acceptatietest op de OnePlus 13R door de gebruiker, met checklist;
+    uitgewerkt in [plan taak 10](2026-11-26-taak-10-acceptatie.md), met de
+    punten die door de tests gedekt zijn en de afwijkingen van §7 (besluit
+    gebruiker 2026-11-26). Uitgevoerd 2026-11-26 met versie 0.3.1: alle
+    stappen in orde. Fase 1 is **alpha geaccepteerd**; echte dossiers pas na
+    de review van de volledige keten, formaat 1 vastgesteld en de
+    compliance-toets.
 
 **Na de alpha** (eigen ontwerp en review): forensisch bestand, een afwijking
 accepteren, scherm "Sleutels vernieuwen", noodontsleutelaar in Python met
@@ -229,14 +235,17 @@ alleen voor dit hulpmiddel).
 - `py_compile`, `node --check`, de Node-tests en `privacy_check.py` slagen.
 
 **Voorwaarde voor echte dossiers**, allemaal op de OnePlus:
-- een back-up gemaakt en op een lege opslag teruggezet, zowel met het
-  wachtwoord als met de herstelsleutel;
-- na herstel met een nieuw wachtwoord opent de app weer normaal;
-- de tests bij onderbreking slagen: de app afsluiten tijdens onboarding,
+- ✅ een back-up gemaakt en op een lege opslag teruggezet, zowel met het
+  wachtwoord als met de herstelsleutel (taak 10, stap F en G);
+- ✅ na herstel met een nieuw wachtwoord opent de app weer normaal (taak 10,
+  stap F);
+- ✅ de tests bij onderbreking slagen (onboarding op de OnePlus, taak 10
+  stap K; schrijfactie en terugzetten in de tests, besluit 2026-11-26): de app afsluiten tijdens onboarding,
   tijdens een schrijfactie en tijdens terugzetten laat geen half ingerichte
   opslag achter, en een nieuwe poging slaagt; een onderbroken restore laat de
   doelopslag leeg;
-- een verschuldigde volledige controle die schade vindt, laat de bestaande
-  opslag ongewijzigd;
+- ✅ een verschuldigde volledige controle die schade vindt, laat de bestaande
+  opslag ongewijzigd (in de tests, besluit 2026-11-26);
 - de limieten in `docs/formaat.md` §2.4 zijn gemeten en vastgesteld
-  (gedaan: PBKDF2 en back-upbestand, 2026-11-25), en het formaat is vastgesteld.
+  (gedaan: PBKDF2 en back-upbestand, 2026-11-25), en het formaat is vastgesteld
+  (**nog open**: na de review van de volledige keten).
