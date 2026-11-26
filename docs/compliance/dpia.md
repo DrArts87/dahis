@@ -1,0 +1,93 @@
+# DPIA: persoonlijk patiëntendossier Dahis
+
+Status: **concept**, 2026-11-26 (compliance-toets, stap C van het
+[vervolgplan](../plans/2026-11-26-vervolgplan.md)). Eigen beoordeling, geen
+juridisch advies. Punten die de verwerkingsverantwoordelijke nog moet
+invullen of beslissen staan als **Open**. Het ondertekende besluit (§8)
+staat buiten de repository, op OneDrive. Jaarlijks herzien (agenda *App
+onderhoud*) en bij elke wezenlijke wijziging van de verwerking.
+
+## 1. Waarom een DPIA
+Een DPIA is verplicht bij grootschalige verwerking van gezondheidsgegevens
+(AVG art. 35; lijst van de Autoriteit Persoonsgegevens). Dat is hier niet het
+geval: één arts, een kleine kring van betrokkenen. Omdat het om bijzondere
+persoonsgegevens gaat, voeren we hem toch uit (zie [`avg.md`](avg.md)).
+
+## 2. Beschrijving van de verwerking
+| Onderdeel | Invulling |
+|---|---|
+| Verwerkingsverantwoordelijke | De arts die de app gebruikt (BIG-geregistreerd); naam en BIG-nummer alleen in de app en in het besluit op OneDrive |
+| Doel | Verlenen en vastleggen van zorg aan zichzelf, gezinsleden en vrienden; voorschrijven van geneesmiddelen |
+| Betrokkenen | De arts zelf, gezinsleden, vrienden. Aantal: **Open** (schatting) |
+| Gegevens | Zie [`avg.md`](avg.md): identificatie, contact, BSN (optioneel), huisarts, apotheek, verzekering, allergieën, voorgeschiedenis, medicatie, recepten; auditlog zonder namen of medische gegevens |
+| Systeem | Progressive web app in Chrome op één Android-telefoon (referentie OnePlus 13R), code via GitHub Pages; alle gegevens versleuteld in de browser van het toestel |
+| Opslag | IndexedDB op de telefoon, versleuteld (AES-GCM-256); versleutelde back-ups (`.dahis`) op OneDrive (privé) |
+| Ontvangers | Geen. Recepten op papier via de patiënt naar de apotheek |
+| Bewaartermijn | 20 jaar na de laatste wijziging (WGBO art. 7:454); back-ups: de laatste vier wekelijkse |
+| Levenscyclus | Invoeren in de app → versleuteld bewaren → back-up (versleuteld) → inzage of afschrift op verzoek → vernietigen na de termijn of op verzoek |
+
+## 3. Grondslag, noodzaak en evenredigheid
+- **Grondslag**: AVG art. 6 lid 1 sub b en c (behandelovereenkomst,
+  dossierplicht WGBO); verwerkingsverbod gezondheidsgegevens opgeheven via
+  art. 9 lid 2 sub h, met beroepsgeheim (art. 9 lid 3).
+- **Noodzaak**: de WGBO verplicht een dossier bij elke behandeling, ook bij
+  naasten. Zonder dossier geen verantwoorde zorg en geen recepten.
+- **Dataminimalisatie**: alleen gegevens die voor de zorg of het recept
+  nodig zijn; BSN optioneel (verificatie via SBV-Z is niet mogelijk).
+- **Alternatieven**: een papieren dossier (moeilijker te beveiligen en te
+  back-uppen) of een HIS (niet bedoeld voor behandeling van naasten buiten
+  de praktijk). **Open**: afweging bevestigen.
+- **Rechten van betrokkenen**: inzage, afschrift, correctie en vernietiging
+  volgens [`avg.md`](avg.md); de functies komen in fase 2.
+- **Informeren**: elke betrokkene weet dat er een dossier is en waarom;
+  vastleggen in het dossier.
+
+## 4. Risico's voor betrokkenen
+| Risico | Oorzaak | Kans zonder maatregelen | Impact |
+|---|---|---|---|
+| Onbevoegde inzage | Telefoon of back-up in verkeerde handen | Middel | Hoog (gezondheidsgegevens van naasten) |
+| Onbevoegde inzage via gewijzigde code | Hosting of account gecompromitteerd; andere Pages-site op hetzelfde account | Laag | Hoog |
+| Verlies van gegevens | Telefoon kwijt of kapot, browser wist opslag, wachtwoord én herstelsleutel kwijt | Middel | Middel tot hoog (dossierplicht) |
+| Onjuiste of gewijzigde gegevens | Fout in de app, manipulatie van de opslag | Laag | Hoog (patiëntveiligheid) |
+| Gegevens langer bewaard dan nodig | Back-ups na vernietiging; ontbrekende vernietiging na 20 jaar | Middel | Laag tot middel |
+| Herleidbare gegevens buiten de app | Incidentenregister of notities op OneDrive | Laag | Middel |
+
+## 5. Maatregelen
+Uitgewerkt in [`nen7510.md`](nen7510.md). In het kort:
+- versleuteling op het toestel en in de back-up; sleutel afgeleid van het
+  wachtwoord (PBKDF2, standaard 2.000.000 rondes vanaf stap D1);
+  herstelsleutel alleen op papier;
+- automatisch vergrendelen (inactiviteit, wisselen van app met wachttijd),
+  biometrische schermvergrendeling en versleuteling van de telefoon;
+- geen netwerkverkeer behalve app-code; updates pas na eigen akkoord, met
+  codehash; strikte CSP; geen dependencies; één Pages-site op het account;
+- auditlog met hashketen, controles bij ontgrendelen en wekelijks; de app
+  stopt bij een afwijking;
+- wekelijkse back-up met herinnering, hersteltest elk kwartaal,
+  [herstelprocedure](herstelprocedure.md);
+- bewaarbeleid back-ups (laatste vier), herinnering om op te ruimen
+  ([#19](https://github.com/DrArts87/dahis/issues/19));
+- incidentenregister alleen met patiëntnummers; de koppeling nummer–persoon
+  staat niet op OneDrive;
+- wijzigingsbeheer via pull requests met verplichte controles en review.
+
+## 6. Restrisico's
+| Restrisico | Toelichting | Besluit |
+|---|---|---|
+| OneDrive privé zonder verwerkersovereenkomst | Microsoft bewaart de versleutelde back-ups en de compliance-documenten; de back-ups zijn zonder wachtwoord of herstelsleutel niet te lezen, maar een offline aanval op een back-up is onbeperkt in de tijd mogelijk. Maatregel: sterk wachtwoord, PBKDF2 2.000.000 | Geaccepteerd door de gebruiker, 2026-11-26 |
+| Sleutels in het geheugen tijdens de wachttijd | Binnen de wachttijd na wisselen van app (standaard 5 minuten) blijft de app open | Geaccepteerd door de gebruiker, 2026-11-26; wachttijd 0 is mogelijk |
+| Geheugen niet te wissen in JavaScript | Resten van sleutels kunnen tot herladen in het geheugen van Chrome staan | Restrisico, zie `nen7510.md` |
+| Gewijzigde code via de hosting | De app ziet een nieuwe versie pas na eigen akkoord en toont de codehash; een aanvaller met toegang tot het GitHub-account kan een release maken | **Open**: accepteren; maatregel is tweestapsverificatie op GitHub (**Open**: bevestigen) |
+| Verlies van beide geheimen | Geen achterdeur: dossiers onherstelbaar | Restrisico, zie herstelprocedure §3 |
+| Back-up alleen leesbaar met de app | Tot de noodontsleutelaar (na de alpha) | Restrisico tot de noodontsleutelaar |
+| Verificatie BSN niet mogelijk | SBV-Z vraagt een UZI-certificaat | Restrisico, BSN optioneel |
+
+## 7. Conclusie (concept)
+Met de maatregelen in §5 is het risico voor betrokkenen naar verwachting
+aanvaardbaar, mits de punten in [vóór echte dossiers](voor-echte-dossiers.md)
+af zijn. **Open**: oordeel van de verwerkingsverantwoordelijke.
+
+## 8. Besluit
+Wordt buiten de repository vastgelegd en ondertekend (sjabloon *DPIA-besluit*
+op OneDrive): datum, conclusie, geaccepteerde restrisico's, datum volgende
+herziening.

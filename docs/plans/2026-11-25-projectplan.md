@@ -156,18 +156,21 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
 - [x] Compliance-documenten AVG en NEN 7510 (beginversie)
 - [x] `tools/privacy_check.py` + GitHub-workflow
 - [x] Repository `dahis` op GitHub (public), eerste commit
-- [ ] Branchbescherming `main`: pull request, ondertekende commits, lineaire geschiedenis
-- [ ] Private vulnerability reporting en secret scanning aan
+- [x] Branchbescherming `main`: pull request, ondertekende commits, lineaire geschiedenis
+- [x] Private vulnerability reporting en secret scanning aan
 
 ### Fase 1: fundament
-- [ ] App-shell, manifest, service worker met handmatige updates
-- [ ] Crypto-module: datasleutel, wachtwoord, herstelsleutel
-- [ ] Onboarding, ontgrendelen, automatisch vergrendelen
-- [ ] Versleutelde opslag in IndexedDB, `storage.persist()`
-- [ ] Versleutelde export en import (back-up), herinnering
-- [ ] Auditlog met hashketen
-- [ ] GitHub Pages inrichten (alleen `app/` publiceren)
-- [ ] Tests: crypto-ronde, back-up en herstel, migratie van het formaat
+- [x] App-shell, manifest, service worker met handmatige updates
+- [x] Crypto-module: datasleutel, wachtwoord, herstelsleutel
+- [x] Onboarding, ontgrendelen, automatisch vergrendelen
+- [x] Versleutelde opslag in IndexedDB, `storage.persist()`
+- [x] Versleutelde export en import (back-up), herinnering
+- [x] Auditlog met hashketen
+- [x] GitHub Pages inrichten (alleen `app/` publiceren)
+- [x] Tests: crypto-ronde, back-up en herstel, migratie van het formaat
+
+Afgerond 2026-11-26: fase 1 alpha geaccepteerd (taak 10); vervolg in het
+[vervolgplan](2026-11-26-vervolgplan.md).
 
 ### Fase 2: patiëntenbestand
 - [ ] Persoon: naam, geboortedatum, BSN (optioneel), adres, contact,

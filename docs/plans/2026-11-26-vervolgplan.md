@@ -110,3 +110,36 @@ schrijfactie, twee tabbladen); die blijven met Playwright in de cloudsessie.
 - Lokaal aangetoond: een bewust mislukte test en een laadfout (time-out)
   geven exitcode 1.
 - Na de merge zet de gebruiker de controle op verplicht.
+
+Uitgevoerd in #21; de controle is daarna door de gebruiker verplicht gemaakt.
+
+## Stap C: compliance-toets
+
+**Open issues nagelopen**: #19 (back-ups opruimen) raakt de maatregel
+Back-up en #18 (biometrie) Toegangsbeheer; beide genoemd (*Zie*), niet
+opgelost.
+
+### Taken
+1. `docs/compliance/nen7510.md`: per maatregel status met bewijs of een open
+   punt met stap of eigenaar; restrisico van de wachttijd (D1).
+2. Nieuw: [`herstelprocedure.md`](../compliance/herstelprocedure.md),
+   [`dpia.md`](../compliance/dpia.md) (concept),
+   [`mdr.md`](../compliance/mdr.md),
+   [`voor-echte-dossiers.md`](../compliance/voor-echte-dossiers.md).
+3. `docs/compliance/avg.md`: verwerkers en diensten (OneDrive privé met
+   geaccepteerd restrisico), back-ups alleen downloaden, incidentenregister
+   met patiëntnummers.
+4. Projectplan §6: fase 0 en 1 afgevinkt (private vulnerability reporting en
+   secret scanning aan sinds 2026-11-26).
+5. Buiten de repository, aangeleverd als Word en Excel voor OneDrive:
+   incidentenregister, besluitenlog, checklist apparaten, DPIA-besluit.
+6. Na de merge: drie terugkerende afspraken in de agenda *App onderhoud*
+   (hersteltest elk kwartaal vanaf 9 januari 2027, updates elke maand vanaf
+   5 december 2026, herziening elk jaar vanaf 27 november 2027; zaterdag
+   10:00, 30 minuten, melding om 9:00).
+
+### Acceptatiecriteria
+- Elke maatregel in `nen7510.md` heeft een status en bewijs of een open punt.
+- De vier nieuwe documenten staan in de repository; de bestanden voor
+  OneDrive zijn aangeleverd; na de merge staan de afspraken in de agenda.
+- De controles uit `CLAUDE.md` §2 slagen.
