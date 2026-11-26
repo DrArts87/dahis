@@ -110,12 +110,27 @@ const FILE_ERRORS = Object.freeze({
 // verbergen van de app wordt dan vergrendeld.
 const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'halted']);
 const SECRET_STEPS = new Set(['key', 'check', 'done']);
+// Subschermen in 'ready' met invoer van een wachtwoord of de herstelsleutel:
+// daar geldt geen wachttijd (review PR #23 P1-1).
+export const SECRET_SUBS = new Set(['password']);
 
 // Schermen van de werkstand. Een onbekende waarde (bijvoorbeeld uit een
 // latere opslag) valt terug op het hoofdscherm.
 export const WORK_TABS = Object.freeze(['patients', 'recipes', 'settings', 'more']);
 export const WORK_SUBS = Object.freeze(['password', 'about', 'measure', 'erase', 'audit', 'backup']);
 const MAX_WORK_FIELD = 10000;
+
+// Zo lang wacht vergrendelen of ontgrendelen hooguit op de opslag van de
+// werkstand.
+export const WORK_STORE_MS = 1000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((resolve, reject) => { timer = setTimeout(() => reject(new Error('Werkstand: geen antwoord')), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 export function defaultWork() {
   return { tab: 'patients', sub: null, form: null };
@@ -234,6 +249,7 @@ export class AppController {
       backup: null,               // klaar om te delen: {name, bytes, createdAt, previousAt, saved}
       fileCheck: null,            // uitslag van een gecontroleerd bestand (vergrendelscherm)
       work: defaultWork(),        // werkstand: scherm en formulier
+      awayNotice: false,          // melding: nieuwe instelling wachttijd nog niet bewaard
     };
   }
 
@@ -272,9 +288,11 @@ export class AppController {
   // --- Vergrendelen bij verbergen en inactiviteit (stap D1) ----------------------
 
   // Geldt de wachttijd na wisselen van app? Alleen ontgrendeld, zonder
-  // lopende handeling, en met een wachttijd groter dan 0 (besluit 3).
+  // lopende handeling, niet op een scherm voor geheime invoer, en met een
+  // wachttijd groter dan 0 (besluit 3; review PR #23 P1-1).
   awayAllowed() {
     return this.state.view === 'ready' && !this.state.busy && !this.erasing
+      && !SECRET_SUBS.has(this.state.work.sub)
       && this.state.settings['lock.awayMinutes'] > 0;
   }
 
@@ -350,10 +368,12 @@ export class AppController {
     this.state.work = Object.assign({}, cur, { form: { fields } });
   }
 
-  async restoreWork(session) {
+  // Geladen werkstand; de aanroeper past hem pas toe na alive(gen)
+  // (review PR #23).
+  async loadWork(session) {
     let saved = null;
-    try { saved = await this.deps.workStore.load(session); } catch (err) { saved = null; }
-    this.set({ work: normalizeWork(saved) });
+    try { saved = await withTimeout(this.deps.workStore.load(session), WORK_STORE_MS); } catch (err) { saved = null; }
+    return normalizeWork(saved);
   }
 
   // Gooit StaleError als de app sinds `gen` is vergrendeld of gewist.
@@ -542,18 +562,16 @@ export class AppController {
       // Vergrendeld tijdens het afleiden van de sleutel: geen sessie openen
       // en niets schrijven.
       this.alive(gen);
-      await this.queue.run(session, (store, s, now) => V.unlockTx(store, s, { now }));
+      // Met de KDF-upgrade in dezelfde transactie (§12.2 stap 6, review PR
+      // #23 P1-3): mislukt het schrijven, dan staat er niets in het log en
+      // kan de gebruiker het gewoon opnieuw proberen.
+      await this.queue.run(session, (store, s, now) => V.unlockTx(store, s, { now, password: secret.password }));
       this.alive(gen);
-      // KDF-upgrade (§12.2 stap 6, besluit 2026-11-26): minder rondes dan de
-      // standaard, dan opnieuw wrappen met het net ingevoerde wachtwoord.
-      if (session.route === 'password' && this.backend.store.meta.kdf.iterations < DEFAULT_ITERATIONS) {
-        await this.queue.run(session, (store, s, now) => V.kdfUpgradeTx(store, s, { password: secret.password, now }));
-        this.alive(gen);
-      }
       await this.loadSettings(session);
       this.alive(gen);
-      await this.restoreWork(session);
+      const work = await this.loadWork(session);
       this.alive(gen);
+      this.set({ work });
       this.session = session;
       this.activity();
       if (session.route === 'recovery') {
@@ -606,7 +624,18 @@ export class AppController {
       const rec = await V.readRecord(store, session, this.settingsId);
       if (rec && !rec.content.deleted) data = rec.content.data;
     }
-    this.set({ settings: normalizeSettings(data) });
+    // Nieuwe instelling nog niet bewaard (opslag van vóór 0.4.0, of nooit
+    // een instelling gewijzigd): één keer melden (review PR #23).
+    const stored = data && typeof data === 'object' && !Array.isArray(data)
+      && Object.prototype.hasOwnProperty.call(data, 'lock.awayMinutes');
+    this.set({ settings: normalizeSettings(data), awayNotice: !stored });
+  }
+
+  // "Begrepen" bij de melding: de huidige waarde bewaren, dan verdwijnt de
+  // melding (één regel update in het log).
+  async acknowledgeAwayNotice() {
+    if (this.state.view !== 'ready' || !this.state.awayNotice) return false;
+    return this.saveSetting('lock.awayMinutes', this.state.settings['lock.awayMinutes']);
   }
 
   async saveSetting(key, value) {
@@ -625,7 +654,7 @@ export class AppController {
       }));
       this.alive(gen);
       this.settingsId = tx.putRecords[0].id;
-      this.set({ settings: next, lastFullCheckAt: this.session.lastFullCheckAt });
+      this.set({ settings: next, lastFullCheckAt: this.session.lastFullCheckAt, awayNotice: false });
       this.say('settings.saved');
     });
   }
@@ -715,7 +744,7 @@ export class AppController {
       const name = backupFileName(at);
       this.backupFile = { text, name };
       this.set({
-        backup: { name, bytes: bytes.length, createdAt: at.getTime(), previousAt, saved: false },
+        backup: { name, bytes: bytes.length, createdAt: at.getTime(), previousAt, saved: false, warned: false },
         lastBackupAt: lastBackupOf(this.backend.store.meta),
         lastFullCheckAt: this.session.lastFullCheckAt,
       });
@@ -731,10 +760,27 @@ export class AppController {
 
   // Het bestand is gedownload of gedeeld: toon de herinnering om op te
   // ruimen (#19). Er wordt niets geschreven.
-  backupSaved() {
+  // Alleen voor de back-up waarmee de gebruiker begon (review PR #23, P2).
+  backupSaved(name) {
     const b = this.state.backup;
-    if (this.state.view !== 'ready' || !b || b.saved) return;
+    if (!this.backupOpen(name) || b.saved) return;
     this.set({ backup: Object.assign({}, b, { saved: true }) });
+  }
+
+  backupOpen(name) {
+    const b = this.state.backup;
+    return this.state.view === 'ready' && Boolean(b) && b.name === name;
+  }
+
+  // Mag het back-upscherm dicht? Een gemaakt maar nog niet gedownload of
+  // gedeeld bestand geeft eerst één waarschuwing (review PR #23 P1-2):
+  // last_backup_at is dan al bijgewerkt (formaat §11.3, issue #24).
+  leaveBackup() {
+    const b = this.state.backup;
+    if (!b || b.saved || b.warned) return true;
+    this.set({ backup: Object.assign({}, b, { warned: true }) });
+    this.say('backup.notSaved');
+    return false;
   }
 
   closeBackup() {
@@ -934,8 +980,9 @@ export class AppController {
       audit: null, checking: false, backup: null, fileCheck: null, work: defaultWork(),
     });
     try {
-      // Nu NullWorkStore: er wordt niets bewaard.
-      if (work && session) await this.deps.workStore.save(work, session);
+      // Nu NullWorkStore: er wordt niets bewaard. Vergrendelen wacht hooguit
+      // WORK_STORE_MS op de opslag van de werkstand (review PR #23).
+      if (work && session) await withTimeout(this.deps.workStore.save(work, session), WORK_STORE_MS);
     } catch (err) {
       // de werkstand is nooit een reden om niet te vergrendelen
     }

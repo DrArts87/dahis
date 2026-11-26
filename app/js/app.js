@@ -1,7 +1,9 @@
 // Start van de app: schermen, vergrendelen, service worker en bijwerken.
 // De toestand van kluis en opslag staat in controller.js; dit bestand tekent
 // alleen schermen. Teksten: i18n/nl.js.
-import { el, replace, symbol } from './dom.js';
+import {
+  el, replace, symbol, collectInputs, restoreInputs, clearSecretInputs, isSecretInput,
+} from './dom.js';
 import { t } from './i18n.js';
 import {
   AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, backupDue,
@@ -217,9 +219,15 @@ for (const type of ['pointerdown', 'keydown', 'input', 'touchstart', 'wheel']) {
   window.addEventListener(type, () => app.activity(), { capture: true, passive: true });
 }
 
+// Bij verbergen eerst geheime invoer wissen, in elke toestand (review PR
+// #23 P1-1); daarna beslist de controller over vergrendelen.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') app.hidden();
-  else app.visible();
+  if (document.visibilityState === 'hidden') {
+    clearSecretInputs(root.querySelectorAll('input'));
+    app.hidden();
+  } else {
+    app.visible();
+  }
 });
 window.addEventListener('pagehide', () => app.pageClosed());
 
@@ -344,14 +352,17 @@ function field(id, label, input, hint) {
 
 function passwordInput(id, autocomplete) {
   return el('input', {
-    id, name: id, type: 'password', autocomplete, required: true,
+    id, name: id, type: 'password', autocomplete, required: true, 'data-secret': '',
     autocapitalize: 'off', spellcheck: 'false', 'aria-describedby': id + '-hint',
   });
 }
 
-function textInput(id, extra = {}) {
+// Tekstveld; standaard geheim (herstelsleutel, groepen): gewist bij
+// verbergen en nooit in de werkstand (review PR #23 P1-1).
+function textInput(id, extra = {}, secret = true) {
   return el('input', Object.assign({
     id, name: id, type: 'text', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false',
+    'data-secret': secret ? '' : null,
   }, extra));
 }
 
@@ -459,7 +470,9 @@ function nav() {
     NAV.map((item) => el('button', {
       type: 'button',
       'aria-current': app.state.work.tab === item.tab ? 'page' : null,
-      onclick: () => { app.showScreen(item.tab, null); app.closeAuditLog(); app.closeBackup(); app.say(null); onTab(); render(); },
+      onclick: () => leaveBackup(() => {
+        app.showScreen(item.tab, null); app.closeAuditLog(); app.closeBackup(); app.say(null); onTab(); render();
+      }),
     }, symbol(item.icon), t(item.label))));
 }
 
@@ -755,8 +768,18 @@ function backupReminder() {
     button(t('backup.reminderButton'), () => { app.showScreen('more', 'backup'); app.say(null); render(); }, 'small'));
 }
 
+// Bestaande kluis zonder de instelling van 0.4.0: één keer melden.
+function awayNotice() {
+  if (!app.state.awayNotice) return null;
+  return el('div', { class: 'note reminder', role: 'status' },
+    el('span', {}, t('settings.awayNew', { n: app.state.settings['lock.awayMinutes'] })),
+    button(t('settings.awayNewOk'), () => app.acknowledgeAwayNotice(), 'small'),
+    button(t('settings.awayNewChange'), () => { app.showScreen('settings', null); app.say(null); onTab(); render(); }, 'small'));
+}
+
 function patientsTab() {
   return [
+    awayNotice(),
     backupReminder(),
     el('div', { class: 'search' }, symbol('i-search'),
       el('input', { type: 'search', placeholder: t('patients.search'), disabled: true, 'aria-label': t('patients.search') })),
@@ -837,7 +860,7 @@ function appVersion() {
 function downloadBackup() {
   const b = app.backupForDownload();
   if (!b) return;
-  app.backupSaved();
+  app.backupSaved(b.name);
   const url = URL.createObjectURL(new Blob([b.text], { type: 'application/octet-stream' }));
   const a = el('a', { href: url, download: b.name, hidden: true });
   document.body.append(a);
@@ -849,18 +872,28 @@ function downloadBackup() {
 // Bestandstypen die Chrome op Android mag delen, staan vast; .dahis hoort
 // er niet bij. Dan dezelfde inhoud als tekstbestand met .txt achter de naam
 // (het bestand is UTF-8-tekst; de naam doet bij het inlezen niet mee).
+// Eén keer per back-up bepaald (ui.share), zodat opnieuw tekenen geen nieuwe
+// kopie van het bestand maakt. null: dit bestand is niet te delen.
 function shareFile(b) {
-  if (typeof navigator.canShare !== 'function' || typeof File !== 'function') return null;
-  const candidates = [
-    new File([b.text], b.name, { type: 'application/octet-stream' }),
-    new File([b.text], b.name + '.txt', { type: 'text/plain' }),
-  ];
-  return candidates.find((f) => { try { return navigator.canShare({ files: [f] }); } catch (err) { return false; } }) || null;
+  if (ui.share && ui.share.name === b.name) return ui.share.file;
+  let file = null;
+  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function') {
+    const candidates = [
+      new File([b.text], b.name, { type: 'application/octet-stream' }),
+      new File([b.text], b.name + '.txt', { type: 'text/plain' }),
+    ];
+    file = candidates.find((f) => { try { return navigator.canShare({ files: [f] }); } catch (err) { return false; } }) || null;
+  }
+  ui.share = { name: b.name, file };
+  return file;
 }
 
+// Knop Delen alleen met een wachttijd en als dit concrete bestand te delen
+// is (review PR #23, P2).
 function canShareBackup() {
-  return typeof navigator.share === 'function' && typeof navigator.canShare === 'function'
-    && app.state.settings['lock.awayMinutes'] > 0;
+  if (app.state.settings['lock.awayMinutes'] <= 0) return false;
+  const b = app.backupForDownload();
+  return Boolean(b && shareFile(b));
 }
 
 async function shareBackup() {
@@ -869,14 +902,22 @@ async function shareBackup() {
   app.say(null);   // geen melding van een vorige poging laten staan
   const file = shareFile(b);
   if (!file) { app.say('backup.shareUnsupported'); return; }
+  const name = b.name;
   try {
     await navigator.share({ files: [file], title: file.name });
-    app.backupSaved();
+    app.backupSaved(name);
   } catch (err) {
-    // Zelf geannuleerd (AbortError): geen melding. Elke andere fout wel, met
-    // Downloaden als alternatief: de back-up is al gemaakt en gecontroleerd.
-    if (!err || err.name !== 'AbortError') app.say('backup.shareFailed');
+    // Zelf geannuleerd (AbortError): geen melding. Elke andere fout wel, maar
+    // alleen als dezelfde back-up nog openstaat (review PR #23, P2).
+    if ((!err || err.name !== 'AbortError') && app.backupOpen(name)) app.say('backup.shareFailed');
   }
+}
+
+// Het back-upscherm verlaten (terug, of een tab). Is het bestand nog niet
+// gedownload of gedeeld, dan eerst één waarschuwing (review PR #23 P1-2).
+function leaveBackup(then) {
+  if (!app.leaveBackup()) { render(); return; }
+  then();
 }
 
 // Na downloaden of delen: alleen de laatste vier bewaren (#19), met de datum
@@ -891,10 +932,11 @@ function cleanupNote(b) {
 
 function backupScreen() {
   const b = app.state.backup;
+  if (!b) ui.share = null;
   return page({
     head: header({
       title: t('backup.title'), lock: true,
-      back: backLink(t('nav.more'), () => { app.showSub(null); app.closeBackup(); app.say(null); render(); }),
+      back: backLink(t('nav.more'), () => leaveBackup(() => { app.showSub(null); app.closeBackup(); app.say(null); render(); })),
     }),
     body: [
       el('p', {}, t('backup.text')),
@@ -906,6 +948,7 @@ function backupScreen() {
         canShareBackup() ? button(t('backup.share'), shareBackup, 'primary') : null,
         button(t('backup.download'), downloadBackup, canShareBackup() ? '' : 'primary'),
         el('p', { class: 'muted' }, canShareBackup() ? t('backup.afterShare') : t('backup.afterDownload')),
+        b.saved ? null : el('p', { class: 'muted' }, t('backup.notSavedYet')),
         cleanupNote(b),
       ] : button(t('backup.make'), () => app.makeBackup({ appVersion: appVersion() }), 'primary'),
     ],
@@ -1069,7 +1112,7 @@ function eraseScreen(halted) {
     }),
     body: form(() => app.eraseAll(value('erase')),
       el('p', { class: 'note warn' }, t('erase.warning')),
-      field('erase', t('erase.label', { word: ERASE_WORD }), textInput('erase')),
+      field('erase', t('erase.label', { word: ERASE_WORD }), textInput('erase', {}, false)),
       submit(t('erase.submit'), 'danger'),
       button(t('common.cancel'), () => { app.showSub(null); app.say(null); render(); }, 'link')),
   });
@@ -1140,11 +1183,8 @@ function view() {
 // Invoer bewaren bij opnieuw tekenen (bijvoorbeeld een melding van de
 // service worker tijdens het typen), behalve direct na versturen.
 function render() {
-  const saved = new Map();
   const focused = document.activeElement && document.activeElement.id;
-  if (!ui.clearInputs) {
-    for (const input of root.querySelectorAll('input[id]')) if (input.type !== 'file') saved.set(input.id, input.value);
-  }
+  const saved = ui.clearInputs ? new Map() : collectInputs(root.querySelectorAll('input[id]'));
   replace(root, view());
   // Werkvelden uit de werkstand (stap D1); de invoer van dit moment gaat voor.
   const form = app.state.work.form;
@@ -1153,10 +1193,7 @@ function render() {
       if (isWorkField(input) && Object.prototype.hasOwnProperty.call(form.fields, input.id)) input.value = form.fields[input.id];
     }
   }
-  for (const [id, val] of saved) {
-    const input = document.getElementById(id);
-    if (input && input.type !== 'search' && input.type !== 'file') input.value = val;
-  }
+  restoreInputs(saved, root.querySelectorAll('input[id]'));
   if (!app.state.busy) ui.clearInputs = false;
   const target = (focused && document.getElementById(focused)) || root.querySelector('[role="alert"]');
   if (target && typeof target.focus === 'function' && target.tagName !== 'P') target.focus();
@@ -1167,7 +1204,7 @@ function render() {
 // wachtwoordveld; passwordInput en textInput (herstelsleutel) zetten
 // data-work niet.
 function isWorkField(input) {
-  return input.dataset.work !== undefined && input.type !== 'password' && input.type !== 'file' && Boolean(input.id);
+  return input.dataset.work !== undefined && !isSecretInput(input) && input.type !== 'file' && Boolean(input.id);
 }
 
 root.addEventListener('input', (event) => {

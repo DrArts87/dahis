@@ -62,8 +62,17 @@ niet in deze repository.
   OneDrive (zie *Verwerkers en diensten*).
 - **Hersteltest**: elk kwartaal volgens de
   [herstelprocedure](herstelprocedure.md) §6 (agenda *App onderhoud*).
+- **Bestemming**: back-ups gaan alleen naar Downloads op de telefoon en de
+  afgesproken privé-OneDrive; niet per mail en niet naar andere diensten. De
+  app verwijst bij Delen en Downloaden naar de afgesproken cloudmap. Rol van
+  de aanbieder, art. 28 AVG en doorgifte buiten de EER: nog te beoordelen
+  vóór echte dossiers ([#25](https://github.com/DrArts87/dahis/issues/25)).
 - **Bewaarbeleid**: bewaar de laatste vier wekelijkse back-ups en verwijder
-  oudere, in Downloads én op OneDrive. Na downloaden of delen herinnert de
+  oudere, in Downloads én op OneDrive, **ook uit de prullenbak** (OneDrive
+  bewaart verwijderde bestanden standaard nog ongeveer 30 dagen) en let op
+  versiegeschiedenis. Zonder het legen van de prullenbak staat een
+  vernietigd dossier eerder ongeveer acht dan vier weken in back-ups. Hoe dat
+  wordt gecontroleerd, hoort bij #25. Na downloaden of delen herinnert de
   app eraan, met de datum van de vorige back-up (vanaf 0.4.0,
   [#19](https://github.com/DrArts87/dahis/issues/19)); de app kan niet zien
   welke bestanden er buiten de app staan.

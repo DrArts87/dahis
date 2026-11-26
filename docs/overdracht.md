@@ -29,7 +29,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 | #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
 | #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd. Daarna door de gebruiker: sjablonen ingevuld, DPIA-besluit ondertekend, incidentenregister, checklist apparaten, tweestapsverificatie, herstelsleutel opgeborgen; agenda *App onderhoud* met drie terugkerende afspraken |
-| #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen (`kdfUpgradeTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`). Delen terug naast Downloaden (alleen met wachttijd > 0; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). `nen7510.md`, `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `SECURITY.md` bijgewerkt |
+| #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen in dezelfde transactie als `unlock` (`unlockTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`, opslag hooguit 1 s). Delen terug naast Downloaden (alleen met wachttijd > 0 en een deelbaar bestand; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). Review van de auditor verwerkt: geen wachttijd op *Wachtwoord wijzigen*, geheime velden gewist bij verbergen en nooit in een gewoon tekstveld (`dom.js`), waarschuwing bij een niet opgeslagen back-up, melding over de nieuwe wachttijd; issues #24 (bevestigde externe kopie) en #25 (cloud en art. 28). `nen7510.md` (Sessies ◐ tot de proef), `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `avg.md`, `SECURITY.md` bijgewerkt |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -149,7 +149,7 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | `app/js/vault.js` | Bewerkingen op een opslag in het geheugen; schrijfacties als voorbereide transacties. Bewaakt zelf de termijn van de volledige controle, de reservering en een nieuwe schrijfsleutel na een ongeldige reservering (`nextPrelude`). Logboek lezen met `readAuditPage`. Back-up: `exportTx`, `buildBackupFile`, `verifyExportedBackup`, `verifyBackupTx`, `checkBackupFile`, `restoreTx`; lezer per formaatnummer |
 | `app/js/store.js` | IndexedDB (`IdbBackend`, schema v1, `durability: 'strict'`), `WriteQueue` (alle schrijfacties één voor één, met eerst wat de kluis nodig heeft; meldt een verschuldigde controle via `onCheck`), Web Lock (`openStorage`), opslagstatus |
 | `tools/` | `release.py`, `iconen.py`, `privacy_check.py` |
-| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); testbestand formaat 1 in `tests/fixtures/testbestand-formaat-1.json` (`maak_testbestand.mjs`, idem); browser: `browser.html` en `browser.mjs` (echte IndexedDB, 16 tests), in CI en lokaal via `run_browser.mjs` (Chrome zonder scherm, wegwerpprofiel, alleen Node-standaardmodules) |
+| `tests/` | Node: `*.test.mjs` (o.a. `controller`, `settings`, `i18n`, `benchmark`, `sw` met nagebootste Cache-API); Python: `test_*.py`; vectoren in `tests/fixtures/vectoren.json` (`maak_vectoren.mjs` alleen bij een bewuste formaatwijziging); testbestand formaat 1 in `tests/fixtures/testbestand-formaat-1.json` (`maak_testbestand.mjs`, idem); `dom` (invoer bewaren en geheime velden wissen); browser: `browser.html` en `browser.mjs` (echte IndexedDB, 16 tests), in CI en lokaal via `run_browser.mjs` (Chrome zonder scherm, wegwerpprofiel, alleen Node-standaardmodules) |
 | `.github/workflows/controle.yml` | Verplichte controles: Python 3.9 en 3.12, JavaScript, Browsertests (Chrome), privacy |
 | `.github/workflows/pages.yml` | Publiceren van `app/` op Pages bij een versietag, na dezelfde controles en een controle van tag en versie |
 
@@ -162,7 +162,11 @@ OnePlus uit het [plan D1](plans/2026-11-26-d1-vergrendelen.md) (onder
 meer **Delen**: lukt dat niet, dan gaat de knop eruit en stelt Claude een
 issue voor). Daarna **D2** voorschrijver en **E** fase 2. Begin elk plan
 met de open issues (`CLAUDE.md` §4). Open issues na D1:
-[#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later);
+[#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
+[#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
+van de back-up; bij het vaststellen van formaat 1) en
+[#25](https://github.com/DrArts87/dahis/issues/25) (cloudopslag en art. 28
+AVG; vóór echte dossiers);
 [#19](https://github.com/DrArts87/dahis/issues/19) wordt gesloten door de
 PR van D1.
 

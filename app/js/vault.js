@@ -555,8 +555,29 @@ async function findLastFullCheck(store, session) {
 
 // Regels na een geslaagde ontgrendeling (§12.2 stap 5). unlock_failed en
 // integrity_check voegt buildTx zelf toe als ze openstaan.
-export async function unlockTx(store, session, { now } = {}) {
-  return buildTx(store, session, { auditItems: [{ action: 'unlock', detail: session.route }], now });
+//
+// Met `password` en een wachtwoordwrap met minder rondes dan de standaard
+// gebeurt in dezelfde transactie de KDF-upgrade (§12.2 stap 6, review PR
+// #23 P1-3): unlock en password_change/kdf_upgrade worden samen geschreven
+// of geen van beide. De ruwe DK wordt binnen deze handeling opnieuw
+// ontsleuteld met een KEK uit het net ingevoerde wachtwoord en de huidige
+// kdf (§3.7); de nieuwe wrap krijgt een nieuwe salt_w en DEFAULT_ITERATIONS.
+export async function unlockTx(store, session, { now, password } = {}) {
+  const items = [{ action: 'unlock', detail: session.route }];
+  if (!needsKdfUpgrade(store.meta, session, password)) return buildTx(store, session, { auditItems: items, now });
+  const { raw } = await unwrapCurrent(store.meta, { password });
+  try {
+    const wrap = await newPasswordWrap(raw, password, store.meta.epoch);
+    items.push({ action: 'password_change', detail: 'kdf_upgrade' });
+    return buildTx(store, session, { auditItems: items, putMeta: wrap, now });
+  } finally {
+    wipe(raw);
+  }
+}
+
+export function needsKdfUpgrade(meta, session, password) {
+  return session.route === 'password' && typeof password === 'string'
+    && Boolean(meta.kdf) && meta.kdf.iterations < DEFAULT_ITERATIONS;
 }
 
 // --- Controles (§9.2, §9.3) -------------------------------------------------------------
@@ -754,25 +775,6 @@ export async function changePasswordTx(store, session, { current, newPassword, d
     const items = route === 'recovery' && detail === 'recovery' ? [{ action: 'recovery_used' }] : [];
     items.push({ action: 'password_change', detail });
     return buildTx(store, session, { auditItems: items, putMeta: wrap, now });
-  } finally {
-    wipe(raw);
-  }
-}
-
-// KDF-upgrade bij ontgrendelen (§12.2 stap 6): de wachtwoordwrap heeft
-// minder rondes dan de standaard. Zelfde wachtwoord, nieuwe salt_w en
-// DEFAULT_ITERATIONS; de ruwe DK wordt binnen deze handeling opnieuw
-// ontsleuteld met een KEK uit het net ingevoerde wachtwoord (§3.7).
-export async function kdfUpgradeTx(store, session, { password, now }) {
-  if (!store.meta.kdf || store.meta.kdf.iterations >= DEFAULT_ITERATIONS) {
-    throw new FormatError('Geen KDF-upgrade nodig');
-  }
-  const { raw } = await unwrapCurrent(store.meta, { password });
-  try {
-    const wrap = await newPasswordWrap(raw, password, store.meta.epoch);
-    return buildTx(store, session, {
-      auditItems: [{ action: 'password_change', detail: 'kdf_upgrade' }], putMeta: wrap, now,
-    });
   } finally {
     wipe(raw);
   }

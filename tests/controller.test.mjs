@@ -1056,6 +1056,7 @@ test('D1: KDF-upgrade bij ontgrendelen met wachtwoord (testbestand met 600.000 r
   assert.equal(again.state.view, 'ready');
   const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
   assert.deepEqual(actions.slice(-3), ['unlock:password', 'password_change:kdf_upgrade', 'unlock:password']);
+  assert.equal(actions.filter((a) => a === 'password_change:kdf_upgrade').length, 1);
   await V.fullCheck(dev.backend.disk, (await V.unlock(dev.backend.disk, { password: fixture.wachtwoord })).session);
 });
 
@@ -1082,7 +1083,9 @@ test('D1 en #19: na downloaden of delen de herinnering met de vorige back-up', a
   assert.equal(app.state.backup.previousAt, null);
   assert.equal(app.state.backup.saved, false);
   const before = canon(dev.backend.disk);
-  app.backupSaved();
+  app.backupSaved('ander-bestand.dahis');
+  assert.equal(app.state.backup.saved, false, 'alleen het eigen bestand (review PR #23, P2)');
+  app.backupSaved(app.state.backup.name);
   assert.equal(app.state.backup.saved, true);
   assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
   const first = app.state.lastBackupAt;
@@ -1090,4 +1093,144 @@ test('D1 en #19: na downloaden of delen de herinnering met de vorige back-up', a
   assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
   assert.equal(app.state.backup.previousAt, first);
   assert.equal(app.state.backup.saved, false);
+});
+
+// --- Review PR #23 ------------------------------------------------------------------------
+
+test('review PR #23 P1-3: mislukte commit van unlock met KDF-upgrade: niets gelogd, opnieuw proberen lukt', async () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
+  const dev = device();
+  const app = dev.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(C.utf8(fixture.bestand)), { password: fixture.wachtwoord }), true);
+  await app.lock();
+  dev.open = false;
+  const unlocksBefore = (await auditActions(dev.backend.disk, { password: fixture.wachtwoord }))
+    .filter((x) => x === 'unlock:password').length;
+  const auditBefore = dev.backend.disk.audit.length;
+  const commit = dev.backend.commit.bind(dev.backend);
+  let fail = true;
+  dev.backend.commit = async (tx) => {
+    if (fail && tx.putMeta && tx.putMeta.kdf) { fail = false; throw new Error('opslag vol'); }
+    return commit(tx);
+  };
+  const a = dev.controller();
+  await a.start();
+  assert.equal(await a.unlock({ password: fixture.wachtwoord }), false);
+  assert.equal(a.state.view, 'locked');
+  assert.equal(a.state.message.key, 'error.unexpected');
+  assert.equal(a.session, null);
+  assert.equal(dev.backend.disk.audit.length, auditBefore, 'geen regel unlock van de mislukte poging');
+  assert.equal(dev.backend.disk.meta.kdf.iterations, 600000, 'oude wrap blijft');
+  // Opnieuw met hetzelfde (juiste) wachtwoord: lukt, één keer kdf_upgrade.
+  assert.equal(await a.unlock({ password: fixture.wachtwoord }), true);
+  assert.equal(a.state.view, 'ready');
+  assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
+  const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
+  assert.equal(actions.filter((x) => x === 'password_change:kdf_upgrade').length, 1);
+  assert.equal(actions.filter((x) => x === 'unlock:password').length, unlocksBefore + 1,
+    'alleen de unlock van de geslaagde poging');
+});
+
+test('review PR #23 P1-3: verbergen tijdens unlock met KDF-upgrade: geen sessie; daarna werkt het wachtwoord', async () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
+  const dev = timedDevice();
+  const app = dev.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(C.utf8(fixture.bestand)), { password: fixture.wachtwoord }), true);
+  await app.lock();
+  dev.open = false;
+  const a = dev.controller();
+  await a.start();
+  const pending = a.unlock({ password: fixture.wachtwoord });
+  a.hidden();
+  assert.equal(await pending, false);
+  assert.equal(a.state.view, 'locking');
+  assert.equal(a.session, null);
+  dev.open = false;
+  const b = dev.controller();
+  await b.start();
+  assert.equal(await b.unlock({ password: fixture.wachtwoord }), true);
+  assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
+  const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
+  assert.equal(actions.filter((x) => x === 'password_change:kdf_upgrade').length, 1);
+});
+
+test('review PR #23 P1-1: geen wachttijd op het scherm Wachtwoord wijzigen', async () => {
+  const dev = timedDevice();
+  const app = await readyApp(dev);
+  app.showScreen('settings', 'password');
+  app.hidden();
+  assert.equal(app.state.view, 'locking');
+  assert.equal(dev.timers.size, 0);
+});
+
+test('review PR #23 P2: een werkstandopslag die niet antwoordt, houdt vergrendelen en ontgrendelen niet op', async () => {
+  const never = new Promise(() => {});
+  const workStore = { save: () => never, load: () => never, clear: async () => true };
+  const dev = timedDevice();
+  const app = await readyApp(dev, { workStore });
+  assert.deepEqual(app.state.work, { tab: 'patients', sub: null, form: null });
+  const t0 = Date.now();
+  await app.lock();
+  assert.ok(Date.now() - t0 < 3000);
+  assert.equal(dev.closes >= 1, true, 'opslag gesloten');
+});
+
+test('review PR #23 P2: geladen werkstand niet toepassen na vergrendelen', async () => {
+  let release;
+  const workStore = {
+    save: async () => true,
+    load: () => new Promise((r) => { release = r; }),
+    clear: async () => true,
+  };
+  const dev = timedDevice();
+  await onboard(dev);
+  const app = dev.controller({ workStore });
+  await app.start();
+  const pending = app.unlock({ password: PASSWORD });
+  while (!release) await new Promise((r) => setImmediate(r));
+  await app.lock();
+  release({ tab: 'more', sub: 'backup' });
+  assert.equal(await pending, false);
+  assert.deepEqual(app.state.work, { tab: 'patients', sub: null, form: null });
+});
+
+test('review PR #23 P1-2: back-upscherm verlaten zonder downloaden of delen: eerst één waarschuwing', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(app.leaveBackup(), true, 'zonder bestand: gewoon weg');
+  assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
+  assert.equal(app.leaveBackup(), false);
+  assert.equal(app.state.message.key, 'backup.notSaved');
+  assert.equal(app.leaveBackup(), true, 'tweede keer wel');
+  assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
+  app.backupSaved(app.state.backup.name);
+  assert.equal(app.leaveBackup(), true, 'opgeslagen: geen waarschuwing');
+  assert.equal(app.backupOpen(app.state.backup.name), true);
+  app.closeBackup();
+  assert.equal(app.backupOpen('x'), false);
+});
+
+test('review PR #23: melding over de nieuwe wachttijd tot de instelling is bewaard', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(app.state.awayNotice, true, 'nog geen instelling bewaard');
+  assert.equal(await app.acknowledgeAwayNotice(), true);
+  assert.equal(app.state.awayNotice, false);
+  await app.lock();
+  dev.open = false;
+  const again = await unlocked(dev);
+  assert.equal(again.state.awayNotice, false);
+  assert.equal(again.state.settings['lock.awayMinutes'], 5);
+  // Een andere instelling wijzigen bewaart de wachttijd ook.
+  const dev2 = device();
+  await onboard(dev2);
+  const b = await unlocked(dev2);
+  assert.equal(await b.saveSetting('lock.idleMinutes', 4), true);
+  assert.equal(b.state.awayNotice, false);
 });

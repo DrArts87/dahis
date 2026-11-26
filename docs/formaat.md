@@ -289,8 +289,10 @@ herstelsleutel) onjuist, of de gegevens zijn beschadigd of gewijzigd."
     dezelfde handeling is afgeleid uit het wachtwoord of de herstelsleutel die
     de gebruiker net heeft ingevoerd;
   - een oude `DK` uit `keyring`, met `K_kid,keyring`.
-- Bij de **KDF-upgrade** tijdens het ontgrendelen (§12.2) is dat de `KEK_w`
-  uit die ontgrendeling.
+- Bij de **KDF-upgrade** tijdens het ontgrendelen (§12.2) is dat een
+  `KEK_w` die in dezelfde handeling opnieuw wordt afgeleid uit het net
+  ingevoerde wachtwoord en de huidige `kdf` (de sleutel uit stap 2 van
+  §12.2 is dan al gewist).
 - KEK's en ruwe bytes bestaan alleen binnen de handeling; buffers worden na
   gebruik met nullen overschreven. JavaScript garandeert niet dat er geen
   kopieën in het geheugen achterblijven (§16).
@@ -748,9 +750,16 @@ Stap 1–6 gebeuren in het geheugen; er wordt niets geschreven.
    mislukte ontgrendeling de teller van stap 3.
 5. Reservering schrijven (§3.8 geval 2), dan regel `unlock` (§9.1), plus
    `integrity_check` als in stap 4 de volledige controle is uitgevoerd.
-6. Is `iterations` lager dan de huidige standaard, dan opnieuw wrappen met de
-   `KEK_w` van stap 2 (§3.7) en `password_change` met detail `kdf_upgrade`
-   loggen.
+6. Is `iterations` lager dan de huidige standaard (alleen bij ontgrendelen
+   met het wachtwoord), dan in **dezelfde transactie** als stap 5 opnieuw
+   wrappen: de ruwe `DK` opnieuw ontsleutelen met een `KEK_w` uit het net
+   ingevoerde wachtwoord en de huidige `kdf` (§3.7), dan een nieuwe `salt_w`
+   en `KEK_w` met de standaard `iterations`, en `password_change` met detail
+   `kdf_upgrade` loggen. Mislukt die transactie, dan staat er geen `unlock`
+   en geen upgrade in de opslag en kan de gebruiker het opnieuw proberen.
+   Bestaande back-upbestanden houden hun eigen `kdf` en dus hun oorspronkelijke
+   aantal rondes; een teruggezette back-up krijgt de upgrade bij de eerste
+   ontgrendeling met het wachtwoord.
 
 ### 12.3 Herstel met de herstelsleutel (zelfde toestel)
 Na ontgrendelen met de herstelsleutel direct een nieuw wachtwoord laten

@@ -35,4 +35,6 @@ ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
 | ☑ | Checklist apparaten ingevuld (telefoon en laptop: biometrische vergrendeling, versleuteling, updates, wissen op afstand) | Gebruiker | 2026-11-26, op OneDrive |
 | ☑ | Herstelsleutel op papier op een veilige plek, niet bij de telefoon | Gebruiker | 2026-11-26, besluitenlog op OneDrive (alleen "gedaan", niet de plek) |
 | ☐ | Eerste hersteltest volgens de [herstelprocedure](herstelprocedure.md) §6 | Gebruiker | Januari 2027, of eerder |
+| ☐ | Cloudopslag van back-ups beoordeeld: toegestane bestemmingen, rol van de aanbieder, art. 28 AVG, doorgifte buiten de EER, verwijderen inclusief prullenbak en versiegeschiedenis | Gebruiker | [#25](https://github.com/DrArts87/dahis/issues/25); review PR #23 |
+| ☐ | Praktijkproef sessies en delen op de OnePlus (stap D1) | Gebruiker | [Plan D1](../plans/2026-11-26-d1-vergrendelen.md), proef |
 | ☐ | Betrokkenen informeren dat er een dossier wordt bijgehouden (`avg.md`) | Gebruiker | Bij elk nieuw dossier, vastgelegd in het dossier |

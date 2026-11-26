@@ -41,3 +41,44 @@ export function symbol(id, cls = 'icon') {
   svg.append(use);
   return svg;
 }
+
+// --- Invoer bewaren bij opnieuw tekenen (review PR #23 P1-1) -------------------
+//
+// Een veld is geheim als het een wachtwoordveld is of data-secret heeft
+// (herstelsleutel, groepen). Waarden gaan alleen terug in een veld met
+// hetzelfde id, hetzelfde type en dezelfde geheimmarkering: een wachtwoord
+// komt zo nooit in een gewoon tekstveld terecht na het wisselen naar de
+// herstelsleutel. Werkt op alles met {id, type, value, dataset}, zodat het
+// ook in Node te testen is.
+
+export function isSecretInput(input) {
+  return input.type === 'password' || (input.dataset && input.dataset.secret !== undefined);
+}
+
+export function collectInputs(inputs) {
+  const saved = new Map();
+  for (const input of inputs) {
+    if (!input.id || input.type === 'file') continue;
+    saved.set(input.id, { value: input.value, type: input.type, secret: isSecretInput(input) });
+  }
+  return saved;
+}
+
+export function restoreInputs(saved, inputs) {
+  for (const input of inputs) {
+    const s = saved.get(input.id);
+    if (!s || input.type === 'search' || input.type === 'file') continue;
+    if (s.type !== input.type || s.secret !== isSecretInput(input)) continue;
+    input.value = s.value;
+  }
+}
+
+// Bij verbergen van de app: geheime invoer wissen, ook als de app open
+// blijft (wachttijd) of vergrendeld is en dus niet herlaadt.
+export function clearSecretInputs(inputs) {
+  let n = 0;
+  for (const input of inputs) {
+    if (isSecretInput(input) && input.value !== '') { input.value = ''; n += 1; }
+  }
+  return n;
+}

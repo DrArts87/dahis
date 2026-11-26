@@ -494,23 +494,36 @@ test('nieuwe wraps met DEFAULT_ITERATIONS (2.000.000): installatie en wachtwoord
   await write(store, session, () => V.changePasswordTx(store, session,
     { current: { password: PASSWORD }, newPassword: PASSWORD2, now: NOW }));
   assert.equal(store.meta.kdf.iterations, 2000000);
-  await assert.rejects(V.kdfUpgradeTx(store, session, { password: PASSWORD2, now: NOW }), C.FormatError);
+  assert.equal(V.needsKdfUpgrade(store.meta, session, PASSWORD2), false);
 });
 
-test('KDF-upgrade: wrap met 600.000 rondes wordt 2.000.000, zelfde wachtwoord, log kdf_upgrade', async () => {
+test('KDF-upgrade in de unlock-transactie: 600.000 wordt 2.000.000, zelfde wachtwoord, één transactie', async () => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
   const store = V.emptyStore();
   V.applyTx(store, (await V.restoreTx(C.utf8(fixture.bestand), { password: fixture.wachtwoord }, { now: NOW })).tx);
   assert.equal(store.meta.kdf.iterations, 600000);
   const recoveryBefore = structuredClone(store.meta.recovery);
-  const session = await unlockAndLog(store, { password: fixture.wachtwoord });
-  await assert.rejects(V.kdfUpgradeTx(store, session, { password: 'een verkeerd wachtwoord hier', now: NOW }), C.WrongSecretError);
-  await write(store, session, () => V.kdfUpgradeTx(store, session, { password: fixture.wachtwoord, now: NOW }));
+  const { session } = await V.unlock(store, { password: fixture.wachtwoord });
+  assert.equal(V.needsKdfUpgrade(store.meta, session, fixture.wachtwoord), true);
+  assert.equal(V.needsKdfUpgrade(store.meta, session, undefined), false);
+  const tx = await write(store, session, () => V.unlockTx(store, session, { now: NOW, password: fixture.wachtwoord }));
+  assert.equal(tx.putMeta.kdf.iterations, 2000000, 'wrap en logregels in dezelfde transactie');
   assert.equal(store.meta.kdf.iterations, 2000000);
   assert.deepEqual(store.meta.recovery, recoveryBefore, 'herstelsleutel ongewijzigd');
   const s2 = await unlockAndLog(store, { password: fixture.wachtwoord });
   await V.fullCheck(store, s2);
   const s3 = await unlockAndLog(store, { recoveryKey: fixture.herstelsleutel });
   const log = (await auditActions(store, s3)).map((c) => c.action + ':' + c.detail);
-  assert.deepEqual(log.slice(-3), ['password_change:kdf_upgrade', 'unlock:password', 'unlock:recovery']);
+  assert.deepEqual(log.slice(-4), ['unlock:password', 'password_change:kdf_upgrade', 'unlock:password', 'unlock:recovery']);
+  assert.equal(log.filter((x) => x === 'password_change:kdf_upgrade').length, 1);
+});
+
+test('geen KDF-upgrade bij de herstelsleutel', async () => {
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
+  const store = V.emptyStore();
+  V.applyTx(store, (await V.restoreTx(C.utf8(fixture.bestand), { password: fixture.wachtwoord }, { now: NOW })).tx);
+  const { session } = await V.unlock(store, { recoveryKey: fixture.herstelsleutel });
+  assert.equal(V.needsKdfUpgrade(store.meta, session, 'wat dan ook hier'), false);
+  await write(store, session, () => V.unlockTx(store, session, { now: NOW }));
+  assert.equal(store.meta.kdf.iterations, 600000);
 });

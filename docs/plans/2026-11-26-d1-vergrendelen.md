@@ -46,7 +46,7 @@ bewaart, voor "verder waar je was" in fase 2 en 3.
    - inactiviteit: zoals nu, met de klok en activiteit in de controller.
 3. **PBKDF2**: `DEFAULT_ITERATIONS` 2.000.000 voor nieuwe wraps (onboarding,
    wachtwoord wijzigen, herstel, terugzetten met nieuw wachtwoord) en de
-   KDF-upgrade bij ontgrendelen (besluit 1, nieuwe `kdfUpgradeTx`).
+   KDF-upgrade bij ontgrendelen (besluit 1; na de review in dezelfde transactie als `unlock`).
    `MIN_ITERATIONS` blijft 600.000; testvectoren blijven 600.000. Meer →
    Snelheid meten: 600.000, 2.000.000 en 10.000.000. `formaat.md`: alleen de
    beschreven standaard (§2.4, §3.4).
@@ -77,7 +77,7 @@ bewaart, voor "verder waar je was" in fase 2 en 3.
   bij vergrendelen, geen geheimen, `load` geeft `null`); KDF-upgrade bij
   600.000 (en niet bij de herstelsleutel of bij 2.000.000).
 - `vault.test`: `kdf.iterations` 2.000.000 bij een nieuwe installatie en na
-  wachtwoord wijzigen; `kdfUpgradeTx`.
+  wachtwoord wijzigen; KDF-upgrade via `unlockTx`.
 - Playwright in de cloudsessie (wegwerpprofiel): verbergen en terugkomen.
 
 ## Risico's
@@ -89,17 +89,44 @@ bewaart, voor "verder waar je was" in fase 2 en 3.
 | Tests trager door 2.000.000 rondes | Gemeten; zo nodig een parameter in de tests |
 | Delen werkt nog steeds niet op de OnePlus | Proefstap; anders knop eruit en issue voorstellen |
 
+## Review PR #23 (auditor, 2026-11-26)
+Verwerkt na akkoord van de gebruiker op alle punten:
+
+| Punt | Verwerking |
+|---|---|
+| P1-1 geheime invoer bij wisselen | Geen wachttijd op *Wachtwoord wijzigen* (`SECRET_SUBS`); bij elk verbergen worden wachtwoord- en herstelsleutelvelden gewist (`data-secret`, ook op het vergrendelscherm); opnieuw tekenen zet een waarde alleen terug in een veld van hetzelfde type en dezelfde markering. Daarmee ook een oudere fout opgelost: na wisselen naar de herstelsleutel stond een ingetypt wachtwoord leesbaar in het tekstveld. Tests: `tests/dom.test.mjs`, controller |
+| P1-2 back-upstatus | Eén waarschuwing bij het verlaten van het back-upscherm zonder downloaden of delen; opruimtekst vraagt eerst de nieuwe kopie te controleren, noemt de prullenbak, en "in de app gemaakt op". Een bevestigde externe kopie als aparte status: [#24](https://github.com/DrArts87/dahis/issues/24) (formaatbesluit) |
+| P1-3 mislukte KDF-upgrade | `unlock` en `password_change`/`kdf_upgrade` in één transactie (`unlockTx` met `password`); getest: mislukte commit, opnieuw proberen, verbergen tijdens de upgrade, precies één `kdf_upgrade` |
+| P2 Delen | Uitslag gekoppeld aan de bestandsnaam; knop alleen als `canShare` het concrete bestand accepteert (één keer per back-up bepaald) |
+| P2 werkstand | Opslaan en laden wachten hooguit 1 s; geladen werkstand pas na `alive(gen)` |
+| P2 formaat | §12.2 stap 6 en §3.7 beschrijven de upgrade zoals gebouwd; back-upbestanden houden hun rondes |
+| Praktijktoets | Sessies in `nen7510.md` terug op ◐ tot de proef; proef uitgebreid (hieronder) |
+| Nieuwe instelling zichtbaar | Melding na ontgrendelen zolang de instelling niet bewaard is; *Begrepen* bewaart de waarde |
+| Cloud en AVG | Teksten: afgesproken cloudmap, niet per mail; `avg.md` (bestemming, prullenbak); open punt in *vóór echte dossiers*; [#25](https://github.com/DrArts87/dahis/issues/25) |
+
 ## Proef op de OnePlus (na de release van 0.4.0, alleen testgegevens)
 1. Versie en codehash kloppen (Meer → Over).
 2. Ontgrendelen met het bestaande wachtwoord: werkt; in het logboek
-   "Wachtwoordbeveiliging verzwaard"; volgende ontgrendeling ongeveer 0,3 s.
-3. Wachttijd 5: naar een andere app en binnen 5 minuten terug, alles staat
-   er nog; na meer dan 5 minuten vergrendeld.
-4. Wachttijd 0: direct vergrendeld bij wisselen.
-5. Back-up maken en **Delen** naar mail of cloud: het deelmenu opent, het
-   bestand komt aan, de app is daarna niet vergrendeld (binnen de wachttijd).
-6. Melding over de laatste vier back-ups met de datum van de vorige.
-7. *Recente apps* na wisselen: wat toont het voorbeeld?
+   "Wachtwoordbeveiliging verzwaard" (één keer); volgende ontgrendeling
+   ongeveer 0,3 s. De melding over de nieuwe wachttijd verschijnt; na
+   *Begrepen* niet meer.
+3. Wachttijd 5: naar een andere app en terug na ongeveer 4,5 minuten: alles
+   staat er nog. Terug na ruim 5 minuten: vergrendeld.
+4. Scherm uit en weer aan (binnen en na de wachttijd): zelfde uitkomst als 3.
+5. Wachttijd 0: direct vergrendeld bij wisselen.
+6. Op *Wachtwoord wijzigen* iets intypen en naar een andere app: direct
+   vergrendeld. Op het vergrendelscherm een wachtwoord intypen, wisselen en
+   terug: het veld is leeg. Wachtwoord intypen en op *Herstelsleutel
+   gebruiken* tikken: het veld is leeg.
+7. Handmatig vergrendelen (knop Vergrendel) en met de terugknop van Android
+   terug: vergrendelscherm, geen gegevens.
+8. Back-up maken en **Delen** naar de cloudmap: het deelmenu opent, het
+   bestand komt aan, de app is daarna niet vergrendeld. Opnieuw, en het
+   delen **annuleren**: geen foutmelding; bij het verlaten van het scherm de
+   waarschuwing.
+9. De opruimmelding na delen of downloaden, met de datum van de vorige.
+10. *Recente apps* na wisselen, bij wachttijd 0 en bij 5: wat toont het
+    voorbeeld? Uitkomst in `nen7510.md` (restrisico's sessies).
 
 ## Acceptatiecriteria
 - Binnen de wachttijd terug: hetzelfde scherm zonder ontgrendelen; erna het
@@ -107,6 +134,6 @@ bewaart, voor "verder waar je was" in fase 2 en 3.
 - Nieuwe wraps en de KDF-upgrade gebruiken 2.000.000; kluizen en back-ups
   met 600.000 blijven werken; formaat en vectoren ongewijzigd.
 - Delen getest op de OnePlus, of de knop is eruit en er is een issue
-  voorgesteld.
+  voorgesteld. *Sessies* in `nen7510.md` pas ☑ na de proef.
 - Documenten bijgewerkt; alle verplichte controles groen.
 - Na de merge de releasetekst met codehash (`CLAUDE.md` §3).
