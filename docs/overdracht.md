@@ -37,7 +37,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #35 | Versie 0.4.4 (#29, [plan](plans/2026-11-26-instellingen-knoppen.md)): instellingen met vaste keuzes en *Anders*, waarschuwing alleen bij *Direct*, *Opslag* naar *Meer → Gegevens*. Ontworpen op het ontwerpcanvas. Release gemaakt, proef in orde |
 | #37 | Restrisico voorbeeld in Recente apps vastgelegd (`nen7510.md`, DPIA §6), issue #33; eerste PR met alleen documentatie (CI-selectie) |
 | #39 | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
-| (PR) | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
+| #45 | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
+| (PR) | 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht |
 
 **Live**: Pages is ingericht; release `v0.5.0` (codehash
 `f3109c6175afd9146c6b62e9e2423a18311319b32ee142df5e80fb98f44cc188`) staat op
@@ -178,10 +179,10 @@ Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B, C
 en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
 en lint (#34, 0.4.3), instellingen met vaste keuzes (#35, 0.4.4) en het
 restrisico van Recente apps (#37) en D2 (voorschrijver, #39, 0.5.0, proef in
-orde) zijn klaar. Nu: fix **0.5.1** (review #39), daarna **0.5.2**:
-handtekening van de voorschrijver (tekenen of afbeelding, verplicht in de
-vaste stap; eerst op het canvas) samen met de stapnummers van de onboarding
-(#40). Daarna **E** fase 2 (patiëntenbestand). Begin elk plan met de open issues
+orde) en fix 0.5.1 (#45) zijn klaar. Nu: de PR van **0.5.2** (handtekening
+van de voorschrijver en stapnummers, #40), de release en de proef uit het
+[plan D2](plans/2026-11-26-d2-voorschrijver.md). Daarna **E** fase 2
+(patiëntenbestand). Begin elk plan met de open issues
 (`CLAUDE.md` §4). Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
@@ -194,8 +195,7 @@ schermen; na D2),
 mislukt; uitzoeken met de foutnaam) en
 [#33](https://github.com/DrArts87/dahis/issues/33) (voorbeeld in Recente
 apps; restrisico geaccepteerd),
-[#40](https://github.com/DrArts87/dahis/issues/40) (stapnummers onboarding;
-met 0.5.2), [#41](https://github.com/DrArts87/dahis/issues/41) (banner
+[#41](https://github.com/DrArts87/dahis/issues/41) (banner
 nieuwe versie onleesbaar), [#42](https://github.com/DrArts87/dahis/issues/42)
 (icoon Snelheid meten), [#43](https://github.com/DrArts87/dahis/issues/43)
 (back-up controleren vanuit Meer) en

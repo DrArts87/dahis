@@ -11,6 +11,7 @@ import {
 } from './controller.js';
 import { SETTINGS, PRESETS, isPreset } from './settings.js';
 import { PRESCRIBER_FIELDS, PRESCRIBER_INPUT, formValues } from './prescriber.js';
+import { SignatureError, fromSource, fromFile, drawSignature } from './signature.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
 // service worker de pagina serveert).
@@ -560,8 +561,27 @@ function lockingScreen() {
 
 // --- Schermen: onboarding --------------------------------------------------------------------
 
-function step(n) {
-  return t('onboarding.step', { n, total: 5 });
+// Stappen van de onboarding in volgorde (#40): nummer en totaal komen uit
+// deze lijst, zodat een extra of verplaatste stap vanzelf klopt.
+export const ONBOARDING_STEPS = Object.freeze(['intro', 'password', 'key', 'check', 'done', 'prescriber']);
+
+function step(name) {
+  return t('onboarding.step', { n: ONBOARDING_STEPS.indexOf(name) + 1, total: ONBOARDING_STEPS.length });
+}
+
+// Loopt de onboarding nog (na Klaar en het eerste ontgrendelen volgt de
+// vaste stap Jouw gegevens)? Een vlag in sessionStorage overleeft het
+// herladen bij vergrendelen in hetzelfde tabblad; hij bevat niets geheims.
+const ONBOARDING_FLAG = 'dahis.onboarding';
+
+function onboardingFlag(value) {
+  try {
+    if (value === true) sessionStorage.setItem(ONBOARDING_FLAG, '1');
+    else if (value === false) sessionStorage.removeItem(ONBOARDING_FLAG);
+    return sessionStorage.getItem(ONBOARDING_FLAG) === '1';
+  } catch (err) {
+    return false;
+  }
 }
 
 function installCard() {
@@ -575,7 +595,7 @@ function installCard() {
 
 function onboardingIntro() {
   return page({
-    head: header({ title: t('onboarding.intro.title'), sub: step(1) }),
+    head: header({ title: t('onboarding.intro.title'), sub: step('intro') }),
     body: [
       el('p', {}, t('onboarding.intro.text')),
       el('section', { class: 'card' },
@@ -634,7 +654,7 @@ function onboardingRestored() {
 function onboardingPassword() {
   return page({
     head: header({
-      title: t('onboarding.password.title'), sub: step(2),
+      title: t('onboarding.password.title'), sub: step('password'),
       back: backLink(t('common.back'), () => app.goToStep('intro')),
     }),
     body: form(() => app.choosePassword(value('pw1'), value('pw2')),
@@ -649,7 +669,7 @@ function onboardingPassword() {
 function onboardingKey() {
   const groups = app.state.recoveryKey || [];
   return page({
-    head: header({ title: t('onboarding.key.title'), sub: step(3) }),
+    head: header({ title: t('onboarding.key.title'), sub: step('key') }),
     body: [
       el('p', {}, t('onboarding.key.text')),
       el('div', { class: 'key', 'aria-label': t('onboarding.key.label') },
@@ -664,8 +684,10 @@ function onboardingKey() {
 function onboardingCheck() {
   const [a, b] = app.state.groups || [0, 1];
   return page({
-    head: header({ title: t('onboarding.check.title'), sub: step(4) }),
-    body: form(() => app.confirmRecoveryGroups([value('g1'), value('g2')]),
+    head: header({ title: t('onboarding.check.title'), sub: step('check') }),
+    body: form(async () => {
+      if (await app.confirmRecoveryGroups([value('g1'), value('g2')])) onboardingFlag(true);
+    },
       el('p', {}, t('onboarding.check.text')),
       field('g1', t('onboarding.check.group', { n: a + 1 }), textInput('g1', { maxlength: 8, inputmode: 'text' })),
       field('g2', t('onboarding.check.group', { n: b + 1 }), textInput('g2', { maxlength: 8, inputmode: 'text' }),
@@ -679,7 +701,7 @@ function onboardingDone() {
   const s = app.state.storage;
   const protectedText = s && s.persisted ? t('storage.protected') : t('storage.notProtected');
   return page({
-    head: header({ title: t('onboarding.done.title'), sub: step(5) }),
+    head: header({ title: t('onboarding.done.title'), sub: step('done') }),
     body: [
       el('section', { class: 'card' },
         el('dl', {},
@@ -728,6 +750,183 @@ function prescriberValues() {
   return out;
 }
 
+// --- Handtekening (0.5.2) ---------------------------------------------------------------
+//
+// ui.sig: tekening in uitvoering (lijnen als fracties van het vak), een
+// verwerkte gekozen afbeelding (pending), of het wijzigen van een opgeslagen
+// handtekening (editing). Alleen in het geheugen; herladen bij vergrendelen
+// wist het.
+// Elk concept heeft een eigen nummer: de uitkomst van een verwerking voor een
+// verlaten of geannuleerd concept wordt genegeerd (review PR #47, 2).
+let sigSerial = 0;
+
+function freshSignature() {
+  sigSerial += 1;
+  return { id: sigSerial, strokes: [], pending: null, editing: false, working: false, error: null };
+}
+
+ui.sig = freshSignature();
+
+function resetSignature() {
+  ui.sig = freshSignature();
+}
+
+// Is het formulier met de handtekening zichtbaar? Zo niet, dan vervalt een
+// concept, hoe de gebruiker het formulier ook verliet (review PR #47, 1).
+function signatureFormVisible() {
+  const s = app.state;
+  return s.view === 'prescriber' || (s.view === 'ready' && s.work.sub === 'prescriber');
+}
+
+const SIG_ERRORS = {
+  empty: k('signature.error.empty'), type: k('signature.error.type'), size: k('signature.error.size'),
+  image: k('signature.error.image'), file: k('signature.error.image'),
+};
+const SIG_FORM_ERRORS = [k('signature.error.required'), k('signature.error.invalid')];
+
+const PAD_W = 680;   // interne resolutie van het tekenvak (ongeveer 2× de breedte)
+const PAD_H = 420;
+
+function strokeWidth(w) {
+  return Math.max(2, w / 150);
+}
+
+function drawStrokes(ctx, strokes, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = strokeWidth(w);
+  for (const line of strokes) {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => (i ? ctx.lineTo(x * w, y * h) : ctx.moveTo(x * w, y * h)));
+    if (line.length === 1) ctx.lineTo(line[0][0] * w + 0.1, line[0][1] * h);
+    ctx.stroke();
+  }
+}
+
+function padPoint(canvas, event) {
+  const r = canvas.getBoundingClientRect();
+  return [Math.min(1, Math.max(0, (event.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (event.clientY - r.top) / r.height))];
+}
+
+function signaturePad() {
+  const canvas = el('canvas', { width: PAD_W, height: PAD_H, 'aria-label': t('signature.padLabel'), role: 'img' });
+  const ctx = canvas.getContext('2d');
+  drawStrokes(ctx, ui.sig.strokes, PAD_W, PAD_H);
+  const label = ui.sig.strokes.length ? null : el('span', { class: 'sig-empty', 'aria-hidden': 'true' }, t('signature.drawHere'));
+  let line = null;
+  canvas.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    line = [padPoint(canvas, event)];
+    ui.sig.strokes.push(line);
+    ui.sig.error = null;
+    drawStrokes(ctx, ui.sig.strokes, PAD_W, PAD_H);
+    if (label) label.remove();   // "Teken hier" weg, zonder opnieuw te tekenen
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!line) return;
+    line.push(padPoint(canvas, event));
+    drawStrokes(ctx, ui.sig.strokes, PAD_W, PAD_H);
+  });
+  // Een melding over de handtekening verdwijnt na de lijn (niet tijdens het
+  // tekenen: opnieuw tekenen zou het vak vervangen).
+  const end = () => { if (line) { line = null; app.clearSignatureError(); } };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  return el('div', { class: 'sig-box' },
+    el('span', { class: 'sig-line', 'aria-hidden': 'true' }), label, canvas);
+}
+
+// Toont een (opgeslagen of gekozen) handtekening; tekent na het plaatsen.
+function signaturePreview(data, saved) {
+  const canvas = el('canvas', { width: PAD_W, height: PAD_H, role: 'img', 'aria-label': t('signature.previewLabel') });
+  drawSignature(canvas, data).catch(() => {});
+  return el('div', { class: saved ? 'sig-box saved' : 'sig-box' },
+    el('span', { class: 'sig-line', 'aria-hidden': 'true' }), canvas);
+}
+
+async function pickSignatureFile(file) {
+  if (!file) return;
+  const draft = ui.sig;
+  draft.working = true;
+  draft.error = null;
+  app.clearSignatureError();
+  render();
+  let result = null;
+  let error = null;
+  try {
+    result = await fromFile(file);
+  } catch (err) {
+    error = err instanceof SignatureError ? err.code : 'image';
+  }
+  if (ui.sig !== draft || draft.id !== ui.sig.id) return;   // concept intussen verlaten
+  draft.working = false;
+  if (result) { draft.pending = result; draft.strokes = []; } else draft.error = error;
+  render();
+}
+
+// De handtekening om op te slaan: een gekozen afbeelding, of de tekening;
+// null als er niets nieuws is (dan blijft de opgeslagen).
+async function signatureToSave() {
+  if (ui.sig.pending) return ui.sig.pending;
+  if (!ui.sig.strokes.length) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = PAD_W; canvas.height = PAD_H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, PAD_W, PAD_H);
+  drawStrokes(ctx, ui.sig.strokes, PAD_W, PAD_H);
+  return fromSource(canvas, PAD_W, PAD_H);
+}
+
+function signatureBlock() {
+  const saved = app.state.signature;
+  const editing = !saved || ui.sig.editing;
+  const formError = app.state.prescriberErrors.signature;
+  const busy = app.state.busy || ui.sig.working;
+  const fileInput = el('input', {
+    id: 'sig-file', type: 'file', accept: 'image/*', class: 'file-hidden', tabindex: '-1', 'aria-hidden': 'true',
+    // Kiezer dicht (gekozen of geannuleerd): uitzondering op vergrendelen
+    // intrekken (review PR #47, ronde 2).
+    onchange: (event) => { app.disarmPicker(); pickSignatureFile(event.target.files && event.target.files[0]); },
+    oncancel: () => app.disarmPicker(),
+  });
+  // Wissen begint een nieuw concept: een opslag die nog op de omzetting van
+  // de oude tekening wacht, slaat dan niets op (review PR #47, ronde 3).
+  const clear = () => {
+    const editing = ui.sig.editing;
+    resetSignature();
+    ui.sig.editing = editing;
+    render();
+  };
+  const parts = [el('h3', { id: 'sig-h' }, t('signature.title'))];
+  if (!editing) {
+    parts.push(signaturePreview(saved, true),
+      el('div', { class: 'sig-actions' },
+        button(t('signature.change'), () => { ui.sig.editing = true; render(); }, 'small')),
+      el('p', { class: 'hint' }, t('signature.onRecipes')));
+  } else {
+    parts.push(el('p', { class: 'hint' }, t('signature.text')),
+      ui.sig.pending ? signaturePreview(ui.sig.pending, false) : signaturePad(),
+      el('div', { class: 'sig-actions' },
+        button(t('signature.clear'), clear, 'small', { disabled: busy }),
+        button(ui.sig.working ? t('signature.working') : t('signature.pick'), () => {
+          app.armPicker();   // bestandskiezer: tijdelijk niet vergrendelen (review PR #47, 3)
+          document.getElementById('sig-file').click();
+        }, 'small', { disabled: busy })),
+      fileInput,
+      saved ? button(t('signature.cancel'), () => { resetSignature(); render(); }, 'link') : null,
+      ui.sig.error ? el('p', { class: 'hint error', role: 'alert' }, t(SIG_ERRORS[ui.sig.error] || SIG_ERRORS.image)) : null,
+      el('p', { class: 'hint' }, t('signature.photoHint')));
+  }
+  if (formError) {
+    parts.push(el('p', { class: 'hint error', role: 'alert' }, t(SIG_FORM_ERRORS.includes(formError) ? formError : SIG_FORM_ERRORS[0])));
+  }
+  return el('section', { class: formError ? 'card sig-card invalid' : 'card sig-card', 'aria-labelledby': 'sig-h' }, parts);
+}
+
 // Formulier zonder ui.clearInputs: bij een fout blijft de invoer staan.
 function prescriberForm(submitLabel, after) {
   const start = formValues(app.state.prescriber);
@@ -750,15 +949,39 @@ function prescriberForm(submitLabel, after) {
     novalidate: true,
     onsubmit: async (event) => {
       event.preventDefault();
-      if (await app.savePrescriber(prescriberValues()) && after) after();
+      if (ui.sig.working || app.state.busy) return;   // afbeelding nog in verwerking (review PR #47, 2)
+      const draft = ui.sig;
+      let sig = null;
+      try {
+        sig = await signatureToSave();
+      } catch (err) {
+        if (ui.sig !== draft) return;
+        ui.sig.error = err instanceof SignatureError ? err.code : 'image';
+        render();
+        return;
+      }
+      // Intussen geannuleerd of verlaten: niet opslaan (review PR #47, ronde 2).
+      if (ui.sig !== draft) return;
+      const wasSetup = app.state.view === 'prescriber';
+      if (await app.savePrescriber(prescriberValues(), sig)) {
+        resetSignature();
+        if (wasSetup) onboardingFlag(false);
+        if (after) after();
+        render();
+      }
     },
-  }, fields, submit(submitLabel));
+  }, fields, signatureBlock(), el('button', {
+    type: 'submit', class: 'btn primary', disabled: app.state.busy || ui.sig.working,
+  }, app.state.busy || ui.sig.working ? t('common.busy') : submitLabel));
 }
 
 // Vaste stap na het ontgrendelen zolang de gegevens niet compleet zijn.
 function prescriberSetupScreen() {
   return page({
-    head: header({ title: t('prescriber.setupTitle'), sub: t('prescriber.setupSub'), lock: true }),
+    head: header({
+      title: t('prescriber.setupTitle'), lock: true,
+      sub: onboardingFlag() ? t('prescriber.setupSubStep', { step: step('prescriber') }) : t('prescriber.setupSub'),
+    }),
     body: [
       el('p', {}, t('prescriber.setupText')),
       prescriberForm(t('prescriber.save')),
@@ -769,7 +992,7 @@ function prescriberSetupScreen() {
 
 // Wijzigen vanuit Instellingen.
 function prescriberEditScreen() {
-  const close = () => { app.showSub(null); app.clearPrescriberErrors(); render(); };
+  const close = () => { app.showSub(null); app.clearPrescriberErrors(); resetSignature(); render(); };
   return page({
     head: header({
       title: t('prescriber.title'), lock: true,
@@ -1248,6 +1471,9 @@ function readyScreen() {
 
 function view() {
   const s = app.state;
+  if (!signatureFormVisible() && (ui.sig.strokes.length || ui.sig.pending || ui.sig.editing || ui.sig.working)) {
+    resetSignature();
+  }
   switch (s.view) {
     case 'starting': return startingScreen();
     case 'already-open': return alreadyOpenScreen();

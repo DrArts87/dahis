@@ -46,6 +46,7 @@ import { measureChecks, measureBackup } from './benchmark.js';
 import {
   PRESCRIBER_KIND, PRESCRIBER_SCHEMA, readPrescriber, validatePrescriber, isComplete,
 } from './prescriber.js';
+import { SIGNATURE_KIND, SIGNATURE_SCHEMA, readSignature, isValidSignature } from './signature.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
@@ -118,6 +119,12 @@ const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'prescriber', 'halte
 // geldt (de velden van de voorschrijver zijn geen geheimen; opzoeken in een
 // andere app moet kunnen).
 const AWAY_VIEWS = new Set(['ready', 'prescriber']);
+// Bestandskiezer voor de handtekening (review PR #47, besluit gebruiker
+// 2026-11-26): de kiezer stuurt de app naar de achtergrond. Ook bij "Direct"
+// blijft de app dan hooguit PICKER_AWAY_MS open, één keer, als het wegzijn
+// binnen PICKER_ARM_MS na de tik op "Afbeelding kiezen" begint.
+export const PICKER_AWAY_MS = 3 * 60 * 1000;
+export const PICKER_ARM_MS = 60 * 1000;
 const SECRET_STEPS = new Set(['key', 'check', 'done']);
 // Subschermen in 'ready' met invoer van een wachtwoord of de herstelsleutel:
 // daar geldt geen wachttijd (review PR #23 P1-1).
@@ -237,7 +244,9 @@ export class AppController {
     this.backupFile = null;       // gemaakte en gecontroleerde back-up: {id, text, name}
     this.backupSerial = 0;        // volgnummer van de exports in deze sessie
     this.hiddenAt = null;         // ms: verborgen met wachttijd (stap D1)
+    this.awayLimit = null;        // ms: geldende wachttijd tijdens dit wegzijn
     this.awayTimer = null;
+    this.pickerArmedAt = null;    // ms: tik op "Afbeelding kiezen" (0.5.2)
     this.lastActivity = this.now();
     this.state = {
       view: 'starting',
@@ -266,8 +275,10 @@ export class AppController {
       awayNotice: false,          // melding: nieuwe instelling wachttijd nog niet bewaard
       prescriber: {},             // geldige velden van de voorschrijver (stap D2)
       prescriberErrors: {},       // veld -> tekstsleutel van de fout bij opslaan
+      signature: null,            // opgeslagen handtekening {type, width, height, png} (0.5.2)
     };
     this.prescriberId = null;
+    this.signatureId = null;
   }
 
   // --- Toestand ----------------------------------------------------------------
@@ -321,14 +332,44 @@ export class AppController {
     if (this.awayTimer !== null) this.deps.clearTimer(this.awayTimer);
     this.awayTimer = null;
     this.hiddenAt = null;
+    this.awayLimit = null;
+  }
+
+  // Staat het formulier met de handtekening open (vaste stap of Instellingen)?
+  signatureFormOpen() {
+    const v = this.state.view;
+    return v === 'prescriber' || (v === 'ready' && this.state.work.sub === 'prescriber');
+  }
+
+  // Vlak vóór het openen van de bestandskiezer voor de handtekening.
+  armPicker() {
+    if (!this.signatureFormOpen() || this.state.busy) return false;
+    this.pickerArmedAt = this.now();
+    return true;
+  }
+
+  // De kiezer is gesloten (gekozen of geannuleerd): de uitzondering vervalt
+  // (review PR #47, ronde 2).
+  disarmPicker() {
+    this.pickerArmedAt = null;
+  }
+
+    pickerArmed() {
+    if (this.pickerArmedAt === null) return false;
+    const since = this.now() - this.pickerArmedAt;
+    return since >= 0 && since < PICKER_ARM_MS && this.signatureFormOpen() && !this.state.busy;
   }
 
   // De app gaat naar de achtergrond (visibilitychange: hidden).
   hidden() {
     if (!this.shouldLockOnHide()) return;
-    if (!this.awayAllowed()) { this.lock(); return; }
+    const picker = this.pickerArmed();
+    this.pickerArmedAt = null;   // één keer
+    if (!this.awayAllowed() && !picker) { this.lock(); return; }
     if (this.hiddenAt !== null) return;
-    const ms = this.state.settings['lock.awayMinutes'] * 60 * 1000;
+    let ms = this.awayAllowed() ? this.state.settings['lock.awayMinutes'] * 60 * 1000 : 0;
+    if (picker) ms = Math.max(ms, PICKER_AWAY_MS);
+    this.awayLimit = ms;
     this.hiddenAt = this.now();
     // Loopt JavaScript op de achtergrond nog, dan vergrendelt de app al
     // tijdens het wegzijn. Bevriest Android de app, dan beslist visible().
@@ -340,7 +381,7 @@ export class AppController {
   visible() {
     if (this.hiddenAt === null) return;
     const away = this.now() - this.hiddenAt;
-    const ms = this.state.settings['lock.awayMinutes'] * 60 * 1000;
+    const ms = this.awayLimit;
     this.clearAway();
     if (!this.shouldLockOnHide()) return;
     if (away < 0 || away >= ms || !AWAY_VIEWS.has(this.state.view)) { this.lock(); return; }
@@ -441,7 +482,7 @@ export class AppController {
     this.backupFile = null;
     this.set({
       view: 'halted', backup: null, haltCode: code, haltCheck: this.checkKind, checking: false,
-      step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {},
+      step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {}, signature: null,
     });
     this.checkKind = null;
     this.auditToken += 1;
@@ -595,8 +636,11 @@ export class AppController {
       this.alive(gen);
       const prescriber = await this.readPrescriber(session);
       this.alive(gen);
+      const signature = await this.readSignature(session);
+      this.alive(gen);
       this.applySettings(settings);
       this.applyPrescriber(prescriber);
+      this.applySignature(signature);
       const work = await this.loadWork(session);
       this.alive(gen);
       this.set({ work });
@@ -645,8 +689,9 @@ export class AppController {
 
   // Na ontgrendelen: eerst de gegevens van de voorschrijver als die nog niet
   // compleet zijn (vaste stap, besluit gebruiker 2026-11-26).
+  // Compleet = alle velden én een geldige handtekening (0.5.2, verplicht).
   readyView() {
-    return isComplete(this.state.prescriber) ? 'ready' : 'prescriber';
+    return isComplete(this.state.prescriber) && isValidSignature(this.state.signature) ? 'ready' : 'prescriber';
   }
 
   // Leest en ontsleutelt; verandert niets aan de toestand.
@@ -667,33 +712,70 @@ export class AppController {
     this.set({ prescriber, prescriberErrors: {} });
   }
 
+  // Leest en ontsleutelt de handtekening; een ongeldige geldt als ontbrekend.
+  async readSignature(session) {
+    const store = this.backend.store;
+    const ids = Array.from(new Set(store.records.filter((r) => r.kind === SIGNATURE_KIND).map((r) => r.id))).sort();
+    const id = ids.length ? ids[0] : null;
+    let data = null;
+    if (id) {
+      const rec = await V.readRecord(store, session, id);
+      if (rec && !rec.content.deleted) data = rec.content.data;
+    }
+    return { id, signature: readSignature(data) };
+  }
+
+  applySignature({ id, signature }) {
+    this.signatureId = id;
+    this.set({ signature });
+  }
+
   // Opslaan vanuit de vaste stap of vanuit Instellingen. Een ongeldig veld:
   // een melding per veld en niets geschreven.
-  async savePrescriber(input) {
+  // `signature`: een nieuwe handtekening ({type, width, height, png}), of
+  // null/undefined om de opgeslagen te houden. Velden en handtekening gaan in
+  // één transactie (alles of niets); de handtekening is verplicht (0.5.2).
+  async savePrescriber(input, signature) {
     const view = this.state.view;
     if (view !== 'ready' && view !== 'prescriber') return false;
     const result = validatePrescriber(input);
-    if (result.errors) {
-      this.set({ prescriberErrors: result.errors });
+    const errors = result.errors ? Object.assign({}, result.errors) : {};
+    const newSignature = signature === null || signature === undefined ? null : signature;
+    if (newSignature && !isValidSignature(newSignature)) errors.signature = 'signature.error.invalid';
+    else if (!newSignature && !isValidSignature(this.state.signature)) errors.signature = 'signature.error.required';
+    if (Object.keys(errors).length) {
+      this.set({ prescriberErrors: errors });
       this.say('prescriber.invalid');
       return false;
     }
     return this.guard(async (gen) => {
-      const id = this.prescriberId || undefined;
-      const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordTx(store, s, {
-        id, kind: PRESCRIBER_KIND, data: result.data, schema: PRESCRIBER_SCHEMA, now,
-      }));
+      const items = [{ id: this.prescriberId || undefined, kind: PRESCRIBER_KIND, data: result.data, schema: PRESCRIBER_SCHEMA }];
+      if (newSignature) {
+        items.push({ id: this.signatureId || undefined, kind: SIGNATURE_KIND, data: newSignature, schema: SIGNATURE_SCHEMA });
+      }
+      const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordsTx(store, s, { items, now }));
       this.alive(gen);
       this.prescriberId = tx.putRecords[0].id;
+      if (newSignature) this.signatureId = tx.putRecords[1].id;
       this.set({
         prescriber: result.data, prescriberErrors: {}, lastFullCheckAt: this.session.lastFullCheckAt,
+        signature: newSignature ? readSignature(newSignature) : this.state.signature,
         view: this.state.view === 'prescriber' ? 'ready' : this.state.view,
       });
       this.say('prescriber.saved');
     });
   }
 
-  clearPrescriberErrors() {
+  clearSignatureError() {
+    const e = this.state.prescriberErrors;
+    if (e.signature) {
+      const rest = Object.assign({}, e);
+      delete rest.signature;
+      this.set({ prescriberErrors: rest });
+    }
+  }
+
+    clearPrescriberErrors() {
     if (Object.keys(this.state.prescriberErrors).length) this.set({ prescriberErrors: {} });
   }
 
@@ -1063,6 +1145,7 @@ export class AppController {
     if (this.state.view === 'locking' || this.erasing) return;
     this.generation += 1;
     this.clearAway();
+    this.pickerArmedAt = null;
     const session = this.session;
     const work = this.state.view === 'ready' ? normalizeWork(this.state.work) : null;
     this.session = null;
@@ -1074,9 +1157,10 @@ export class AppController {
     this.set({
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
       audit: null, checking: false, backup: null, fileCheck: null, work: defaultWork(),
-      prescriber: {}, prescriberErrors: {},
+      prescriber: {}, prescriberErrors: {}, signature: null,
     });
     this.prescriberId = null;
+    this.signatureId = null;
     try {
       // Nu NullWorkStore: er wordt niets bewaard. Vergrendelen wacht hooguit
       // WORK_STORE_MS op de opslag van de werkstand (review PR #23).

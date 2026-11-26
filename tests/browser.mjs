@@ -10,6 +10,7 @@ import {
   IdbBackend, WriteQueue, StoreError, AlreadyOpenError,
   acquireLock, openStorage, storageStatus,
 } from '../app/js/store.js';
+import * as S from '../app/js/signature.js';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -459,6 +460,69 @@ test('testbestand formaat 1 terugzetten op IndexedDB, met wachtwoord en met hers
     backend.close();
     await IdbBackend.deleteDatabase(name);
   }
+});
+
+// --- Handtekening (0.5.2): tekenen, afbeelding, tonen op echte canvas -------------------
+// Alleen een getekende krabbel uit de test zelf, nooit een echte handtekening.
+
+function testCanvas(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  draw(ctx);
+  return c;
+}
+
+function scribble(ctx, w, h, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.1, h * 0.7);
+  ctx.bezierCurveTo(w * 0.3, h * 0.1, w * 0.5, h * 0.9, w * 0.9, h * 0.3);
+  ctx.stroke();
+}
+
+test('handtekening: een tekening wordt een geldig, bijgesneden PNG binnen de grenzen', async () => {
+  const drawn = testCanvas(680, 420, (ctx) => scribble(ctx, 680, 420, '#000000'));
+  const sig = await S.fromSource(drawn, 680, 420);
+  assert(S.isValidSignature(sig), 'geldig');
+  assert(sig.width <= S.MAX_WIDTH && sig.height <= S.MAX_HEIGHT, 'binnen de grenzen');
+  assert(sig.width < 680, 'bijgesneden of verkleind');
+  await rejects(S.fromSource(testCanvas(200, 100, () => {}), 200, 100), (e) => e.code === 'empty', 'leeg tekenvak');
+});
+
+test('handtekening: foto op wit papier; wit wordt transparant, te groot of geen afbeelding geweigerd', async () => {
+  const photo = testCanvas(1200, 800, (ctx) => {
+    ctx.fillStyle = '#f4f4f0';                 // licht papier
+    ctx.fillRect(0, 0, 1200, 800);
+    scribble(ctx, 1200, 800, '#1a2a6c');       // blauwe pen
+  });
+  const blob = await new Promise((r) => photo.toBlob(r, 'image/png'));
+  const sig = await S.fromFile(new File([blob], 'foto.png', { type: 'image/png' }));
+  assert(S.isValidSignature(sig), 'geldig');
+  // Hoek is papier: moet transparant zijn.
+  const bitmap = await createImageBitmap(new Blob([S.base64ToBytes(sig.png)], { type: 'image/png' }));
+  const check = testCanvas(bitmap.width, bitmap.height, (ctx) => ctx.drawImage(bitmap, 0, 0));
+  const corner = check.getContext('2d').getImageData(0, 0, 1, 1).data;
+  assert(corner[3] === 0, 'papier transparant');
+  await rejects(S.fromFile(new File(['tekst'], 'a.txt', { type: 'text/plain' })), (e) => e.code === 'type', 'geen afbeelding');
+  await rejects(S.fromFile({ size: S.MAX_FILE_BYTES + 1, type: 'image/png' }), (e) => e.code === 'size', 'te groot');
+  await rejects(S.fromFile(new File([new Uint8Array([1, 2, 3])], 'kapot.png', { type: 'image/png' })),
+    (e) => e.code === 'image', 'onleesbaar');
+});
+
+test('handtekening: tonen op een canvas zonder <img> (CSP blijft img-src self)', async () => {
+  const drawn = testCanvas(680, 420, (ctx) => scribble(ctx, 680, 420, '#000000'));
+  const sig = await S.fromSource(drawn, 680, 420);
+  const view = document.createElement('canvas');
+  view.width = 340; view.height = 210;
+  assert(await S.drawSignature(view, sig), 'getekend');
+  const px = view.getContext('2d').getImageData(0, 0, 340, 210).data;
+  let ink = 0;
+  for (let i = 3; i < px.length; i += 4) if (px[i] > 0) ink++;
+  assert(ink > 50, 'inkt zichtbaar');
+  assert(!(await S.drawSignature(view, { type: 'image/png' })), 'ongeldige inhoud niet getekend');
 });
 
 test('opslagstatus is op te vragen', async () => {

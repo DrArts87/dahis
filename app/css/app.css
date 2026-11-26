@@ -136,6 +136,20 @@ p { margin: 0 0 12px; }
 .center { text-align: center; }
 .hint { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
 .hint.error { color: var(--warn); font-weight: 600; }
+/* Handtekening (0.5.2): vak van 210 px met een lichte lijn op 30% vanaf
+   onder; tekenen met vinger of stylus (geen scrollen in het vak). Het vak is
+   altijd wit, ook in donkere modus: de handtekening is zwart. */
+.sig-card { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.sig-card.invalid { border-color: var(--warn); }
+.sig-card h3 { margin: 0; font-size: 1rem; color: var(--text); }
+.sig-card .hint { margin: 0; }
+.sig-box { position: relative; height: 210px; border: 2px dashed #b9c6b8; border-radius: 10px; background: #ffffff; overflow: hidden; }
+.sig-box.saved { border: 1px solid var(--border); }
+.sig-box canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.sig-line { position: absolute; left: 16px; right: 16px; bottom: 30%; border-top: 1px solid #d3dbd2; }
+.sig-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #6f7c74; font-size: 0.9rem; pointer-events: none; }
+.sig-actions { display: flex; gap: 8px; }
+.sig-actions .btn { margin-top: 0; }
 input[aria-invalid="true"] { border: 2px solid var(--warn); }
 
 .card {

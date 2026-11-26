@@ -105,3 +105,47 @@ Daarna volgt **0.5.2**: handtekening van de voorschrijver (besluiten
 2026-11-26: tekenen of afbeelding, verplicht in de vaste stap, kind
 `signature`, witte achtergrond van een foto transparant), samen met #40
 (stapnummers onboarding); eerst op het canvas.
+
+## 0.5.2: handtekening en stapnummers (#40)
+Besluiten gebruiker 2026-11-26: tekenen of een afbeelding kiezen; verplicht
+in de vaste stap; kind `signature` (formaat §6.3); bijna-wit van een foto
+wordt transparant. Ontworpen op het canvas (Voorstellen, opmerkingen
+verwerkt: vak 1,5× zo hoog, lichte lijn op 30% vanaf onder, in beide
+schermen).
+
+| Onderdeel | Uitwerking |
+|---|---|
+| `app/js/signature.js` | Controle van de inhoud (`isValidSignature`: PNG, IHDR gelijk aan breedte en hoogte, ≤ 600 × 240, ≤ 200 KiB, alleen vaste sleutels); `cleanPixels` (bijna wit → transparant, inkt → zwart, kader); `fromSource`/`fromFile` (bestand ≤ 10 MB, alleen afbeeldingen, eerst verkleind tot 1600 px, dan bijgesneden en passend gemaakt); `drawSignature` op een `<canvas>` via `createImageBitmap`, zodat de CSP `img-src 'self'` blijft |
+| Opslag | `putRecordsTx` in `vault.js`: voorschrijver en handtekening in één transactie, elk met `create`/`update` in het logboek, zonder inhoud |
+| Controller | `readSignature`/`applySignature` (na `alive(gen)`); compleet = gegevens én geldige handtekening; zonder nieuwe handtekening blijft de opgeslagen; vergrendelen wist hem uit het geheugen |
+| Schermen | Blok *Handtekening* onder de velden: tekenvak (210 px, lijn op 30%), *Wissen*, *Afbeelding kiezen*, voorbeeld met *Wijzigen* en *Annuleren*; melding bij "Direct"; fout bij het blok in rood |
+| #40 | Stapnummers uit één lijst (`ONBOARDING_STEPS`): Inrichten 1–5 "Stap n van 6", *Jouw gegevens* "Stap 6 van 6" tijdens de onboarding (vlag in sessionStorage, zonder geheimen); daarbuiten geen stapnummer |
+| Tests | `tests/signature.test.mjs`; controller (verplicht, één transactie, logboek zonder inhoud, ongeldig geweigerd, back-up, opslag zonder handtekening → vaste stap, vergrendelen tijdens inlezen); browsertests op echte Chrome (tekening, foto op papier, weigeringen, tonen). Kunstmatige plaatjes (`makeTestSignature`) |
+
+**Proef op de OnePlus (na de release van 0.5.2)**
+1. Na het bijwerken en ontgrendelen opent *Jouw gegevens* (je gegevens staan er al), met het blok *Handtekening*.
+2. Teken je handtekening met je vinger; *Wissen* maakt het vak leeg.
+3. *Afbeelding kiezen*: een foto van een handtekening op wit papier wordt een nette, transparante handtekening (wachttijd niet op "Direct").
+4. Opslaan zonder handtekening geeft de melding; met handtekening naar het hoofdscherm.
+5. Instellingen → Voorschrijver toont de handtekening; *Wijzigen* en opslaan werkt.
+6. Logboek: `signature` aangemaakt en gewijzigd, zonder inhoud. Back-up maken en controleren.
+
+### Review van PR #47 (auditor, 2026-11-26)
+| Punt | Verwerking |
+|---|---|
+| 1: een verlaten concept kon later de handtekening vervangen | Een concept vervalt zodra het formulier van de voorschrijver niet meer zichtbaar is (tabblad, terug, vergrendelen, stop) |
+| 2: opslaan tijdens het verwerken van een afbeelding meldde succes | *Opslaan* uitgeschakeld en genegeerd zolang de verwerking loopt; elk concept heeft een nummer, de uitkomst voor een verlaten concept wordt genegeerd |
+| 3: bij "Direct" vergrendelde de bestandskiezer de app en kwam je terug in de vaste stap | Besluit gebruiker: tijdens de bestandskiezer tijdelijk niet vergrendelen. Na een tik op *Afbeelding kiezen* blijft de app één keer hooguit 3 minuten open (`armPicker`, `PICKER_AWAY_MS`), alleen op het formulier van de voorschrijver; restrisico in `nen7510.md`. De waarschuwing bij "Direct" vervalt |
+| Erbij | Een melding over de handtekening verdwijnt na het tekenen van een lijn of bij het kiezen van een afbeelding |
+
+Tweede ronde (auditor, 2026-11-26):
+
+| Punt | Verwerking |
+|---|---|
+| Annuleren tijdens het omzetten van een tekening kon de handtekening alsnog vervangen | Na de omzetting wordt gecontroleerd of hetzelfde concept nog actief is; anders niet opslaan |
+| De uitzondering bleef na een geannuleerde kiezer tot een minuut klaarstaan | `disarmPicker()` bij `change` en `cancel` van het bestandsveld: de uitzondering vervalt zodra de kiezer sluit |
+
+Derde ronde (auditor, 2026-11-26): akkoord om te mergen. Het genoemde randgeval
+(*Wissen* tijdens de omzetting kon de gewiste tekening alsnog opslaan) is
+direct opgelost: *Wissen* begint een nieuw concept, zodat de wachtende opslag
+niets opslaat.

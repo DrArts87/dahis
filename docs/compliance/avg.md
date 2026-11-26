@@ -10,7 +10,13 @@ De arts die de app gebruikt, in de rol van BIG-geregistreerd
 zorgverlener. De eigen gegevens als voorschrijver (naam, beroep, BIG-nummer,
 AGB-code, praktijk, adres, telefoon, e-mail) staan vanaf versie 0.5.0
 versleuteld in de app (record `prescriber`, vaste stap na de eerste
-ontgrendeling) en gaan mee in de back-up; nooit in deze repository.
+ontgrendeling) en gaan mee in de back-up; nooit in deze repository. Vanaf
+0.5.2 hoort daar de **handtekening** bij (record `signature`): getekend of uit
+een afbeelding gemaakt, alleen een verkleind plaatje zwart op transparant,
+nooit het originele bestand; versleuteld, in de back-up, en nooit in de
+repository, tests of het ontwerpcanvas (alleen verzonnen krabbels). Misbruik
+(vervalsing) is het belangrijkste risico; maatregel: alleen in de
+versleutelde kluis en de versleutelde back-up.
 
 ## Verwerking: persoonlijk patiëntendossier
 

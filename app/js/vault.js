@@ -749,6 +749,27 @@ export async function putRecordTx(store, session, { id = uuid(), kind, data, sch
   });
 }
 
+// Meerdere records in één transactie (alles of niets), elk met een eigen
+// regel create of update. items: [{id?, kind, data, schema?}] (0.5.2:
+// voorschrijver en handtekening samen).
+export async function putRecordsTx(store, session, { items, now }) {
+  if (!Array.isArray(items) || items.length === 0) throw new FormatError('Geen records');
+  const records = items.map((it) => {
+    const id = it.id || uuid();
+    const versions = versionsOf(store, id);
+    const version = versions.length ? versions[versions.length - 1].version + 1 : 1;
+    return { id, version, kind: it.kind, content: { schema: it.schema || 1, data: it.data } };
+  });
+  if (new Set(records.map((r) => r.id)).size !== records.length) throw new FormatError('Dubbel record-id');
+  return buildTx(store, session, {
+    records,
+    auditItems: records.map((r, i) => (h) => ({
+      action: r.version === 1 ? 'create' : 'update', kind: r.kind, record_id: r.id, version: r.version, vh: h[i],
+    })),
+    now,
+  });
+}
+
 export async function deleteRecordTx(store, session, { id, schema = 1, now }) {
   const versions = versionsOf(store, id);
   if (!versions.length) throw new FormatError('Record bestaat niet');
