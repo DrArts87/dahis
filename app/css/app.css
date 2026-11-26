@@ -135,6 +135,8 @@ p { margin: 0 0 12px; }
 .muted { color: var(--muted); font-size: 0.92rem; }
 .center { text-align: center; }
 .hint { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
+.hint.error { color: var(--warn); font-weight: 600; }
+input[aria-invalid="true"] { border: 2px solid var(--warn); }
 
 .card {
   background: var(--card);

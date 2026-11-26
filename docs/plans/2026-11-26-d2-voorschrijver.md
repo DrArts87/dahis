@@ -52,6 +52,22 @@ eigen echte gegevens in de app.
 6. Documenten: formaat §6.3, `avg.md`, *vóór echte dossiers*, vervolgplan,
    overdracht.
 
+## Ontwerpcanvas (werkwijze #36, #38)
+Op het canvas *Dahis – Schermen*, pagina Voorstellen, staan de geraakte
+schermen als voorstel met `#39` in de titel (verzonnen gegevens):
+
+| Scherm | Soort |
+|---|---|
+| Jouw gegevens (vaste stap) | Nieuw; met een fout bij het BIG-nummer als voorbeeld |
+| Instellingen → Voorschrijver | Nieuw |
+| Instellingen | Gewijzigd: kaart Voorschrijver, tekst bij "Direct" |
+| Inrichten 5 – Klaar | Gewijzigd: laatste zin noemt de vaste stap |
+
+Een fout bij een veld krijgt een rode rand en rode tekst (voorstel op het
+canvas, ook in de code). Opmerkingen van de gebruiker op het canvas worden
+in de PR verwerkt; na de merge vervangen de voorstellen de schermen op
+Productie (nieuw: erbij, met versie 0.5.0 in de titel).
+
 ## Risico's
 | Risico | Maatregel |
 |---|---|

@@ -16,9 +16,9 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.5.0';
-const CODE_HASH = 'f4e5d1f1f7137896cb9673292ef7bcd9e0d0460b815ad946c309885387a98e1f';
+const CODE_HASH = 'f3109c6175afd9146c6b62e9e2423a18311319b32ee142df5e80fb98f44cc188';
 const FILES = {
-  'css/app.css': 'dfd1194055a1866c957d72a6876a2a08c3c0b706cfef563f83b963c30f6f7205',
+  'css/app.css': 'bfe8c1c7c3144c0cb6c6be24ac606b2ee78fe04429968a9d3aaeeec756c13bf1',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
   'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
   'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
@@ -27,7 +27,7 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': 'c909a7e4a0b5e83ed275128c886b78afd2e1a44e67d348a98a52f17e6ea0083b',
-  'js/app.js': '26002492bb97c402b4a12891ddf1ae9b4ce1495d886b97e34123df125e7e1e72',
+  'js/app.js': 'c94abbb84d2f1fa47ef8574fd6ba2cbe97fc21c61d630e4f73f88f975b7bc5e7',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
   'js/controller.js': '525e5f38d1c8fd25e0ab82d7447037748fd2f9fb0e015a83f411b302617ddc49',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',

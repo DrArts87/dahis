@@ -36,7 +36,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #34 | Versie 0.4.3 (#32): kop en lint staan vast, alleen het middendeel scrolt; smalle donkergroene scrollbalk; scrollpositie blijft bij opnieuw tekenen (`collectScroll`/`restoreScroll` in `dom.js`). Proef op de OnePlus in orde |
 | #35 | Versie 0.4.4 (#29, [plan](plans/2026-11-26-instellingen-knoppen.md)): instellingen met vaste keuzes en *Anders*, waarschuwing alleen bij *Direct*, *Opslag* naar *Meer → Gegevens*. Ontworpen op het ontwerpcanvas. Release gemaakt, proef in orde |
 | #37 | Restrisico voorbeeld in Recente apps vastgelegd (`nen7510.md`, DPIA §6), issue #33; eerste PR met alleen documentatie (CI-selectie) |
-| (PR) | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu |
+| (PR) | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op

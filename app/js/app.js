@@ -755,8 +755,10 @@ function prescriberForm(submitLabel, after) {
       maxlength: f.max, value: start[f.field],
       'aria-invalid': err ? 'true' : null, 'aria-describedby': id + '-hint',
     }, extra));
-    return field(id, t(PRESCRIBER_LABEL[f.field]), input,
+    const parts = field(id, t(PRESCRIBER_LABEL[f.field]), input,
       err ? errorText(err) : (f.field === 'practice' ? t('prescriber.hint.practice') : null));
+    if (err && parts[2]) parts[2].className = 'hint error';   // canvas-voorstel D2: fout in rood
+    return parts;
   });
   return el('form', {
     novalidate: true,
