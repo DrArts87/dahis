@@ -16,7 +16,7 @@
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
 const VERSION = '0.5.2';
-const CODE_HASH = '18e6057f9c0ec3096b4f288803b1038eba7dc10ad57dd98240064675b110d129';
+const CODE_HASH = 'e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228';
 const FILES = {
   'css/app.css': 'e248864305c339c16203c58ab0da6c117e3ca5f2043c4cae1b5ec7700cf97536',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -27,7 +27,7 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': 'c909a7e4a0b5e83ed275128c886b78afd2e1a44e67d348a98a52f17e6ea0083b',
-  'js/app.js': '1c5bebb8d337f9f2c45542db130066b321b1b09cb0975116978c0dc82154ce08',
+  'js/app.js': '497b246d6250c4a3ed4b3cc54e44116d972b30ba12535b6cb4d72f159d6d343f',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
   'js/controller.js': 'db4d888e2658d8f3d191439f966b69cd7a970669316f49ba3306a89800e5da89',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',

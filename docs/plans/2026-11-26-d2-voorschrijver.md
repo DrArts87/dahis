@@ -144,3 +144,8 @@ Tweede ronde (auditor, 2026-11-26):
 |---|---|
 | Annuleren tijdens het omzetten van een tekening kon de handtekening alsnog vervangen | Na de omzetting wordt gecontroleerd of hetzelfde concept nog actief is; anders niet opslaan |
 | De uitzondering bleef na een geannuleerde kiezer tot een minuut klaarstaan | `disarmPicker()` bij `change` en `cancel` van het bestandsveld: de uitzondering vervalt zodra de kiezer sluit |
+
+Derde ronde (auditor, 2026-11-26): akkoord om te mergen. Het genoemde randgeval
+(*Wissen* tijdens de omzetting kon de gewiste tekening alsnog opslaan) is
+direct opgelost: *Wissen* begint een nieuw concept, zodat de wachtende opslag
+niets opslaat.

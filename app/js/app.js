@@ -893,7 +893,14 @@ function signatureBlock() {
     onchange: (event) => { app.disarmPicker(); pickSignatureFile(event.target.files && event.target.files[0]); },
     oncancel: () => app.disarmPicker(),
   });
-  const clear = () => { ui.sig.strokes = []; ui.sig.pending = null; ui.sig.error = null; render(); };
+  // Wissen begint een nieuw concept: een opslag die nog op de omzetting van
+  // de oude tekening wacht, slaat dan niets op (review PR #47, ronde 3).
+  const clear = () => {
+    const editing = ui.sig.editing;
+    resetSignature();
+    ui.sig.editing = editing;
+    render();
+  };
   const parts = [el('h3', { id: 'sig-h' }, t('signature.title'))];
   if (!editing) {
     parts.push(signaturePreview(saved, true),
