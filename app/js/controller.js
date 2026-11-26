@@ -348,7 +348,13 @@ export class AppController {
     return true;
   }
 
-  pickerArmed() {
+  // De kiezer is gesloten (gekozen of geannuleerd): de uitzondering vervalt
+  // (review PR #47, ronde 2).
+  disarmPicker() {
+    this.pickerArmedAt = null;
+  }
+
+    pickerArmed() {
     if (this.pickerArmedAt === null) return false;
     const since = this.now() - this.pickerArmedAt;
     return since >= 0 && since < PICKER_ARM_MS && this.signatureFormOpen() && !this.state.busy;

@@ -888,7 +888,10 @@ function signatureBlock() {
   const busy = app.state.busy || ui.sig.working;
   const fileInput = el('input', {
     id: 'sig-file', type: 'file', accept: 'image/*', class: 'file-hidden', tabindex: '-1', 'aria-hidden': 'true',
-    onchange: (event) => pickSignatureFile(event.target.files && event.target.files[0]),
+    // Kiezer dicht (gekozen of geannuleerd): uitzondering op vergrendelen
+    // intrekken (review PR #47, ronde 2).
+    onchange: (event) => { app.disarmPicker(); pickSignatureFile(event.target.files && event.target.files[0]); },
+    oncancel: () => app.disarmPicker(),
   });
   const clear = () => { ui.sig.strokes = []; ui.sig.pending = null; ui.sig.error = null; render(); };
   const parts = [el('h3', { id: 'sig-h' }, t('signature.title'))];
@@ -940,14 +943,18 @@ function prescriberForm(submitLabel, after) {
     onsubmit: async (event) => {
       event.preventDefault();
       if (ui.sig.working || app.state.busy) return;   // afbeelding nog in verwerking (review PR #47, 2)
+      const draft = ui.sig;
       let sig = null;
       try {
         sig = await signatureToSave();
       } catch (err) {
+        if (ui.sig !== draft) return;
         ui.sig.error = err instanceof SignatureError ? err.code : 'image';
         render();
         return;
       }
+      // Intussen geannuleerd of verlaten: niet opslaan (review PR #47, ronde 2).
+      if (ui.sig !== draft) return;
       const wasSetup = app.state.view === 'prescriber';
       if (await app.savePrescriber(prescriberValues(), sig)) {
         resetSignature();

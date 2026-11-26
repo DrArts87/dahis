@@ -1643,3 +1643,14 @@ test('review PR #47: een melding over de handtekening verdwijnt; andere fouten b
   app.clearSignatureError();
   assert.deepEqual(app.state.prescriberErrors, { big: 'prescriber.error.big' });
 });
+
+test('review PR #47 ronde 2: een geannuleerde of gesloten bestandskiezer trekt de uitzondering in', async () => {
+  const dev = timedDevice();
+  const app = await readyApp(dev);
+  await app.saveSetting('lock.awayMinutes', 0);
+  app.showScreen('settings', 'prescriber');
+  assert.equal(app.armPicker(), true);
+  app.disarmPicker();                     // kiezer geannuleerd zonder wegzijn
+  app.hidden();                           // gewone appwissel daarna
+  assert.equal(app.state.view, 'locking', 'direct vergrendeld, geen 3 minuten');
+});

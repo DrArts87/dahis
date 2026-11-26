@@ -137,3 +137,10 @@ schermen).
 | 2: opslaan tijdens het verwerken van een afbeelding meldde succes | *Opslaan* uitgeschakeld en genegeerd zolang de verwerking loopt; elk concept heeft een nummer, de uitkomst voor een verlaten concept wordt genegeerd |
 | 3: bij "Direct" vergrendelde de bestandskiezer de app en kwam je terug in de vaste stap | Besluit gebruiker: tijdens de bestandskiezer tijdelijk niet vergrendelen. Na een tik op *Afbeelding kiezen* blijft de app één keer hooguit 3 minuten open (`armPicker`, `PICKER_AWAY_MS`), alleen op het formulier van de voorschrijver; restrisico in `nen7510.md`. De waarschuwing bij "Direct" vervalt |
 | Erbij | Een melding over de handtekening verdwijnt na het tekenen van een lijn of bij het kiezen van een afbeelding |
+
+Tweede ronde (auditor, 2026-11-26):
+
+| Punt | Verwerking |
+|---|---|
+| Annuleren tijdens het omzetten van een tekening kon de handtekening alsnog vervangen | Na de omzetting wordt gecontroleerd of hetzelfde concept nog actief is; anders niet opslaan |
+| De uitzondering bleef na een geannuleerde kiezer tot een minuut klaarstaan | `disarmPicker()` bij `change` en `cancel` van het bestandsveld: de uitzondering vervalt zodra de kiezer sluit |
