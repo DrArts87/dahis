@@ -1428,3 +1428,45 @@ test('D2: een opgeslagen veld dat niet (meer) klopt, maakt de registratie onvoll
   assert.equal(again.state.prescriber.big, undefined);
   assert.equal(again.state.prescriber.name, TEST_PRESCRIBER.name, 'geldige velden blijven');
 });
+
+// --- Review PR #39 (fix 0.5.1) ---------------------------------------------------------------
+
+test('review PR #39 P1: te lange nummers en tekst worden geweigerd, niet ingekort; niets geschreven', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const before = canon(dev.backend.disk);
+  for (const [field, value, error] of [
+    ['big', '000000000000', 'prescriber.error.big'],          // 12 cijfers (geplakt)
+    ['agb', '000000000', 'prescriber.error.agb'],              // 9 cijfers
+    ['postcode', '9999 ZZZ', 'prescriber.error.postcode'],
+    ['name', 'x'.repeat(101), 'prescriber.error.text'],
+  ]) {
+    const input = Object.assign({}, TEST_PRESCRIBER, { [field]: value });
+    assert.equal(await app.savePrescriber(input), false, field);
+    assert.equal(app.state.prescriberErrors[field], error, field);
+    assert.equal(canon(dev.backend.disk), before, 'niets geschreven: ' + field);
+  }
+  assert.equal(app.state.prescriber.big, TEST_PRESCRIBER.big, 'opgeslagen waarde ongewijzigd');
+});
+
+test('review PR #39 P2: vergrendelen tijdens het inlezen van voorschrijver of instellingen laat niets in het geheugen', async () => {
+  for (const which of ['readPrescriber', 'readSettings']) {
+    const dev = device();
+    await onboard(dev);
+    const app = dev.controller();
+    await app.start();
+    const original = app[which].bind(app);
+    app[which] = async (session) => {
+      const result = await original(session);
+      await app.lock();                      // naar de achtergrond tijdens het ontsleutelen
+      return result;
+    };
+    assert.equal(await app.unlock({ password: PASSWORD }), false, which);
+    assert.equal(app.state.view, 'locking', which);
+    assert.deepEqual(app.state.prescriber, {}, which + ': geen voorschrijver in het geheugen');
+    assert.equal(app.prescriberId, null, which);
+    assert.equal(app.settingsId, null, which);
+    assert.equal(app.session, null, which);
+  }
+});

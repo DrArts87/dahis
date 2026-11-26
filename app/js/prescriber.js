@@ -47,6 +47,23 @@ export const PRESCRIBER_FIELDS = Object.freeze([
   }),
 ]);
 
+// Kenmerken van de invoervelden. Bewust zonder maxlength: de browser zou
+// een te lange (geplakte) waarde stil afkappen, waarna de controle een
+// afgekort BIG-nummer kon goedkeuren (review PR #39, P1). De controle ziet
+// altijd de volledige invoer en weigert wat te lang is.
+export const PRESCRIBER_INPUT = Object.freeze({
+  name: Object.freeze({ autocomplete: 'name', autocapitalize: 'words' }),
+  profession: Object.freeze({ autocapitalize: 'none' }),
+  big: Object.freeze({ inputmode: 'numeric' }),
+  agb: Object.freeze({ inputmode: 'numeric' }),
+  practice: Object.freeze({ autocapitalize: 'none' }),
+  address: Object.freeze({ autocomplete: 'street-address', autocapitalize: 'words' }),
+  postcode: Object.freeze({ autocomplete: 'postal-code', autocapitalize: 'characters' }),
+  city: Object.freeze({ autocomplete: 'address-level2', autocapitalize: 'words' }),
+  phone: Object.freeze({ type: 'tel', autocomplete: 'tel', inputmode: 'tel' }),
+  email: Object.freeze({ type: 'email', autocomplete: 'email', autocapitalize: 'none' }),
+});
+
 export const PRESCRIBER_KEYS = Object.freeze(PRESCRIBER_FIELDS.map((f) => f.field));
 
 function fieldOf(key) {

@@ -88,3 +88,20 @@ Productie (nieuw: erbij, met versie 0.5.0 in de titel).
 - Ongeldige invoer: melding per veld, niets geschreven.
 - Wijzigen onder Instellingen; na opnieuw ontgrendelen terug; in het logboek alleen `create` en `update`.
 - Alle controles groen; na de merge de releasetekst.
+
+## Uitkomst proef (2026-11-26, versie 0.5.0)
+Alle vijf stappen in orde: vaste stap geopend en ingevuld, fout bij een
+BIG-nummer van 10 cijfers, opslaan en wijzigen, logboek zonder gegevens,
+back-up gemaakt en gecontroleerd.
+
+## Fix 0.5.1 (review van #39 door de auditor)
+| Punt | Verwerking |
+|---|---|
+| P1: een te lang BIG-nummer of AGB-code werd door `maxlength` stil ingekort en dan goedgekeurd | Geen `maxlength` meer op de velden (`PRESCRIBER_INPUT` in `prescriber.js`, getest); de controle ziet de volledige invoer en weigert wat te lang is |
+| P2: vergrendelen tijdens het ontsleutelen zette de gegevens daarna terug in het geheugen | `readPrescriber`/`readSettings` geven hun uitkomst terug; de controller past die pas toe na `alive(gen)`, zoals bij de werkstand; getest |
+| Overdracht: live-versie en Recente apps verouderd | Bijgewerkt (live 0.5.0, restrisico #33, canvas tot 0.5.0) |
+
+Daarna volgt **0.5.2**: handtekening van de voorschrijver (besluiten
+2026-11-26: tekenen of afbeelding, verplicht in de vaste stap, kind
+`signature`, witte achtergrond van een foto transparant), samen met #40
+(stapnummers onboarding); eerst op het canvas.

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PRESCRIBER_KEYS, checkField, validatePrescriber, readPrescriber, isComplete, formValues,
+  PRESCRIBER_KEYS, PRESCRIBER_INPUT, checkField, validatePrescriber, readPrescriber, isComplete, formValues,
 } from '../app/js/prescriber.js';
 import { TEST_PRESCRIBER } from './helpers/kluis.mjs';
 
@@ -64,4 +64,14 @@ test('formulier: bewaarde waarden, anders "vrij gevestigd" als praktijknaam', ()
   assert.equal(empty.name, '');
   assert.equal(formValues(TEST_PRESCRIBER).name, TEST_PRESCRIBER.name);
   assert.equal(formValues({ practice: 'Testpraktijk' }).practice, 'Testpraktijk');
+});
+
+test('review PR #39 P1: geen invoerveld met maxlength (de controle ziet de volledige invoer)', () => {
+  assert.deepEqual(Object.keys(PRESCRIBER_INPUT).sort(), PRESCRIBER_KEYS.slice().sort());
+  for (const [key, attrs] of Object.entries(PRESCRIBER_INPUT)) {
+    assert.equal(Object.prototype.hasOwnProperty.call(attrs, 'maxlength'), false, key);
+  }
+  // Een geplakt nummer van 12 cijfers wordt geweigerd, niet ingekort tot 11.
+  assert.equal(checkField('big', '000000000000').error, 'prescriber.error.big');
+  assert.equal(checkField('agb', '000000000').error, 'prescriber.error.agb');
 });

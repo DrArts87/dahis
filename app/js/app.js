@@ -10,7 +10,7 @@ import {
   AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, backupDue,
 } from './controller.js';
 import { SETTINGS, PRESETS, isPreset } from './settings.js';
-import { PRESCRIBER_FIELDS, formValues } from './prescriber.js';
+import { PRESCRIBER_FIELDS, PRESCRIBER_INPUT, formValues } from './prescriber.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
 // service worker de pagina serveert).
@@ -699,20 +699,6 @@ function onboardingDone() {
 
 // --- Schermen: voorschrijver (stap D2) ------------------------------------------------------
 
-// Invoervelden per veld van de voorschrijver. Geen geheimen: werkvelden
-// (data-work) voor "verder waar je was" later.
-const PRESCRIBER_INPUT = {
-  name: { autocomplete: 'name', autocapitalize: 'words' },
-  profession: { autocapitalize: 'none' },
-  big: { inputmode: 'numeric', maxlength: 11 },
-  agb: { inputmode: 'numeric', maxlength: 8 },
-  practice: { autocapitalize: 'none' },
-  address: { autocomplete: 'street-address', autocapitalize: 'words' },
-  postcode: { autocomplete: 'postal-code', autocapitalize: 'characters', maxlength: 7 },
-  city: { autocomplete: 'address-level2', autocapitalize: 'words' },
-  phone: { type: 'tel', autocomplete: 'tel', inputmode: 'tel' },
-  email: { type: 'email', autocomplete: 'email', autocapitalize: 'none' },
-};
 
 // Teksten per veld; de foutsleutels komen uit prescriber.js.
 const PRESCRIBER_LABEL = {
@@ -748,11 +734,11 @@ function prescriberForm(submitLabel, after) {
   const errors = app.state.prescriberErrors;
   const fields = PRESCRIBER_FIELDS.map((f) => {
     const id = 'p-' + f.field;
-    const extra = PRESCRIBER_INPUT[f.field] || {};
+    const extra = PRESCRIBER_INPUT[f.field] || {};   // zonder maxlength (review PR #39, P1)
     const err = errors[f.field];
     const input = el('input', Object.assign({
       id, name: id, type: 'text', 'data-work': '', spellcheck: 'false', required: true,
-      maxlength: f.max, value: start[f.field],
+      value: start[f.field],
       'aria-invalid': err ? 'true' : null, 'aria-describedby': id + '-hint',
     }, extra));
     const parts = field(id, t(PRESCRIBER_LABEL[f.field]), input,

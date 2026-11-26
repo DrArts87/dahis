@@ -32,19 +32,21 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd. Daarna door de gebruiker: sjablonen ingevuld, DPIA-besluit ondertekend, incidentenregister, checklist apparaten, tweestapsverificatie, herstelsleutel opgeborgen; agenda *App onderhoud* met drie terugkerende afspraken |
 | #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen in dezelfde transactie als `unlock` (`unlockTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`, opslag hooguit 1 s). Delen terug naast Downloaden (alleen met wachttijd > 0 en een deelbaar bestand; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). Review van de auditor verwerkt: geen wachttijd op *Wachtwoord wijzigen*, geheime velden gewist bij verbergen en nooit in een gewoon tekstveld (`dom.js`), waarschuwing bij een niet opgeslagen back-up, melding over de nieuwe wachttijd; issues #24 (bevestigde externe kopie) en #25 (cloud en art. 28). `nen7510.md` (Sessies ◐ tot de proef), `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `avg.md`, `SECURITY.md` bijgewerkt |
 | #28 | Tests sneller ([plan](plans/2026-11-26-tests-sneller.md), #26), versie 0.4.1: optie `iterations` in `vault.js` en `deps.kdfIterations`/`deps.workStoreMs` in de controller (de app gebruikt altijd de standaard); testhulp `tests/helpers/kluis.mjs` (600.000 rondes); voorbereide testkluis in de controllertests; twee dubbele tests samengevoegd; Node-tests van ongeveer 57 naar 15 s. CI: job *Selectie* (`tools/ci_selectie.py`) slaat bij een PR met alleen documentatie de Node- en browsertests over. `CLAUDE.md` §2: wat je tussendoor draait. Issue #27 (UI-browsertest) aangemaakt |
-| #31 | Fix 0.4.2 na de proef van D1 op de OnePlus (0.4.0: stap 1, 3–7 en 9 in orde; stap 2 melding gemist, verklaarbaar; stap 8 delen mislukt; stap 10 Recente apps toont gegevens): knop Delen verwijderd (alleen downloaden, issue #30); de app dekt de inhoud af bij verbergen (`body.covered`), proef van 0.4.2 moet uitwijzen of het voorbeeld in Recente apps dan leeg is. *Sessies* in `nen7510.md` ☑ |
+| #31 | Fix 0.4.2 na de proef van D1 op de OnePlus (0.4.0: stap 1, 3–7 en 9 in orde; stap 2 melding gemist, verklaarbaar; stap 8 delen mislukt; stap 10 Recente apps toont gegevens): knop Delen verwijderd (alleen downloaden, issue #30); de app dekt de inhoud af bij verbergen (`body.covered`), de proef van 0.4.2 toonde dat het voorbeeld in Recente apps ook dan gegevens laat zien: restrisico geaccepteerd (#37, #33). *Sessies* in `nen7510.md` ☑ |
 | #34 | Versie 0.4.3 (#32): kop en lint staan vast, alleen het middendeel scrolt; smalle donkergroene scrollbalk; scrollpositie blijft bij opnieuw tekenen (`collectScroll`/`restoreScroll` in `dom.js`). Proef op de OnePlus in orde |
 | #35 | Versie 0.4.4 (#29, [plan](plans/2026-11-26-instellingen-knoppen.md)): instellingen met vaste keuzes en *Anders*, waarschuwing alleen bij *Direct*, *Opslag* naar *Meer → Gegevens*. Ontworpen op het ontwerpcanvas. Release gemaakt, proef in orde |
 | #37 | Restrisico voorbeeld in Recente apps vastgelegd (`nen7510.md`, DPIA §6), issue #33; eerste PR met alleen documentatie (CI-selectie) |
-| (PR) | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
+| #39 | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
+| (PR) | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
 
-**Live**: Pages is ingericht; release `v0.3.1` (codehash
-`f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
-`https://drarts87.github.io/dahis/`. Na de merge van #23 is de releasetekst
-voor `v0.4.0` (codehash `31a2d18a…`) gegeven; de release en de proef op de
-OnePlus (checklist in een privé Claude-document van de gebruiker) volgen. De gebruiker heeft de app op de OnePlus
-bijgewerkt en nagelopen (versie, codehash, downloaden, bestandskeuze), **alleen
-met testgegevens**.
+**Live**: Pages is ingericht; release `v0.5.0` (codehash
+`f3109c6175afd9146c6b62e9e2423a18311319b32ee142df5e80fb98f44cc188`) staat op
+`https://drarts87.github.io/dahis/` (controleer met `sw.js` op de site). De
+gebruiker heeft 0.5.0 op de OnePlus nagelopen met de proef uit het
+[plan D2](plans/2026-11-26-d2-voorschrijver.md): alles in orde. Sinds 0.5.0
+mogen de **eigen gegevens van de voorschrijver** in de app; verder **alleen
+testgegevens**. Eerdere proeven (D1, 0.4.2) staan in de plannen; het voorbeeld
+in Recente apps is een geaccepteerd restrisico (#33).
 
 **Metingen op de OnePlus 13R**: PBKDF2 600.000 rondes 0,1 s, 10.000.000
 rondes 1,4 s (versie 0.2.0). Controles (formaat §9.4): 20.000 regels
@@ -175,11 +177,11 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B, C
 en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
 en lint (#34, 0.4.3), instellingen met vaste keuzes (#35, 0.4.4) en het
-restrisico van Recente apps (#37) zijn klaar. Nu: de PR van **D2**
-(voorschrijver, 0.5.0), de release en de proef uit het
-[plan D2](plans/2026-11-26-d2-voorschrijver.md); daarna mogen de eigen
-gegevens van de voorschrijver in de app. Daarna **E** fase 2
-(patiëntenbestand). Begin elk plan met de open issues
+restrisico van Recente apps (#37) en D2 (voorschrijver, #39, 0.5.0, proef in
+orde) zijn klaar. Nu: fix **0.5.1** (review #39), daarna **0.5.2**:
+handtekening van de voorschrijver (tekenen of afbeelding, verplicht in de
+vaste stap; eerst op het canvas) samen met de stapnummers van de onboarding
+(#40). Daarna **E** fase 2 (patiëntenbestand). Begin elk plan met de open issues
 (`CLAUDE.md` §4). Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
@@ -191,10 +193,17 @@ schermen; na D2),
 [#30](https://github.com/DrArts87/dahis/issues/30) (delen via het deelmenu
 mislukt; uitzoeken met de foutnaam) en
 [#33](https://github.com/DrArts87/dahis/issues/33) (voorbeeld in Recente
-apps; restrisico geaccepteerd).
+apps; restrisico geaccepteerd),
+[#40](https://github.com/DrArts87/dahis/issues/40) (stapnummers onboarding;
+met 0.5.2), [#41](https://github.com/DrArts87/dahis/issues/41) (banner
+nieuwe versie onleesbaar), [#42](https://github.com/DrArts87/dahis/issues/42)
+(icoon Snelheid meten), [#43](https://github.com/DrArts87/dahis/issues/43)
+(back-up controleren vanuit Meer) en
+[#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen).
 
-Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle 27 schermen van
-0.4.4 ([werkwijze](ui/ontwerpcanvas.md)).
+Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle 29 schermen tot
+0.5.0, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:
+Jouw gegevens) ([werkwijze](ui/ontwerpcanvas.md)).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
