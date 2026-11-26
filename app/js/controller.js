@@ -207,6 +207,10 @@ export class AppController {
       storageStatus,
       requestPersist,
       workStore: new NullWorkStore(),
+      // PBKDF2-rondes voor nieuwe wraps en de grens van de KDF-upgrade. De app
+      // laat dit altijd op de standaard; alleen tests kiezen minder (#26).
+      kdfIterations: DEFAULT_ITERATIONS,
+      workStoreMs: WORK_STORE_MS,
       setTimer: (fn, ms) => globalThis.setTimeout(fn, ms),
       clearTimer: (id) => globalThis.clearTimeout(id),
     }, deps);
@@ -373,7 +377,7 @@ export class AppController {
   // (review PR #23).
   async loadWork(session) {
     let saved = null;
-    try { saved = await withTimeout(this.deps.workStore.load(session), WORK_STORE_MS); } catch (err) { saved = null; }
+    try { saved = await withTimeout(this.deps.workStore.load(session), this.deps.workStoreMs); } catch (err) { saved = null; }
     return normalizeWork(saved);
   }
 
@@ -500,7 +504,9 @@ export class AppController {
     if (!this.checkPasswordPair(password, repeat)) return false;
     return this.guard(async (gen) => {
       const t0 = this.deps.timer();
-      const { tx, recoveryKey } = await V.createInstallation({ password, now: this.deps.clock() });
+      const { tx, recoveryKey } = await V.createInstallation({
+        password, now: this.deps.clock(), iterations: this.deps.kdfIterations,
+      });
       this.alive(gen);
       const pbkdfMs = Math.round(this.deps.timer() - t0);
       const groups = pickGroups(this.deps.random);
@@ -566,7 +572,9 @@ export class AppController {
       // Met de KDF-upgrade in dezelfde transactie (§12.2 stap 6, review PR
       // #23 P1-3): mislukt het schrijven, dan staat er niets in het log en
       // kan de gebruiker het gewoon opnieuw proberen.
-      await this.queue.run(session, (store, s, now) => V.unlockTx(store, s, { now, password: secret.password }));
+      await this.queue.run(session, (store, s, now) => V.unlockTx(store, s, {
+        now, password: secret.password, iterations: this.deps.kdfIterations,
+      }));
       this.alive(gen);
       await this.loadSettings(session);
       this.alive(gen);
@@ -591,7 +599,7 @@ export class AppController {
     return this.guard(async (gen) => {
       const current = { recoveryKey: this.recoverySecret };
       await this.queue.run(this.session, (store, s, now) => V.changePasswordTx(store, s, {
-        current, newPassword: password, detail: 'recovery', now,
+        current, newPassword: password, detail: 'recovery', now, iterations: this.deps.kdfIterations,
       }));
       this.alive(gen);
       this.recoverySecret = null;
@@ -607,7 +615,7 @@ export class AppController {
     if (!this.checkPasswordPair(password, repeat)) return false;
     return this.guard(async (gen) => {
       await this.queue.run(this.session, (store, s, now) => V.changePasswordTx(store, s, {
-        current, newPassword: password, detail: 'user', now,
+        current, newPassword: password, detail: 'user', now, iterations: this.deps.kdfIterations,
       }));
       this.alive(gen);
       this.say('password.changed');
@@ -857,7 +865,9 @@ export class AppController {
       let prepared;
       try {
         const bytes = await readChosenFile(file);
-        prepared = await V.restoreTx(bytes, secret, { newPassword: recovery ? password : undefined, now: this.deps.clock() });
+        prepared = await V.restoreTx(bytes, secret, {
+          newPassword: recovery ? password : undefined, now: this.deps.clock(), iterations: this.deps.kdfIterations,
+        });
       } catch (err) {
         this.alive(gen);
         const key = this.fileErrorKey(err, secret);
@@ -987,7 +997,7 @@ export class AppController {
     try {
       // Nu NullWorkStore: er wordt niets bewaard. Vergrendelen wacht hooguit
       // WORK_STORE_MS op de opslag van de werkstand (review PR #23).
-      if (work && session) await withTimeout(this.deps.workStore.save(work, session), WORK_STORE_MS);
+      if (work && session) await withTimeout(this.deps.workStore.save(work, session), this.deps.workStoreMs);
     } catch (err) {
       // de werkstand is nooit een reden om niet te vergrendelen
     }

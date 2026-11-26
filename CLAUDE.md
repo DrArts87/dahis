@@ -64,8 +64,22 @@ Na een codewijziging
    `python3 -m unittest discover -s tests`, `node --check` op de
    JS-bestanden, `node --test tests/*.test.mjs` en de browsertests
    (`node tests/run_browser.mjs`, Chrome via `CHROME`). CI (`controle.yml`)
-   controleert hetzelfde.
-2. De app lokaal serveren (`python3 -m http.server`) en in de browser
+   controleert hetzelfde; alleen een PR die uitsluitend `docs/**` of `*.md`
+   in de hoofdmap wijzigt, slaat daar de Node- en browsertests over
+   (`tools/ci_selectie.py`).
+2. Tijdens het werk mag je gericht testen; vóór elke commit draait de hele
+   set uit stap 1.
+
+   | Wat je raakt | Wat je tussendoor draait |
+   |---|---|
+   | Teksten, documentatie | `node --test tests/i18n.test.mjs`, `privacy_check.py` |
+   | Schermen, formulieren, instellingen (`app.js`, `dom.js`, `settings.js`, `controller.js`) | `dom`, `settings`, `i18n`, `controller` (`node --test tests/<naam>.test.mjs`) |
+   | Kluis, crypto, opslag, back-up (`vault.js`, `crypto.js`, `store.js`, formaat) | de hele keten: alle `*.test.mjs`, `tests/test_*.py` en de browsertests |
+   | Service worker, release (`sw.js`, `tools/release.py`) | `sw`, `tests/test_release.py`, `release.py --check` |
+
+   Tests die niet over de sleutelafleiding gaan, gebruiken 600.000 rondes
+   (`tests/helpers/kluis.mjs`); de app zelf altijd de standaard.
+3. De app lokaal serveren (`python3 -m http.server`) en in de browser
    controleren met een wegwerpprofiel, nooit met echte gegevens.
 
 Voor een commit

@@ -12,7 +12,7 @@
 // die daar niet aan voldoet, gooit een fout; nextPrelude() geeft de transactie
 // die eerst nodig is.
 import {
-  FORMAT, DEFAULT_ITERATIONS, BUDGET_LIMIT, RESERVATION_BLOCK, MAX_KID, MAX_EPOCH, ZERO_HASH,
+  FORMAT, DEFAULT_ITERATIONS, MIN_ITERATIONS, MAX_ITERATIONS, BUDGET_LIMIT, RESERVATION_BLOCK, MAX_KID, MAX_EPOCH, ZERO_HASH,
   FormatError, WrongSecretError, IntegrityError,
   b64, fromB64, equalBytes, randomBytes, wipe, isBytes, isUint, isTimestamp, UUID_RE,
   validateKdf, validateWrap, validateRecoveryMeta, validateWriteKeys, validateKeyring,
@@ -369,9 +369,17 @@ function validateRoute(meta, secret) {
   }
 }
 
-async function newPasswordWrap(raw, newPassword, epoch) {
+// `iterations`: standaard DEFAULT_ITERATIONS. De app geeft het nooit mee;
+// alleen tests kiezen een lagere waarde (issue #26), en ook dan geldt de
+// grens van het formaat (§2.4).
+function wrapIterations(iterations = DEFAULT_ITERATIONS) {
+  if (!isUint(iterations, MIN_ITERATIONS, MAX_ITERATIONS)) throw new FormatError('iterations buiten de grenzen');
+  return iterations;
+}
+
+async function newPasswordWrap(raw, newPassword, epoch, iterations) {
   checkNewPassword(newPassword);
-  const kdf = { alg: 'PBKDF2-SHA256', iterations: DEFAULT_ITERATIONS, salt: randomBytes(16) };
+  const kdf = { alg: 'PBKDF2-SHA256', iterations: wrapIterations(iterations), salt: randomBytes(16) };
   const kek = await passwordKek(newPassword, kdf);
   return { kdf, wrapped_password: await wrapDataKey(kek, raw, aadWrapPassword(kdf, epoch)) };
 }
@@ -391,11 +399,11 @@ async function newRecoveryWrap(raw, epoch) {
 
 // --- Onboarding (§12.1) ---------------------------------------------------------------
 
-export async function createInstallation({ password, now, deviceId = uuid() }) {
+export async function createInstallation({ password, now, deviceId = uuid(), iterations }) {
   checkNewPassword(password);
   const raw = randomBytes(32);
   try {
-    const { kdf, wrapped_password } = await newPasswordWrap(raw, password, 1);
+    const { kdf, wrapped_password } = await newPasswordWrap(raw, password, 1, iterations);
     const { recovery, recoveryKeyText } = await newRecoveryWrap(raw, 1);
     const session = new Session({ epoch: 1, deviceId });
     session.dataKeys.set(1, await importDataKey(raw.slice()));
@@ -562,12 +570,12 @@ async function findLastFullCheck(store, session) {
 // of geen van beide. De ruwe DK wordt binnen deze handeling opnieuw
 // ontsleuteld met een KEK uit het net ingevoerde wachtwoord en de huidige
 // kdf (§3.7); de nieuwe wrap krijgt een nieuwe salt_w en DEFAULT_ITERATIONS.
-export async function unlockTx(store, session, { now, password } = {}) {
+export async function unlockTx(store, session, { now, password, iterations } = {}) {
   const items = [{ action: 'unlock', detail: session.route }];
-  if (!needsKdfUpgrade(store.meta, session, password)) return buildTx(store, session, { auditItems: items, now });
+  if (!needsKdfUpgrade(store.meta, session, password, iterations)) return buildTx(store, session, { auditItems: items, now });
   const { raw } = await unwrapCurrent(store.meta, { password });
   try {
-    const wrap = await newPasswordWrap(raw, password, store.meta.epoch);
+    const wrap = await newPasswordWrap(raw, password, store.meta.epoch, iterations);
     items.push({ action: 'password_change', detail: 'kdf_upgrade' });
     return buildTx(store, session, { auditItems: items, putMeta: wrap, now });
   } finally {
@@ -575,9 +583,9 @@ export async function unlockTx(store, session, { now, password } = {}) {
   }
 }
 
-export function needsKdfUpgrade(meta, session, password) {
+export function needsKdfUpgrade(meta, session, password, iterations) {
   return session.route === 'password' && typeof password === 'string'
-    && Boolean(meta.kdf) && meta.kdf.iterations < DEFAULT_ITERATIONS;
+    && Boolean(meta.kdf) && meta.kdf.iterations < wrapIterations(iterations);
 }
 
 // --- Controles (§9.2, §9.3) -------------------------------------------------------------
@@ -768,10 +776,10 @@ export async function auditTx(store, session, items, { now } = {}) {
 
 // --- Wachtwoord en herstel (§12.3, §12.4) ---------------------------------------------------
 
-export async function changePasswordTx(store, session, { current, newPassword, detail = 'user', now }) {
+export async function changePasswordTx(store, session, { current, newPassword, detail = 'user', now, iterations }) {
   const { raw, route } = await unwrapCurrent(store.meta, current);
   try {
-    const wrap = await newPasswordWrap(raw, newPassword, store.meta.epoch);
+    const wrap = await newPasswordWrap(raw, newPassword, store.meta.epoch, iterations);
     const items = route === 'recovery' && detail === 'recovery' ? [{ action: 'recovery_used' }] : [];
     items.push({ action: 'password_change', detail });
     return buildTx(store, session, { auditItems: items, putMeta: wrap, now });
@@ -796,7 +804,7 @@ async function opensCurrentWrap(meta, password) {
 
 // Weigert een nieuw wachtwoord dat de huidige wrap opent: na een mogelijk lek
 // moet het nieuwe wachtwoord onbekend zijn bij wie het oude kent (audit A4).
-export async function rotateKeysTx(store, session, { current, newPassword, now }) {
+export async function rotateKeysTx(store, session, { current, newPassword, now, iterations }) {
   const meta = store.meta;
   checkNewPassword(newPassword);
   if (await opensCurrentWrap(meta, newPassword)) throw new PasswordReuseError();
@@ -809,7 +817,7 @@ export async function rotateKeysTx(store, session, { current, newPassword, now }
     }
     const epoch = meta.epoch + 1;
     if (epoch > MAX_EPOCH) throw new FormatError('Geen epochs meer beschikbaar (nieuw formaat nodig)');
-    const wrap = await newPasswordWrap(fresh, newPassword, epoch);
+    const wrap = await newPasswordWrap(fresh, newPassword, epoch, iterations);
     const { recovery, recoveryKeyText } = await newRecoveryWrap(fresh, epoch);
     const saved = { epoch: session.epoch, dataKeys: new Map(session.dataKeys) };
     session.dataKeys.set(epoch, await importDataKey(fresh.slice()));
@@ -1082,13 +1090,13 @@ export async function verifyBackupTx(store, session, { detail = 'equal', now } =
 
 // Terugzetten op een lege opslag (§11.5). Bij de herstelsleutel is
 // newPassword verplicht. Geeft {tx, session}; tx vereist een lege opslag.
-export async function restoreTx(bytes, secret, { newPassword, now, deviceId = uuid() } = {}) {
+export async function restoreTx(bytes, secret, { newPassword, now, deviceId = uuid(), iterations } = {}) {
   const { header, data, session, raw, route } = await inspectBackup(bytes, secret);
   try {
     let wrap = { kdf: header.kdf, wrapped_password: header.wrapped_password };
     if (route === 'recovery' || newPassword) {
       if (!newPassword) throw new FormatError('Kies een nieuw wachtwoord');
-      wrap = await newPasswordWrap(raw, newPassword, header.epoch);
+      wrap = await newPasswordWrap(raw, newPassword, header.epoch, iterations);
     }
     session.deviceId = deviceId;
     const base = {

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../app/js/crypto.js';
 import * as V from '../app/js/vault.js';
+import { TEST_ITERATIONS } from './helpers/kluis.mjs';
 import { MemoryBackend, WriteQueue } from '../app/js/store.js';
 
 const PASSWORD = 'correct paard batterij nietje';
@@ -22,7 +23,7 @@ function clockAt(start) {
 async function install(clock) {
   const backend = new MemoryBackend();
   const queue = new WriteQueue(backend, { clock: clock.fn });
-  const { tx } = await V.createInstallation({ password: PASSWORD, now: clock.fn() });
+  const { tx } = await V.createInstallation({ password: PASSWORD, now: clock.fn(), iterations: TEST_ITERATIONS });
   await queue.runPlain(() => tx);
   return { backend, queue };
 }
@@ -183,12 +184,12 @@ test('A4: sleutels vernieuwen weigert het huidige wachtwoord', async () => {
   const session = await unlock(backend, queue);
   const before = structuredClone(backend.disk);
   await assert.rejects(queue.run(session, async (store, s, now) => (await V.rotateKeysTx(store, s, {
-    current: { password: PASSWORD }, newPassword: PASSWORD.normalize('NFD'), now,
+    current: { password: PASSWORD }, newPassword: PASSWORD.normalize('NFD'), now, iterations: TEST_ITERATIONS,
   })).tx), V.PasswordReuseError);
   assert.deepEqual(backend.disk, before);
   let recoveryKey;
   await queue.run(session, async (store, s, now) => {
-    const r = await V.rotateKeysTx(store, s, { current: { password: PASSWORD }, newPassword: PASSWORD2, now });
+    const r = await V.rotateKeysTx(store, s, { current: { password: PASSWORD }, newPassword: PASSWORD2, now, iterations: TEST_ITERATIONS });
     recoveryKey = r.recoveryKey;
     return r.tx;
   });
