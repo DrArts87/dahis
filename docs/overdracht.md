@@ -1,7 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-25, na taak 7 (back-up maken, controleren en
-terugzetten in de app). Dit document is het
+Bijgewerkt: 2026-11-26, na taak 10 (acceptatietest op de OnePlus; fase 1
+alpha geaccepteerd). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -21,14 +21,16 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #11 | `pages.yml`: publiceren van `app/` op GitHub Pages bij een versietag; releaseprocedure in `docs/release.md` (taak 9) |
 | #12 | Logboek onder Meer, controle zichtbaar met duur, meting van de controles bij een groot nep-logboek, tests op een gemanipuleerd log; PBKDF2-metingen in formaat §2.4 (taak 6). Daarbij de review van PR #12 en van de hele codebase: geblokkeerd wissen wacht met het slot vast, de back-upschrijver controleert de grens van 256 MiB, en een update wordt alleen actief na Bijwerken (ook als Chrome de worker zelf activeert); versie 0.2.0 |
 | #13 | Metingen van de controles op de OnePlus in formaat §9.4; termijn van 7 dagen bevestigd |
+| #14 | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. Release `v0.3.0` (codehash `da223701…`) |
 | #15 | Werkafspraak: na elke merge die `app/` wijzigt de releasetekst met codehash en het verzoek om een release |
-| (nieuw) | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. **Let op**: bij het schrijven stond deze PR nog open; controleer dat hij gemerged is |
-| #14 | Taak 7: back-up maken (export, direct gecontroleerd tegen de export, dan `verify_backup` `equal` en `last_backup_at`), delen of downloaden, ouder bestand controleren vanaf het vergrendelscherm (zonder logregel), terugzetten op een lege opslag met wachtwoord of herstelsleutel, herinnering na 7 dagen, lezer per formaatnummer, testbestand formaat 1, meting grote back-up; base64 zonder geheugenpiek; audit A3 verwerkt; versie 0.3.0. Gemerged als #14 (codehash `da223701…`); release `v0.3.0` aangevraagd |
+| #16 | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. Release `v0.3.1` |
+| #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
 
-**Live**: Pages is ingericht; release `v0.3.0` (codehash
-`da223701f732135f900bf9fe5657d83775e5ee973623fe2731f25280de238dcc`) staat op
+**Live**: Pages is ingericht; release `v0.3.1` (codehash
+`f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
 `https://drarts87.github.io/dahis/`. De gebruiker heeft de app op de OnePlus
-geïnstalleerd, **alleen met testgegevens**.
+bijgewerkt en nagelopen (versie, codehash, downloaden, bestandskeuze), **alleen
+met testgegevens**.
 
 **Metingen op de OnePlus 13R**: PBKDF2 600.000 rondes 0,1 s, 10.000.000
 rondes 1,4 s (versie 0.2.0). Controles (formaat §9.4): 20.000 regels
@@ -37,9 +39,11 @@ termijn van 7 dagen bevestigd. Grote back-up (versie 0.3.0): 253,3 MiB maken
 2,6 s, openen 6,2 s. Alle grenzen in formaat §2.4 zijn vastgesteld.
 
 Taakstatus volgens het [plan fase 1](plans/2026-11-25-fase-1-fundament.md) §5:
-taak 1–9 klaar, inclusief de proef met 0.3.0 op de OnePlus en de
-herstelronde 0.3.1. **Volgende: taak 10** (acceptatietest op de OnePlus), na
-een release `v0.3.1`.
+taak 1–10 klaar. De acceptatietest
+([plan taak 10](plans/2026-11-26-taak-10-acceptatie.md)) is op 2026-11-26
+met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
+geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
+echte dossiers rond zijn (zie *Besluiten*). **Volgende: de compliance-toets.**
 
 ## Belangrijkste documenten
 
@@ -58,7 +62,8 @@ een release `v0.3.1`.
   [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
   instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md),
   [plan taak 6](plans/2026-11-25-taak-6-auditlog.md),
-  [plan taak 7](plans/2026-11-25-taak-7-backup.md).
+  [plan taak 7](plans/2026-11-25-taak-7-backup.md),
+  [plan taak 10](plans/2026-11-26-taak-10-acceptatie.md) (checklist).
 
 ## Besluiten in het kort
 
@@ -78,7 +83,7 @@ een release `v0.3.1`.
 | Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen; inzien onder Meer → Logboek (met technische regel voor debugging en forensisch onderzoek), het inzien zelf wordt niet gelogd |
 | Realistisch log | 0–10 regels per dag (≈ 18.000 in 5 jaar); meten bij 20.000 en 100.000 regels |
 | PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard 600.000 (een hogere standaard is een apart besluit) |
-| Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld) |
+| Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld). Onderbreken tijdens schrijven of terugzetten, schade bij de volledige controle en "niet leesbaar" gelden als gedekt door de tests (besluit 2026-11-26). Taak 10 sluit fase 1 af als **alpha geaccepteerd**; echte dossiers daarna pas na de review van de volledige keten, formaat 1 *vastgesteld* (eigen PR) en de compliance-toets |
 
 ## Werkwijze met Claude (cloudsessie)
 
@@ -126,13 +131,15 @@ een release `v0.3.1`.
 
 ## Volgende stap
 
-Na de merge van de herstelronde: release `v0.3.1` (releasetekst van Claude),
-bijwerken op de OnePlus en kort nalopen: Meer → Back-up → Downloaden, en bij
-terugzetten en controleren de knop *Bestand kiezen* met de regel
-"Gekozen: …". Daarna **taak 10**: de acceptatietest met checklist, met als
-open punt stap F (terugzetten met de herstelsleutel op de telefoon).
-Metingen: PBKDF2 en controles (taak 5–6), grote back-up (taak 7) zijn
-gedaan; alle grenzen in formaat §2.4 zijn vastgesteld.
+Taak 10 is klaar (zie *Waar staan we*). In deze volgorde (besluit gebruiker
+2026-11-26):
+1. **Compliance-toets fase 1**: `nen7510.md` per maatregel bijwerken met
+   bewijs, `avg.md` aanpassen (alleen downloaden, back-uplocatie), DPIA als
+   concept, lijst "vóór echte dossiers" met per punt wie het doet.
+2. **Registreren van de eigenaar** (de arts) en de gegevens die later nodig
+   zijn, alleen in de versleutelde kluis.
+3. **UI-schaafsessie**.
+4. **Fase 2** (patiëntenbestand).
 
 Browsercontrole: repository serveren met `python3 -m http.server` en
 `/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
@@ -143,9 +150,11 @@ repository.
 
 - Browsertests in CI (job met de Chrome van de runner, zonder npm):
   wijziging van de workflow, dus apart te vragen.
-- Een nieuwe review nu taak 7 klaar is (volledige keten in de app).
+- Een nieuwe review nu taak 7 klaar is (volledige keten in de app); nodig
+  om formaat 1 vast te stellen vóór echte dossiers.
 - Een hogere standaardwaarde voor PBKDF2 dan 600.000 rondes (de meting laat
-  ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe).
+  ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe); bij
+  voorkeur vóór echte dossiers.
 
 ## Een nieuwe chat starten
 
