@@ -15,10 +15,10 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.4.3';
-const CODE_HASH = '5198eb132a7340f5378f6b68814e003e1616f2649e1e4c46cf1010370b4226cd';
+const VERSION = '0.4.4';
+const CODE_HASH = '99d5c60c9ad0938f086425ed9ae6abc270a4b3cfb5618602417c469094d1b120';
 const FILES = {
-  'css/app.css': '632ed982db4ecdd79ef514aefc33e74d74d5ba1bd940b1619bb08edc51db6c48',
+  'css/app.css': 'dfd1194055a1866c957d72a6876a2a08c3c0b706cfef563f83b963c30f6f7205',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
   'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
   'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
@@ -26,15 +26,15 @@ const FILES = {
   'img/rand-boven.svg': '56c77cadfa290551a3f716f8ed22e1770ed6e507bd89e397684dc4d85d8791a0',
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
-  'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
-  'js/app.js': '267427181d4e0ceafcdba53252e136e0e685383c3baaff2c19d62ed385214e43',
+  'index.html': 'c909a7e4a0b5e83ed275128c886b78afd2e1a44e67d348a98a52f17e6ea0083b',
+  'js/app.js': '2e743feaa1c93ffd0269d700baec51e5f61c35dca32c1fb8019543805a94a414',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
   'js/controller.js': '8a69b50af525b93d4159b571d6728f2ae08b993ad6210b45a20ecc211c43cae5',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',
   'js/dom.js': 'd01992736527ffc6a30e9c6654d04494c1ca68c6f3af4685d6448c07633415b9',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': '74aa1320f77584cec4eac4cd6ff3e8173a8b55e14ed0078cad553de078a134fa',
-  'js/settings.js': 'c1c47f737b38658d4c62963c0de21b69605d51947846fb3154394fa4dc741ed8',
+  'js/i18n/nl.js': '60da369ef9a276673db636304dbb8818cbefb815faa2ab907a49c453630c0e85',
+  'js/settings.js': '21880f5f06ea53f9a24784bb19fe1b37c90df2ebec1abb4b28c3482892dffa6e',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
   'js/vault.js': '6c82f9f8c68e451591b2795e6a849bc35c66e04b24168c8e2ed24c31d06f1119',
   'manifest.webmanifest': 'f40056063d21cbfdf42cbf89d93f8d737f421ca41d3b789f34eab206e8e9a606',
