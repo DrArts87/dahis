@@ -25,6 +25,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #15 | Werkafspraak: na elke merge die `app/` wijzigt de releasetekst met codehash en het verzoek om een release |
 | #16 | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. Release `v0.3.1` |
 | #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
+| #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
