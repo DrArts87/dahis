@@ -21,6 +21,35 @@ env:
     git checkout -q FETCH_HEAD
 
 jobs:
+  # Bepaalt of de Node- en browsertests moeten draaien (issue #26). Alleen een
+  # pull request die uitsluitend documentatie wijzigt (docs/**, *.md in de
+  # hoofdmap) slaat ze over; zie tools/ci_selectie.py. Mislukt deze job of de
+  # diff, dan draait alles: de jobs JavaScript en Browsertests lopen altijd
+  # (if: always()) en slaan hun tests alleen over bij volledig == '0'. De
+  # verplichte controles starten en rapporteren dus altijd.
+  selectie:
+    name: Selectie
+    runs-on: ubuntu-latest
+    outputs:
+      volledig: ${{ steps.kies.outputs.volledig }}
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Gewijzigde bestanden bepalen
+        id: kies
+        run: |
+          files=""
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] \
+            && git fetch -q --depth 2 origin "$GITHUB_SHA" \
+            && files=$(git diff --name-only HEAD^1 HEAD); then
+            echo "Gewijzigd ten opzichte van de basis:"
+            printf '%s\n' "$files"
+          else
+            files=""
+          fi
+          printf '%s\n' "$files" | python3 tools/ci_selectie.py "$GITHUB_EVENT_NAME" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
   python:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-latest
@@ -41,6 +70,8 @@ jobs:
 
   javascript:
     name: JavaScript
+    needs: selectie
+    if: always()
     runs-on: ubuntu-latest
     container: node:22
     steps:
@@ -49,10 +80,16 @@ jobs:
       - name: Syntaxis van alle JS-bestanden
         run: find app tests \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -r -n1 node --check
       - name: Node-tests (crypto, formaat, testvectoren)
+        if: needs.selectie.outputs.volledig != '0'
         run: node --test tests/*.test.mjs
+      - name: Node-tests overgeslagen (alleen documentatie)
+        if: needs.selectie.outputs.volledig == '0'
+        run: echo "Alleen documentatie gewijzigd; Node-tests overgeslagen (tools/ci_selectie.py)."
 
   browser:
     name: Browsertests (Chrome)
+    needs: selectie
+    if: always()
     # Direct op de runner: Google Chrome en Node staan daar al. Het script
     # gebruikt alleen Node-standaardmodules (geen npm) en een wegwerpprofiel.
     runs-on: ubuntu-latest
@@ -65,9 +102,13 @@ jobs:
           node --version
           google-chrome --version
       - name: Browsertests op echte IndexedDB (tests/browser.html)
+        if: needs.selectie.outputs.volledig != '0'
         env:
           CHROME: /usr/bin/google-chrome
         run: node tests/run_browser.mjs
+      - name: Browsertests overgeslagen (alleen documentatie)
+        if: needs.selectie.outputs.volledig == '0'
+        run: echo "Alleen documentatie gewijzigd; browsertests overgeslagen (tools/ci_selectie.py)."
 
   privacy:
     name: Geen persoons- of patiëntgegevens

@@ -13,6 +13,7 @@ import {
 } from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
+import { TEST_ITERATIONS, REAL_ITERATIONS } from './helpers/kluis.mjs';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -23,9 +24,12 @@ function canon(store) {
 }
 
 // Een "toestel": opslag die herladen overleeft, en tellers voor de
-// neveneffecten van de controller.
-function device() {
+// neveneffecten van de controller. `iterations`: PBKDF2-rondes voor nieuwe
+// wraps (issue #26); standaard het minimum van het formaat, REAL_ITERATIONS
+// in de tests over de standaard en de KDF-upgrade.
+function device(iterations = TEST_ITERATIONS) {
   const dev = {
+    iterations,
     backend: new MemoryBackend(),
     now: new Date(T0),
     reloads: 0,
@@ -48,13 +52,36 @@ function device() {
     deleteDatabase: async () => { dev.deletes += 1; dev.backend = new MemoryBackend(); },
     reload: () => { dev.reloads += 1; },
     clock: dev.clock,
+    kdfIterations: dev.iterations,
     requestPersist: async () => true,
     storageStatus: async () => ({ supported: true, persisted: true, usage: 1024, quota: 1e9 }),
   }, extra));
   return dev;
 }
 
+// Voorbereide testkluis (issue #26, voorstel auditor): de eerste onboarding
+// per aantal rondes loopt de hele route; daarna krijgt elk toestel een verse
+// kopie van die opslag, met dezelfde neveneffecten (één keer herladen).
+// Tests over de onboarding zelf gebruiken onboardFull().
+const templates = new Map();
+
 async function onboard(dev) {
+  const t = templates.get(dev.iterations);
+  if (t && dev.now.getTime() === T0.getTime() && !dev.open) {
+    dev.backend.disk = structuredClone(t.disk);
+    dev.backend.store = structuredClone(t.disk);
+    dev.reloads += 1;
+    dev.closes += 1;
+    return { recoveryKey: t.recoveryKey };
+  }
+  const result = await onboardFull(dev);
+  if (!t && dev.now.getTime() === T0.getTime()) {
+    templates.set(dev.iterations, { disk: structuredClone(dev.backend.disk), recoveryKey: result.recoveryKey });
+  }
+  return result;
+}
+
+async function onboardFull(dev) {
   const app = dev.controller();
   await app.start();
   assert.equal(app.state.view, 'onboarding');
@@ -814,8 +841,8 @@ test('review PR #14, 1: uitslag van een gecontroleerd bestand verdwijnt bij een 
 const MIN = 60 * 1000;
 
 // Toestel met nagebootste timers (setTimeout van de wachttijd).
-function timedDevice() {
-  const dev = device();
+function timedDevice(iterations) {
+  const dev = device(iterations);
   dev.timers = new Map();
   let nextId = 1;
   const base = dev.controller;
@@ -1026,43 +1053,9 @@ test('D1: standaard NullWorkStore bewaart niets; na ontgrendelen het hoofdscherm
   assert.deepEqual(again.state.work, { tab: 'patients', sub: null, form: null });
 });
 
-test('D1: nieuwe installatie met 2.000.000 rondes, geen KDF-upgrade nodig', async () => {
-  const dev = device();
-  await onboard(dev);
-  assert.equal(C.DEFAULT_ITERATIONS, 2000000);
-  assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
-  await unlocked(dev);
-  const actions = await auditActions(dev.backend.disk);
-  assert.ok(!actions.includes('password_change:kdf_upgrade'));
-});
-
-test('D1: KDF-upgrade bij ontgrendelen met wachtwoord (testbestand met 600.000 rondes)', async () => {
-  const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
-  const bytes = C.utf8(fixture.bestand);
-  const dev = device();
-  const app = dev.controller();
-  await app.start();
-  app.goToStep('restore');
-  assert.equal(await app.restoreBackup(chosen(bytes), { password: fixture.wachtwoord }), true);
-  assert.equal(dev.backend.disk.meta.kdf.iterations, 600000, 'terugzetten met wachtwoord houdt de wrap');
-  const oldSalt = C.b64(dev.backend.disk.meta.kdf.salt);
-  await app.lock();
-  const opened = await unlocked(dev, { password: fixture.wachtwoord });
-  assert.equal(opened.state.view, 'ready');
-  assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
-  assert.notEqual(C.b64(dev.backend.disk.meta.kdf.salt), oldSalt, 'nieuwe salt_w');
-  await opened.lock();
-  const again = await unlocked(dev, { password: fixture.wachtwoord });
-  assert.equal(again.state.view, 'ready');
-  const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
-  assert.deepEqual(actions.slice(-3), ['unlock:password', 'password_change:kdf_upgrade', 'unlock:password']);
-  assert.equal(actions.filter((a) => a === 'password_change:kdf_upgrade').length, 1);
-  await V.fullCheck(dev.backend.disk, (await V.unlock(dev.backend.disk, { password: fixture.wachtwoord })).session);
-});
-
 test('D1: geen KDF-upgrade bij de herstelsleutel; het nieuwe wachtwoord krijgt 2.000.000', async () => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
-  const dev = device();
+  const dev = device(REAL_ITERATIONS);
   const app = dev.controller();
   await app.start();
   app.goToStep('restore');
@@ -1099,7 +1092,7 @@ test('D1 en #19: na downloaden of delen de herinnering met de vorige back-up', a
 
 test('review PR #23 P1-3: mislukte commit van unlock met KDF-upgrade: niets gelogd, opnieuw proberen lukt', async () => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
-  const dev = device();
+  const dev = device(REAL_ITERATIONS);
   const app = dev.controller();
   await app.start();
   app.goToStep('restore');
@@ -1124,18 +1117,27 @@ test('review PR #23 P1-3: mislukte commit van unlock met KDF-upgrade: niets gelo
   assert.equal(dev.backend.disk.audit.length, auditBefore, 'geen regel unlock van de mislukte poging');
   assert.equal(dev.backend.disk.meta.kdf.iterations, 600000, 'oude wrap blijft');
   // Opnieuw met hetzelfde (juiste) wachtwoord: lukt, één keer kdf_upgrade.
+  const oldSalt = C.b64(dev.backend.disk.meta.kdf.salt);
   assert.equal(await a.unlock({ password: fixture.wachtwoord }), true);
   assert.equal(a.state.view, 'ready');
   assert.equal(dev.backend.disk.meta.kdf.iterations, 2000000);
+  assert.notEqual(C.b64(dev.backend.disk.meta.kdf.salt), oldSalt, 'nieuwe salt_w');
+  // Volgende ontgrendeling: geen tweede upgrade; de opslag is in orde.
+  await a.lock();
+  dev.open = false;
+  const again = await unlocked(dev, { password: fixture.wachtwoord });
+  assert.equal(again.state.view, 'ready');
+  await V.fullCheck(dev.backend.disk, (await V.unlock(dev.backend.disk, { password: fixture.wachtwoord })).session);
   const actions = await auditActions(dev.backend.disk, { password: fixture.wachtwoord });
   assert.equal(actions.filter((x) => x === 'password_change:kdf_upgrade').length, 1);
-  assert.equal(actions.filter((x) => x === 'unlock:password').length, unlocksBefore + 1,
-    'alleen de unlock van de geslaagde poging');
+  assert.equal(actions.filter((x) => x === 'unlock:password').length, unlocksBefore + 2,
+    'alleen de unlocks van de geslaagde pogingen');
+  assert.deepEqual(actions.slice(-3), ['unlock:password', 'password_change:kdf_upgrade', 'unlock:password']);
 });
 
 test('review PR #23 P1-3: verbergen tijdens unlock met KDF-upgrade: geen sessie; daarna werkt het wachtwoord', async () => {
   const fixture = JSON.parse(readFileSync(new URL('./fixtures/testbestand-formaat-1.json', import.meta.url), 'utf8'));
-  const dev = timedDevice();
+  const dev = timedDevice(REAL_ITERATIONS);
   const app = dev.controller();
   await app.start();
   app.goToStep('restore');
@@ -1171,7 +1173,9 @@ test('review PR #23 P2: een werkstandopslag die niet antwoordt, houdt vergrendel
   const never = new Promise(() => {});
   const workStore = { save: () => never, load: () => never, clear: async () => true };
   const dev = timedDevice();
-  const app = await readyApp(dev, { workStore });
+  // Korte grens in de test; de app wacht hooguit WORK_STORE_MS (1 s).
+  const app = await readyApp(dev, { workStore, workStoreMs: 50 });
+  assert.equal(new AppController().deps.workStoreMs, 1000);
   assert.deepEqual(app.state.work, { tab: 'patients', sub: null, form: null });
   const t0 = Date.now();
   await app.lock();
@@ -1252,4 +1256,18 @@ test('review PR #23 ronde 2: twee exports met dezelfde naam; een late deeluitkom
   assert.equal(app.backupOpen(first.id), false, 'geen foutmelding bij de tweede');
   app.backupSaved(second.id);
   assert.equal(app.state.backup.saved, true);
+});
+
+test('issue #26: de app zelf gebruikt de standaard (2.000.000); de controller geeft kdfIterations door', async () => {
+  const app = new AppController();
+  assert.equal(app.deps.kdfIterations, C.DEFAULT_ITERATIONS);
+  assert.equal(TEST_ITERATIONS, C.MIN_ITERATIONS);
+  // Doorgeven bij onboarding en wachtwoord wijzigen (de standaard zelf: vault.test.mjs).
+  const dev = device();
+  await onboardFull(dev);
+  assert.equal(dev.backend.disk.meta.kdf.iterations, TEST_ITERATIONS);
+  dev.open = false;
+  const b = await unlocked(dev);
+  assert.equal(await b.changePassword({ password: PASSWORD }, PASSWORD2, PASSWORD2), true);
+  assert.equal(dev.backend.disk.meta.kdf.iterations, TEST_ITERATIONS);
 });

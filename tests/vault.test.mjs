@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as C from '../app/js/crypto.js';
 import * as V from '../app/js/vault.js';
+import { TEST_ITERATIONS } from './helpers/kluis.mjs';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -31,7 +32,7 @@ async function write(store, session, factory) {
 
 async function setup() {
   const store = V.emptyStore();
-  const { tx, session, recoveryKey } = await V.createInstallation({ password: PASSWORD, now: NOW });
+  const { tx, session, recoveryKey } = await V.createInstallation({ password: PASSWORD, now: NOW, iterations: TEST_ITERATIONS });
   V.applyTx(store, tx);
   return { store, session, recoveryKey };
 }
@@ -117,7 +118,7 @@ test('herstelsleutel: ontgrendelen, nieuw wachtwoord; oud werkt niet meer, nieuw
   const messy = recoveryKey.toLowerCase().replace(/-/g, ' ');
   const { session } = await V.unlock(store, { recoveryKey: messy });
   await write(store, session, () => V.changePasswordTx(store, session,
-    { current: { recoveryKey }, newPassword: PASSWORD2, detail: 'recovery', now: NOW }));
+    { current: { recoveryKey }, newPassword: PASSWORD2, detail: 'recovery', now: NOW, iterations: TEST_ITERATIONS }));
   await assert.rejects(V.unlock(store, { password: PASSWORD }), C.WrongSecretError);
   const s2 = await unlockAndLog(store, { password: PASSWORD2 });
   await V.fullCheck(store, s2);
@@ -236,7 +237,7 @@ test('back-up terugzetten met herstelsleutel: nieuw wachtwoord verplicht; daarna
   const file = await makeBackup(store, session);
   await assert.rejects(V.restoreTx(file, { recoveryKey }, { now: NOW }), C.FormatError);
   const target = V.emptyStore();
-  V.applyTx(target, (await V.restoreTx(file, { recoveryKey }, { newPassword: PASSWORD2, now: NOW })).tx);
+  V.applyTx(target, (await V.restoreTx(file, { recoveryKey }, { newPassword: PASSWORD2, now: NOW, iterations: TEST_ITERATIONS })).tx);
   await assert.rejects(V.unlock(target, { password: PASSWORD }), C.WrongSecretError);
   const s2 = await unlockAndLog(target, { password: PASSWORD2 });
   await V.fullCheck(target, s2);
@@ -253,12 +254,13 @@ test('ongeldig back-upbestand wordt geweigerd; de lege opslag blijft leeg', asyn
   const variants = {
     'inhoud gewijzigd': line1 + '\n' + (line2[10] === 'A' ? line2.slice(0, 10) + 'B' : line2.slice(0, 10) + 'A') + line2.slice(11) + '\n',
     'header met spatie': line1.replace('{"magic"', '{ "magic"') + '\n' + line2 + '\n',
-    'iterations gewijzigd': line1.replace('"iterations":' + C.DEFAULT_ITERATIONS, '"iterations":' + (C.DEFAULT_ITERATIONS + 1)) + '\n' + line2 + '\n',
+    'iterations gewijzigd': line1.replace('"iterations":' + store.meta.kdf.iterations, '"iterations":' + (store.meta.kdf.iterations + 1)) + '\n' + line2 + '\n',
     'extra regel': text + 'x\n',
     'zonder afsluitende regel': text.slice(0, -1),
     'BOM': '﻿' + text,
     'CRLF': text.replace(/\n/g, '\r\n'),
   };
+  assert.notEqual(variants['iterations gewijzigd'], text, 'de variant wijzigt echt iets');
   for (const [name, bad] of Object.entries(variants)) {
     const target = V.emptyStore();
     await assert.rejects(V.restoreTx(C.utf8(bad), { password: PASSWORD }, { now: NOW }), Error, name);
@@ -301,7 +303,7 @@ test('sleutels vernieuwen; back-up met controlepunt uit een eerdere epoch wordt 
   let session = await unlockAndLog(store, { password: PASSWORD });
   const id = (await putRecord(store, session, { kind: 'test_persoon', data: { v: 1 } })).putRecords[0].id;
   await commit(store, await V.prepareReservation(store, session, 0));
-  const { tx, recoveryKey } = await V.rotateKeysTx(store, session, { current: { password: PASSWORD }, newPassword: PASSWORD2, now: NOW });
+  const { tx, recoveryKey } = await V.rotateKeysTx(store, session, { current: { password: PASSWORD }, newPassword: PASSWORD2, now: NOW, iterations: TEST_ITERATIONS });
   V.applyTx(store, tx);
   assert.equal(store.meta.epoch, 2);
   await assert.rejects(V.unlock(store, { password: PASSWORD }), C.WrongSecretError);
@@ -312,7 +314,7 @@ test('sleutels vernieuwen; back-up met controlepunt uit een eerdere epoch wordt 
 
   const file = await makeBackup(store, session);
   const target = V.emptyStore();
-  V.applyTx(target, (await V.restoreTx(file, { recoveryKey }, { newPassword: PASSWORD, now: NOW })).tx);
+  V.applyTx(target, (await V.restoreTx(file, { recoveryKey }, { newPassword: PASSWORD, now: NOW, iterations: TEST_ITERATIONS })).tx);
   const s3 = await unlockAndLog(target, { password: PASSWORD });
   await V.fullCheck(target, s3);
 
@@ -488,13 +490,26 @@ test('back-up van een onbekend (nieuwer) formaat geeft een eigen melding', async
 test('nieuwe wraps met DEFAULT_ITERATIONS (2.000.000): installatie en wachtwoord wijzigen', async () => {
   assert.equal(C.DEFAULT_ITERATIONS, 2000000);
   assert.equal(C.MIN_ITERATIONS, 600000);
-  const { store } = await setup();
+  // Echte standaard: geen iterations meegegeven, zoals de app (issue #26).
+  const store = V.emptyStore();
+  V.applyTx(store, (await V.createInstallation({ password: PASSWORD, now: NOW })).tx);
   assert.equal(store.meta.kdf.iterations, 2000000);
   const session = await unlockAndLog(store, { password: PASSWORD });
   await write(store, session, () => V.changePasswordTx(store, session,
     { current: { password: PASSWORD }, newPassword: PASSWORD2, now: NOW }));
   assert.equal(store.meta.kdf.iterations, 2000000);
   assert.equal(V.needsKdfUpgrade(store.meta, session, PASSWORD2), false);
+});
+
+test('iterations in tests: minimum toegestaan, buiten de grenzen van het formaat geweigerd (issue #26)', async () => {
+  const { store } = await setup();
+  assert.equal(store.meta.kdf.iterations, TEST_ITERATIONS);
+  const { session } = await V.unlock(store, { password: PASSWORD });
+  assert.equal(V.needsKdfUpgrade(store.meta, session, PASSWORD, TEST_ITERATIONS), false, 'test-drempel: geen upgrade');
+  assert.equal(V.needsKdfUpgrade(store.meta, session, PASSWORD), true, 'echte standaard: wel upgrade');
+  for (const bad of [C.MIN_ITERATIONS - 1, C.MAX_ITERATIONS + 1, 1000, 1.5]) {
+    await assert.rejects(V.createInstallation({ password: PASSWORD, now: NOW, iterations: bad }), C.FormatError, String(bad));
+  }
 });
 
 test('KDF-upgrade in de unlock-transactie: 600.000 wordt 2.000.000, zelfde wachtwoord, één transactie', async () => {
