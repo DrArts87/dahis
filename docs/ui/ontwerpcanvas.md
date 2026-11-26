@@ -62,10 +62,13 @@ kop en lint).
    aan de code: wijkt de bouw af van het ontwerp (een tekst, een melding),
    dan past Claude het voorstel aan. De PR-beschrijving noemt de geraakte
    schermen op het canvas.
-5. **Na de merge**: het voorstel vervangt het scherm op Productie (zelfde
-   plek, nieuwe versie in de titel); het oude scherm wordt weggehaald. Alleen
-   de geraakte schermen veranderen. De opmerkingsdraden van het voorstel gaan
-   met een korte notitie naar Archief.
+5. **Na de merge**: eerst geeft Claude in een eigen bericht de releasetekst
+   en de teststappen (`CLAUDE.md` §3), zodat de gebruiker meteen kan
+   uitbrengen en testen. Daarna, in een tweede bericht, het canvas: het
+   voorstel vervangt het scherm op Productie (zelfde plek, nieuwe versie in
+   de titel); het oude scherm wordt weggehaald. Alleen de geraakte schermen
+   veranderen. De opmerkingsdraden van het voorstel gaan met een korte
+   notitie naar Archief (#48).
 
 **Uitzondering**: raakt een PR iets wat op alle schermen staat (kop, lint,
 kleuren, zoals #32), dan werkt Claude alle schermen op Productie in één keer
