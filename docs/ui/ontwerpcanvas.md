@@ -19,11 +19,14 @@ kop en lint).
 - Pagina's:
   - **Productie**: alle schermen zoals ze op `main` staan, gegroepeerd per
     onderdeel (lint-tabbladen, subschermen van Meer, groene schermen). Elk
-    scherm heeft de versie in de titel, bijvoorbeeld *Instellingen – 0.4.4*.
+    scherm heeft in de titel de versie waarin het voor het laatst veranderde,
+    bijvoorbeeld *Instellingen – 0.4.4*; schermen die niet veranderen,
+    houden hun versie. Zo is per release te zien wat er anders is.
   - **Voorstellen**: ontwerpen in uitvoering, met het issuenummer in de
     titel, bijvoorbeeld *#29 Instellingen – voorstel*.
-  - **Archief**: afgeronde of afgewezen voorstellen, met hun
-    opmerkingsdraden.
+  - **Archief**: de opmerkingsdraden van afgeronde of afgewezen voorstellen,
+    met een korte notitie. Oude versies van schermen worden niet bewaard (het
+    canvas houdt zelf een versiegeschiedenis bij).
 - Maat: telefoon 390 × 844; een klein toestel 360 × 640 waar lengte of
   scrollen ertoe doet.
 - Stijl: kleuren uit `app/css/app.css`, teksten uit `app/js/i18n/nl.js`,
@@ -44,8 +47,9 @@ kop en lint).
 
 ## De ronde
 
-1. **Voorstel**: Claude zet het huidige scherm (van Productie) en een
-   voorstel op de pagina Voorstellen, met het issuenummer in de titel.
+1. **Voorstel**: Claude kopieert het huidige scherm van Productie naar
+   Voorstellen en ontwerpt daar, met het issuenummer in de titel. Een nieuw
+   scherm begint direct op Voorstellen.
 2. **Opmerkingen**: de gebruiker past zelf aan of plaatst een opmerking op
    een onderdeel en stuurt die naar Claude. Claude verwerkt de opmerking op
    het canvas en antwoordt in de draad; de gebruiker sluit de draad.
@@ -53,13 +57,24 @@ kop en lint).
    issue (label `ui`, met plan, risico's en acceptatiecriteria) of in het
    bestaande issue. Afwijkingen van het ontwerp die bij het bouwen nodig
    blijken, vraagt Claude eerst aan de gebruiker.
-4. **Bouwen**: op een topic-branch, volgens `CLAUDE.md` §2–§4.
-5. **Na merge en release**: Claude werkt het scherm op Productie bij (nieuwe
-   versie in de titel) en zet het voorstel in Archief. Dat hoort bij de
-   releasestap, zodat Productie niet achterloopt.
+4. **Bouwen en bijhouden**: op een topic-branch, volgens `CLAUDE.md` §2–§4.
+   In een PR die de UI raakt, houdt Claude het voorstel op het canvas gelijk
+   aan de code: wijkt de bouw af van het ontwerp (een tekst, een melding),
+   dan past Claude het voorstel aan. De PR-beschrijving noemt de geraakte
+   schermen op het canvas.
+5. **Na de merge**: het voorstel vervangt het scherm op Productie (zelfde
+   plek, nieuwe versie in de titel); het oude scherm wordt weggehaald. Alleen
+   de geraakte schermen veranderen. De opmerkingsdraden van het voorstel gaan
+   met een korte notitie naar Archief.
 
-Het canvas is een nagebouwde kopie van de app en kan dus achterlopen. Twijfel
-je, vergelijk dan de versie in de titel met *Meer → Over deze app*.
+**Uitzondering**: raakt een PR iets wat op alle schermen staat (kop, lint,
+kleuren, zoals #32), dan werkt Claude alle schermen op Productie in één keer
+bij. Dat gebeurt met een hulpscript dat de schermen uit de echte app haalt
+(wegwerpprofiel, verzonnen gegevens; buiten de repository, zoals de andere
+Playwright-scripts); de PR noemt dat.
+
+Het canvas is een kopie van de app en kan dus achterlopen. Twijfel je,
+vergelijk dan de versie in de titel met *Meer → Over deze app*.
 
 ## Beginnen in een nieuwe chat
 
