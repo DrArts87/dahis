@@ -426,6 +426,7 @@ vh  = SHA-256(aad ‖ iv ‖ ct)                   (versiehash)
 | kind | schema | Sinds | Omschrijving |
 |---|---|---|---|
 | `settings` | 1 | app 0.1.0 (taak 5) | Instellingen van de app: `data` is een object met vaste sleutels uit `app/js/settings.js`; onbekende sleutels en ongeldige waarden gelden als de standaard. Eén record per installatie |
+| `prescriber` | 1 | app 0.5.0 (stap D2) | Gegevens van de voorschrijver (de gebruiker zelf): `data` is een object met tekstvelden uit `app/js/prescriber.js` (`name`, `profession`, `big`, `agb`, `practice`, `address`, `postcode`, `city`, `phone`, `email`), alle verplicht; onbekende velden vallen weg, een ongeldig veld geldt als ontbrekend. Eén record per installatie |
 
 Tests gebruiken `test_*`.
 

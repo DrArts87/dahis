@@ -11,3 +11,18 @@ import * as C from '../../app/js/crypto.js';
 
 export const TEST_ITERATIONS = C.MIN_ITERATIONS;
 export const REAL_ITERATIONS = C.DEFAULT_ITERATIONS;
+
+// Verzonnen voorschrijver voor tests: geen echte persoon, nummers met alleen
+// nullen, een gereserveerd e-maildomein. Het gaat alleen om het formaat.
+export const TEST_PRESCRIBER = Object.freeze({
+  name: 'Dr. T. Testpersoon',
+  profession: 'arts',
+  big: '00000000000',
+  agb: '00000000',
+  practice: 'vrij gevestigd',
+  address: 'Teststraat 1',
+  postcode: '9999 ZZ',
+  city: 'Teststad',
+  phone: '000 000 0000',
+  email: 'test@example.invalid',
+});
