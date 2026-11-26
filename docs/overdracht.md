@@ -29,7 +29,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 | #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
 | #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd. Daarna door de gebruiker: sjablonen ingevuld, DPIA-besluit ondertekend, incidentenregister, checklist apparaten, tweestapsverificatie, herstelsleutel opgeborgen; agenda *App onderhoud* met drie terugkerende afspraken |
-| D1 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen (`kdfUpgradeTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`). Delen terug naast Downloaden (alleen met wachttijd > 0; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). `nen7510.md`, `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `SECURITY.md` bijgewerkt |
+| #23 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen (`kdfUpgradeTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`). Delen terug naast Downloaden (alleen met wachttijd > 0; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). `nen7510.md`, `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `SECURITY.md` bijgewerkt |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -49,7 +49,7 @@ taak 1–10 klaar. De acceptatietest
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
 echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
-[vervolgplan](plans/2026-11-26-vervolgplan.md); stap D1 staat in een PR
+[vervolgplan](plans/2026-11-26-vervolgplan.md); stap D1 staat in PR #23
 (versie 0.4.0); daarna de proef op de OnePlus (plan D1) en **stap D2**
 (voorschrijver).
 
@@ -156,7 +156,7 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 ## Volgende stap
 
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B en C
-zijn klaar; D1 staat in een PR (versie 0.4.0). Na de merge: releasetekst
+zijn klaar; D1 staat in PR #23 (versie 0.4.0). Na de merge: releasetekst
 met codehash (`CLAUDE.md` §3), release door de gebruiker, en de proef op de
 OnePlus uit het [plan D1](plans/2026-11-26-d1-vergrendelen.md) (onder
 meer **Delen**: lukt dat niet, dan gaat de knop eruit en stelt Claude een
