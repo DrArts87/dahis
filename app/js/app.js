@@ -3,6 +3,7 @@
 // alleen schermen. Teksten: i18n/nl.js.
 import {
   el, replace, symbol, collectInputs, restoreInputs, clearSecretInputs, isSecretInput,
+  collectScroll, restoreScroll,
 } from './dom.js';
 import { t } from './i18n.js';
 import {
@@ -1160,6 +1161,7 @@ function formKey() {
 function render() {
   const focused = document.activeElement && document.activeElement.id;
   const saved = ui.clearInputs ? new Map() : collectInputs(root.querySelectorAll('input[id]'), lastFormKey);
+  const scroll = collectScroll(root.querySelector('.inner'), lastFormKey);
   replace(root, view());
   // Werkvelden uit de werkstand (stap D1); de invoer van dit moment gaat voor.
   const form = app.state.work.form;
@@ -1170,6 +1172,8 @@ function render() {
   }
   lastFormKey = formKey();
   restoreInputs(saved, root.querySelectorAll('input[id]'), lastFormKey);
+  // Vóór de focus: een veld met focus schuift zo nodig daarna in beeld.
+  restoreScroll(scroll, root.querySelector('.inner'), lastFormKey);
   if (!app.state.busy) ui.clearInputs = false;
   const target = (focused && document.getElementById(focused)) || root.querySelector('[role="alert"]');
   if (target && typeof target.focus === 'function' && target.tagName !== 'P') target.focus();

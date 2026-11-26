@@ -76,6 +76,21 @@ export function restoreInputs(saved, inputs, formKey = null) {
   }
 }
 
+// --- Scrollpositie bewaren bij opnieuw tekenen (#32) ---------------------------
+//
+// Alleen het middendeel (.inner) scrolt. Omdat elk tekenen het scherm opnieuw
+// opbouwt, gaat de positie terug op hetzelfde scherm (zelfde sleutel); op een
+// ander scherm begint het bovenaan. Werkt op alles met {scrollTop}.
+
+export function collectScroll(node, key = null) {
+  return { key, top: node ? node.scrollTop : 0 };
+}
+
+export function restoreScroll(saved, node, key = null) {
+  if (!node) return;
+  node.scrollTop = saved && saved.key === key ? saved.top : 0;
+}
+
 // Bij verbergen van de app: geheime invoer wissen, ook als de app open
 // blijft (wachttijd) of vergrendeld is en dus niet herlaadt.
 export function clearSecretInputs(inputs) {
