@@ -13,7 +13,7 @@ import {
 } from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
-import { TEST_ITERATIONS, REAL_ITERATIONS, TEST_PRESCRIBER } from './helpers/kluis.mjs';
+import { TEST_ITERATIONS, REAL_ITERATIONS, TEST_PRESCRIBER, TEST_SIGNATURE, makeTestSignature } from './helpers/kluis.mjs';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -100,7 +100,7 @@ async function onboardFull(dev) {
   await first.start();
   assert.equal(await first.unlock({ password: PASSWORD }), true);
   assert.equal(first.state.view, 'prescriber');
-  assert.equal(await first.savePrescriber(TEST_PRESCRIBER), true);
+  assert.equal(await first.savePrescriber(TEST_PRESCRIBER, TEST_SIGNATURE), true);
   assert.equal(first.state.view, 'ready');
   await first.lock();
   dev.reloads -= 1;   // zoals voorheen: één herlading per onboarding
@@ -1317,14 +1317,20 @@ test('D2: vaste stap na de eerste ontgrendeling; ongeldige invoer schrijft niets
   const before = canon(dev.backend.disk);
   const bad = Object.assign({}, TEST_PRESCRIBER, { big: '123', email: '' });
   assert.equal(await b.savePrescriber(bad), false);
-  assert.deepEqual(b.state.prescriberErrors, { big: 'prescriber.error.big', email: 'prescriber.error.required' });
+  assert.deepEqual(b.state.prescriberErrors, {
+    big: 'prescriber.error.big', email: 'prescriber.error.required', signature: 'signature.error.required',
+  });
   assert.equal(b.state.message.key, 'prescriber.invalid');
   assert.equal(b.state.view, 'prescriber');
   assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
   // Andere handelingen kunnen nog niet.
   assert.equal(await b.saveSetting('lock.idleMinutes', 5), false);
   assert.equal(await b.makeBackup(), false);
-  assert.equal(await b.savePrescriber(TEST_PRESCRIBER), true);
+  // Zonder handtekening: niet compleet (0.5.2, verplicht).
+  assert.equal(await b.savePrescriber(TEST_PRESCRIBER), false);
+  assert.deepEqual(b.state.prescriberErrors, { signature: 'signature.error.required' });
+  assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
+  assert.equal(await b.savePrescriber(TEST_PRESCRIBER, TEST_SIGNATURE), true);
   assert.equal(b.state.view, 'ready');
   assert.deepEqual(b.state.prescriberErrors, {});
   assert.equal(b.state.message.key, 'prescriber.saved');
@@ -1350,9 +1356,10 @@ test('D2: in de vaste stap geldt de wachttijd (opzoeken in een andere app); verg
   fresh.advance(2 * MIN);
   b.visible();
   assert.equal(b.state.view, 'prescriber');
-  await b.savePrescriber(TEST_PRESCRIBER);
+  await b.savePrescriber(TEST_PRESCRIBER, TEST_SIGNATURE);
   await b.lock();
   assert.deepEqual(b.state.prescriber, {}, 'uit het geheugen');
+  assert.equal(b.state.signature, null, 'handtekening uit het geheugen');
   assert.equal(b.prescriberId, null);
 });
 
@@ -1469,4 +1476,91 @@ test('review PR #39 P2: vergrendelen tijdens het inlezen van voorschrijver of in
     assert.equal(app.settingsId, null, which);
     assert.equal(app.session, null, which);
   }
+});
+
+// --- 0.5.2: handtekening -------------------------------------------------------------------
+
+test('0.5.2: handtekening verplicht, samen met de gegevens in één transactie; logboek zonder inhoud', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(app.state.view, 'ready');
+  assert.deepEqual(app.state.signature, Object.assign({}, TEST_SIGNATURE));
+  // Wijzigen: gegevens en nieuwe handtekening samen; zonder nieuwe blijft de oude.
+  const other = makeTestSignature(60, 20);
+  assert.equal(await app.savePrescriber(TEST_PRESCRIBER, other), true);
+  assert.equal(app.state.signature.width, 60);
+  assert.equal(await app.savePrescriber(Object.assign({}, TEST_PRESCRIBER, { city: 'Andere Teststad' })), true);
+  assert.equal(app.state.signature.width, 60, 'zonder nieuwe handtekening blijft de opgeslagen');
+  await app.lock();
+  dev.open = false;
+  const again = await unlocked(dev);
+  assert.equal(again.state.signature.width, 60);
+  const log = await prescriberLog(dev.backend.disk);
+  assert.deepEqual(log.filter((c) => c.kind === 'signature').map((c) => c.action), ['create', 'update']);
+  // De onboarding schreef voorschrijver en handtekening in één transactie.
+  const first = log.filter((c) => c.kind === 'prescriber' || c.kind === 'signature').slice(0, 2);
+  assert.deepEqual(first.map((c) => c.kind + ':' + c.action), ['prescriber:create', 'signature:create']);
+  assert.ok(!JSON.stringify(log).includes(TEST_SIGNATURE.png.slice(0, 20)), 'geen plaatje in het logboek');
+});
+
+test('0.5.2: ongeldige handtekening geweigerd, niets geschreven', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const before = canon(dev.backend.disk);
+  const bad = [
+    Object.assign({}, TEST_SIGNATURE, { width: 41 }),                 // past niet bij de PNG
+    Object.assign({}, TEST_SIGNATURE, { type: 'image/jpeg' }),
+    Object.assign({}, TEST_SIGNATURE, { png: 'bm90IGVlbiBwbmc=' }),   // geen PNG
+    Object.assign({}, TEST_SIGNATURE, { extra: 1 }),
+  ];
+  for (const sig of bad) {
+    assert.equal(await app.savePrescriber(TEST_PRESCRIBER, sig), false);
+    assert.equal(app.state.prescriberErrors.signature, 'signature.error.invalid');
+  }
+  assert.equal(canon(dev.backend.disk), before);
+});
+
+test('0.5.2: handtekening gaat mee in de back-up; zonder handtekening eerst de vaste stap', async () => {
+  const a = device();
+  await onboard(a);
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const app = b.controller();
+  await app.start();
+  app.goToStep('restore');
+  assert.equal(await app.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+  await app.lock();
+  b.open = false;
+  const opened = await unlocked(b);
+  assert.equal(opened.state.view, 'ready');
+  assert.deepEqual(opened.state.signature, Object.assign({}, TEST_SIGNATURE));
+  // Een opslag met voorschrijver maar zonder handtekening (0.5.0/0.5.1): vaste stap.
+  const c = device();
+  await onboard(c);
+  const x = await unlocked(c);
+  await x.queue.run(x.session, (store, s, now) => V.destroyRecordTx(store, s, { id: x.signatureId, now }));
+  await x.lock();
+  c.open = false;
+  const y = await unlocked(c);
+  assert.equal(y.state.view, 'prescriber');
+  assert.equal(y.state.signature, null);
+  assert.equal(y.state.prescriber.name, TEST_PRESCRIBER.name, 'gegevens blijven');
+});
+
+test('0.5.2: vergrendelen tijdens het inlezen van de handtekening laat niets in het geheugen', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = dev.controller();
+  await app.start();
+  const original = app.readSignature.bind(app);
+  app.readSignature = async (session) => {
+    const result = await original(session);
+    await app.lock();
+    return result;
+  };
+  assert.equal(await app.unlock({ password: PASSWORD }), false);
+  assert.equal(app.state.signature, null);
+  assert.equal(app.signatureId, null);
 });

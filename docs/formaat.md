@@ -427,6 +427,7 @@ vh  = SHA-256(aad ‖ iv ‖ ct)                   (versiehash)
 |---|---|---|---|
 | `settings` | 1 | app 0.1.0 (taak 5) | Instellingen van de app: `data` is een object met vaste sleutels uit `app/js/settings.js`; onbekende sleutels en ongeldige waarden gelden als de standaard. Eén record per installatie |
 | `prescriber` | 1 | app 0.5.0 (stap D2) | Gegevens van de voorschrijver (de gebruiker zelf): `data` is een object met tekstvelden uit `app/js/prescriber.js` (`name`, `profession`, `big`, `agb`, `practice`, `address`, `postcode`, `city`, `phone`, `email`), alle verplicht; onbekende velden vallen weg, een ongeldig veld geldt als ontbrekend. Eén record per installatie |
+| `signature` | 1 | app 0.5.2 | Handtekening van de voorschrijver: `data` = `{type: "image/png", width, height, png}` met `png` in base64, een PNG zwart op transparant van hooguit 600 × 240 pixels en 200 KiB, waarvan breedte en hoogte in de IHDR gelijk zijn aan `width` en `height` (`app/js/signature.js`). Een ongeldige inhoud geldt als ontbrekend. Wordt samen met `prescriber` in één transactie geschreven. Eén record per installatie |
 
 Tests gebruiken `test_*`.
 

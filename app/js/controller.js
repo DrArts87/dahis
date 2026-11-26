@@ -46,6 +46,7 @@ import { measureChecks, measureBackup } from './benchmark.js';
 import {
   PRESCRIBER_KIND, PRESCRIBER_SCHEMA, readPrescriber, validatePrescriber, isComplete,
 } from './prescriber.js';
+import { SIGNATURE_KIND, SIGNATURE_SCHEMA, readSignature, isValidSignature } from './signature.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
@@ -266,8 +267,10 @@ export class AppController {
       awayNotice: false,          // melding: nieuwe instelling wachttijd nog niet bewaard
       prescriber: {},             // geldige velden van de voorschrijver (stap D2)
       prescriberErrors: {},       // veld -> tekstsleutel van de fout bij opslaan
+      signature: null,            // opgeslagen handtekening {type, width, height, png} (0.5.2)
     };
     this.prescriberId = null;
+    this.signatureId = null;
   }
 
   // --- Toestand ----------------------------------------------------------------
@@ -441,7 +444,7 @@ export class AppController {
     this.backupFile = null;
     this.set({
       view: 'halted', backup: null, haltCode: code, haltCheck: this.checkKind, checking: false,
-      step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {},
+      step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {}, signature: null,
     });
     this.checkKind = null;
     this.auditToken += 1;
@@ -595,8 +598,11 @@ export class AppController {
       this.alive(gen);
       const prescriber = await this.readPrescriber(session);
       this.alive(gen);
+      const signature = await this.readSignature(session);
+      this.alive(gen);
       this.applySettings(settings);
       this.applyPrescriber(prescriber);
+      this.applySignature(signature);
       const work = await this.loadWork(session);
       this.alive(gen);
       this.set({ work });
@@ -645,8 +651,9 @@ export class AppController {
 
   // Na ontgrendelen: eerst de gegevens van de voorschrijver als die nog niet
   // compleet zijn (vaste stap, besluit gebruiker 2026-11-26).
+  // Compleet = alle velden én een geldige handtekening (0.5.2, verplicht).
   readyView() {
-    return isComplete(this.state.prescriber) ? 'ready' : 'prescriber';
+    return isComplete(this.state.prescriber) && isValidSignature(this.state.signature) ? 'ready' : 'prescriber';
   }
 
   // Leest en ontsleutelt; verandert niets aan de toestand.
@@ -667,26 +674,54 @@ export class AppController {
     this.set({ prescriber, prescriberErrors: {} });
   }
 
+  // Leest en ontsleutelt de handtekening; een ongeldige geldt als ontbrekend.
+  async readSignature(session) {
+    const store = this.backend.store;
+    const ids = Array.from(new Set(store.records.filter((r) => r.kind === SIGNATURE_KIND).map((r) => r.id))).sort();
+    const id = ids.length ? ids[0] : null;
+    let data = null;
+    if (id) {
+      const rec = await V.readRecord(store, session, id);
+      if (rec && !rec.content.deleted) data = rec.content.data;
+    }
+    return { id, signature: readSignature(data) };
+  }
+
+  applySignature({ id, signature }) {
+    this.signatureId = id;
+    this.set({ signature });
+  }
+
   // Opslaan vanuit de vaste stap of vanuit Instellingen. Een ongeldig veld:
   // een melding per veld en niets geschreven.
-  async savePrescriber(input) {
+  // `signature`: een nieuwe handtekening ({type, width, height, png}), of
+  // null/undefined om de opgeslagen te houden. Velden en handtekening gaan in
+  // één transactie (alles of niets); de handtekening is verplicht (0.5.2).
+  async savePrescriber(input, signature) {
     const view = this.state.view;
     if (view !== 'ready' && view !== 'prescriber') return false;
     const result = validatePrescriber(input);
-    if (result.errors) {
-      this.set({ prescriberErrors: result.errors });
+    const errors = result.errors ? Object.assign({}, result.errors) : {};
+    const newSignature = signature === null || signature === undefined ? null : signature;
+    if (newSignature && !isValidSignature(newSignature)) errors.signature = 'signature.error.invalid';
+    else if (!newSignature && !isValidSignature(this.state.signature)) errors.signature = 'signature.error.required';
+    if (Object.keys(errors).length) {
+      this.set({ prescriberErrors: errors });
       this.say('prescriber.invalid');
       return false;
     }
     return this.guard(async (gen) => {
-      const id = this.prescriberId || undefined;
-      const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordTx(store, s, {
-        id, kind: PRESCRIBER_KIND, data: result.data, schema: PRESCRIBER_SCHEMA, now,
-      }));
+      const items = [{ id: this.prescriberId || undefined, kind: PRESCRIBER_KIND, data: result.data, schema: PRESCRIBER_SCHEMA }];
+      if (newSignature) {
+        items.push({ id: this.signatureId || undefined, kind: SIGNATURE_KIND, data: newSignature, schema: SIGNATURE_SCHEMA });
+      }
+      const tx = await this.queue.run(this.session, (store, s, now) => V.putRecordsTx(store, s, { items, now }));
       this.alive(gen);
       this.prescriberId = tx.putRecords[0].id;
+      if (newSignature) this.signatureId = tx.putRecords[1].id;
       this.set({
         prescriber: result.data, prescriberErrors: {}, lastFullCheckAt: this.session.lastFullCheckAt,
+        signature: newSignature ? readSignature(newSignature) : this.state.signature,
         view: this.state.view === 'prescriber' ? 'ready' : this.state.view,
       });
       this.say('prescriber.saved');
@@ -1074,9 +1109,10 @@ export class AppController {
     this.set({
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
       audit: null, checking: false, backup: null, fileCheck: null, work: defaultWork(),
-      prescriber: {}, prescriberErrors: {},
+      prescriber: {}, prescriberErrors: {}, signature: null,
     });
     this.prescriberId = null;
+    this.signatureId = null;
     try {
       // Nu NullWorkStore: er wordt niets bewaard. Vergrendelen wacht hooguit
       // WORK_STORE_MS op de opslag van de werkstand (review PR #23).
