@@ -15,8 +15,8 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.5.0';
-const CODE_HASH = 'f3109c6175afd9146c6b62e9e2423a18311319b32ee142df5e80fb98f44cc188';
+const VERSION = '0.5.1';
+const CODE_HASH = '025ccb43522ef6efdf33496c3cac86224036512eac40a4fea20068c18394da6d';
 const FILES = {
   'css/app.css': 'bfe8c1c7c3144c0cb6c6be24ac606b2ee78fe04429968a9d3aaeeec756c13bf1',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -27,14 +27,14 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': 'c909a7e4a0b5e83ed275128c886b78afd2e1a44e67d348a98a52f17e6ea0083b',
-  'js/app.js': 'c94abbb84d2f1fa47ef8574fd6ba2cbe97fc21c61d630e4f73f88f975b7bc5e7',
+  'js/app.js': '85bc156bcba1a2037dc3dac64f766769e10ccec16ce3703636332f41075d13ee',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
-  'js/controller.js': '525e5f38d1c8fd25e0ab82d7447037748fd2f9fb0e015a83f411b302617ddc49',
+  'js/controller.js': '776ec8e9bf5b827f385071d919dbd841f8f1b339fa94010c2ada11baf27cd4d9',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',
   'js/dom.js': 'd01992736527ffc6a30e9c6654d04494c1ca68c6f3af4685d6448c07633415b9',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
   'js/i18n/nl.js': 'b1093abf878098fddc2a873734611cf146f039f6920fa703a584b95490fe7155',
-  'js/prescriber.js': 'a941979b7ce4e9395ddc276b604b209c44a48aa093a6f7b0405853d22ac9153a',
+  'js/prescriber.js': '782fbe211356a63f2c3f4542455e68376e03a36f919c4b674f53da7a323b1251',
   'js/settings.js': '21880f5f06ea53f9a24784bb19fe1b37c90df2ebec1abb4b28c3482892dffa6e',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
   'js/vault.js': '6c82f9f8c68e451591b2795e6a849bc35c66e04b24168c8e2ed24c31d06f1119',

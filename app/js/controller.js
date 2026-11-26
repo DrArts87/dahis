@@ -588,10 +588,15 @@ export class AppController {
         now, password: secret.password, iterations: this.deps.kdfIterations,
       }));
       this.alive(gen);
-      await this.loadSettings(session);
+      // Eerst inlezen, pas na alive(gen) in de toestand zetten: wie tijdens
+      // het ontsleutelen vergrendelt, krijgt niets terug in het geheugen
+      // (review PR #39, P2).
+      const settings = await this.readSettings(session);
       this.alive(gen);
-      await this.loadPrescriber(session);
+      const prescriber = await this.readPrescriber(session);
       this.alive(gen);
+      this.applySettings(settings);
+      this.applyPrescriber(prescriber);
       const work = await this.loadWork(session);
       this.alive(gen);
       this.set({ work });
@@ -644,16 +649,22 @@ export class AppController {
     return isComplete(this.state.prescriber) ? 'ready' : 'prescriber';
   }
 
-  async loadPrescriber(session = this.session) {
+  // Leest en ontsleutelt; verandert niets aan de toestand.
+  async readPrescriber(session) {
     const store = this.backend.store;
     const ids = Array.from(new Set(store.records.filter((r) => r.kind === PRESCRIBER_KIND).map((r) => r.id))).sort();
-    this.prescriberId = ids.length ? ids[0] : null;
+    const id = ids.length ? ids[0] : null;
     let data = null;
-    if (this.prescriberId) {
-      const rec = await V.readRecord(store, session, this.prescriberId);
+    if (id) {
+      const rec = await V.readRecord(store, session, id);
       if (rec && !rec.content.deleted) data = rec.content.data;
     }
-    this.set({ prescriber: readPrescriber(data), prescriberErrors: {} });
+    return { id, prescriber: readPrescriber(data) };
+  }
+
+  applyPrescriber({ id, prescriber }) {
+    this.prescriberId = id;
+    this.set({ prescriber, prescriberErrors: {} });
   }
 
   // Opslaan vanuit de vaste stap of vanuit Instellingen. Een ongeldig veld:
@@ -688,20 +699,26 @@ export class AppController {
 
   // --- Instellingen -----------------------------------------------------------------
 
-  async loadSettings(session = this.session) {
+  // Leest en ontsleutelt; verandert niets aan de toestand.
+  async readSettings(session) {
     const store = this.backend.store;
     const ids = Array.from(new Set(store.records.filter((r) => r.kind === SETTINGS_KIND).map((r) => r.id))).sort();
-    this.settingsId = ids.length ? ids[0] : null;
+    const id = ids.length ? ids[0] : null;
     let data = null;
-    if (this.settingsId) {
-      const rec = await V.readRecord(store, session, this.settingsId);
+    if (id) {
+      const rec = await V.readRecord(store, session, id);
       if (rec && !rec.content.deleted) data = rec.content.data;
     }
     // Nieuwe instelling nog niet bewaard (opslag van vóór 0.4.0, of nooit
     // een instelling gewijzigd): één keer melden (review PR #23).
     const stored = data && typeof data === 'object' && !Array.isArray(data)
       && Object.prototype.hasOwnProperty.call(data, 'lock.awayMinutes');
-    this.set({ settings: normalizeSettings(data), awayNotice: !stored });
+    return { id, settings: normalizeSettings(data), awayNotice: !stored };
+  }
+
+  applySettings({ id, settings, awayNotice }) {
+    this.settingsId = id;
+    this.set({ settings, awayNotice });
   }
 
   // "Begrepen" bij de melding: de huidige waarde bewaren, dan verdwijnt de
