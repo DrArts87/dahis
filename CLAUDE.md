@@ -61,7 +61,8 @@ Begin van een sessie
 UI-ontwerp
 - Grotere UI-wijzigingen en nieuwe schermen eerst op het ontwerpcanvas
   *Dahis – Schermen*, volgens [`docs/ui/ontwerpcanvas.md`](docs/ui/ontwerpcanvas.md).
-  Na merge en release werkt Claude de pagina *Productie* bij.
+  In een PR die de UI raakt, houdt Claude het voorstel op het canvas gelijk
+  aan de code; na de merge vervangt het voorstel het scherm op *Productie*.
 
 Na een codewijziging
 1. `python3 tools/release.py` na elke wijziging in `app/` (anders weigert de

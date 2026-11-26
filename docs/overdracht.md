@@ -148,8 +148,9 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    (`CLAUDE.md` §7).
 9. **Ontwerpen**: grotere UI-wijzigingen eerst op het ontwerpcanvas
    *Dahis – Schermen*; opmerkingen van de gebruiker op het canvas verwerkt
-   Claude daar en beantwoordt ze in de draad. Na merge en release werkt
-   Claude de pagina *Productie* bij ([werkwijze](ui/ontwerpcanvas.md)).
+   Claude daar en beantwoordt ze in de draad. In een PR die de UI raakt,
+   houdt Claude het voorstel gelijk aan de code; na de merge vervangt het
+   voorstel het scherm op *Productie* ([werkwijze](ui/ontwerpcanvas.md)).
 
 ## Code in het kort
 
@@ -192,10 +193,8 @@ mislukt; uitzoeken met de foutnaam) en
 [#33](https://github.com/DrArts87/dahis/issues/33) (voorbeeld in Recente
 apps; restrisico geaccepteerd).
 
-Ontwerpcanvas *Dahis – Schermen*: op Productie staan de lint-tabbladen
-(0.4.4). Nog te maken: ronde 2 (subschermen van Meer) en ronde 3 (groene
-schermen), zodra een van die schermen aan de beurt is of op verzoek
-([werkwijze](ui/ontwerpcanvas.md)).
+Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle 27 schermen van
+0.4.4 ([werkwijze](ui/ontwerpcanvas.md)).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
