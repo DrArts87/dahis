@@ -162,3 +162,12 @@ Eigen plan: [plan D2](2026-11-26-d2-voorschrijver.md) (akkoord gebruiker
 2026-11-26): record `prescriber`, alle velden verplicht, vaste stap na de
 eerste ontgrendeling, wijzigen onder Instellingen. Versie 0.5.0. Daarna mogen
 de eigen gegevens van de voorschrijver in de app.
+
+## Stap E: fase 2, patiëntenbestand
+
+Eigen plan: [plan fase 2](2026-11-26-fase-2-patientenbestand.md) (akkoord
+gebruiker 2026-11-26): taken E0–E6, elk met een eigen plan en PR; eerst fix
+0.5.3 (#41, #42), daarna gegevensmodel, lijst en zoeken, de UI-browsertest
+(#27), het dossier, het afdrukbare overzicht, Meer opsplitsen (#43, #44) en
+de volledige review van de keten. Patiëntgegevens pas na die review en het
+vaststellen van formaat 1.
