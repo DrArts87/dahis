@@ -149,3 +149,15 @@ Derde ronde (auditor, 2026-11-26): akkoord om te mergen. Het genoemde randgeval
 (*Wissen* tijdens de omzetting kon de gewiste tekening alsnog opslaan) is
 direct opgelost: *Wissen* begint een nieuw concept, zodat de wachtende opslag
 niets opslaat.
+
+### Uitkomst proef (2026-11-26, versie 0.5.2)
+Gemerged als #47, release `v0.5.2` (codehash `e315742f…2335228`).
+
+| Stap | Uitkomst |
+|---|---|
+| 1. *Jouw gegevens* opent met het blok *Handtekening* | In orde |
+| 2. Tekenen en *Wissen* | In orde |
+| 3. Afbeelding kiezen, wit wordt transparant | In orde. Sinds de review van #47 kan dit ook met *Direct* (de app blijft tijdens de bestandskiezer hooguit 3 minuten open) |
+| 4. Opslaan zonder handtekening | Op de telefoon niet te proberen tijdens de onboarding: de gegevens bestonden al. Gedekt door de controllertests (zonder handtekening niets geschreven, alleen de melding bij de handtekening, geen andere handelingen; een opslag zonder handtekening opent de vaste stap) en een controle in de cloudsessie: volledige onboarding in Chromium met een wegwerpprofiel en verzonnen gegevens; opslaan zonder handtekening blijft op "Stap 6 van 6" met de melding, ook na herladen en opnieuw ontgrendelen; met een getekende lijn naar het hoofdscherm |
+| 5. Instellingen → Voorschrijver, *Wijzigen* en opslaan | In orde |
+| 6. Logboek zonder inhoud; back-up maken en controleren | In orde |

@@ -2,8 +2,8 @@
 
 Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd), stap A–C
 van het vervolgplan (issues, browsertests in CI, compliance-toets), stap D1
-(versie 0.4.0), de fixes tot en met 0.4.4 en de werkwijze met het
-ontwerpcanvas. Dit document is het
+en D2 (tot en met versie 0.5.2, proef in orde) en de werkwijze met het
+ontwerpcanvas en na de merge (#48). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -38,13 +38,15 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #37 | Restrisico voorbeeld in Recente apps vastgelegd (`nen7510.md`, DPIA §6), issue #33; eerste PR met alleen documentatie (CI-selectie) |
 | #39 | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
 | #45 | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
-| (PR) | 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht |
+| #47 | Versie 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht. Proef op de OnePlus in orde; opslaan zonder handtekening tijdens de onboarding in de cloudsessie gecontroleerd |
+| (PR) | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
 
-**Live**: Pages is ingericht; release `v0.5.0` (codehash
-`f3109c6175afd9146c6b62e9e2423a18311319b32ee142df5e80fb98f44cc188`) staat op
+**Live**: Pages is ingericht; release `v0.5.2` (codehash
+`e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228`) staat op
 `https://drarts87.github.io/dahis/` (controleer met `sw.js` op de site). De
-gebruiker heeft 0.5.0 op de OnePlus nagelopen met de proef uit het
-[plan D2](plans/2026-11-26-d2-voorschrijver.md): alles in orde. Sinds 0.5.0
+gebruiker heeft 0.5.2 op de OnePlus nagelopen met de proef uit het
+[plan D2](plans/2026-11-26-d2-voorschrijver.md): alles in orde (stap 4 tijdens
+de onboarding gedekt door tests en een controle in de cloudsessie). Sinds 0.5.0
 mogen de **eigen gegevens van de voorschrijver** in de app; verder **alleen
 testgegevens**. Eerdere proeven (D1, 0.4.2) staan in de plannen; het voorbeeld
 in Recente apps is een geaccepteerd restrisico (#33).
@@ -61,9 +63,8 @@ taak 1–10 klaar. De acceptatietest
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
 echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
-[vervolgplan](plans/2026-11-26-vervolgplan.md); stap D1 staat in PR #23
-(versie 0.4.0); daarna de proef op de OnePlus (plan D1) en **stap D2**
-(voorschrijver).
+[vervolgplan](plans/2026-11-26-vervolgplan.md); stap D1 en D2 zijn klaar
+(tot en met 0.5.2); nu **stap E** (fase 2, patiëntenbestand).
 
 ## Belangrijkste documenten
 
@@ -130,9 +131,10 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    pushen. Per taak één PR; na de squash merge wordt de branch verwijderd en
    begint Claude opnieuw vanaf `main`.
 4. **Mergen** doet de gebruiker (*Squash and merge*), na groene controles,
-   *Verified* commits en de verplichte controle **JavaScript**. Daarna geeft
-   Claude de releasetekst met codehash en vraagt om de release
-   (`CLAUDE.md` §3).
+   *Verified* commits en de verplichte controle **JavaScript**. Daarna werkt
+   Claude in twee berichten (`CLAUDE.md` §3, #48): eerst de releasetekst met
+   codehash en de teststappen voor de proef, met het verzoek om de release;
+   daarna pas het canvas (voorstellen naar Productie).
 5. **Controles** vóór elke commit: zie `CLAUDE.md` §2. De pre-commit-hook
    werkt `app/sw.js` bij.
 6. **Reviews**: de gebruiker legt formaat en code voor aan een externe
@@ -178,12 +180,12 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B, C
 en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
 en lint (#34, 0.4.3), instellingen met vaste keuzes (#35, 0.4.4) en het
-restrisico van Recente apps (#37) en D2 (voorschrijver, #39, 0.5.0, proef in
-orde) en fix 0.5.1 (#45) zijn klaar. Nu: de PR van **0.5.2** (handtekening
-van de voorschrijver en stapnummers, #40), de release en de proef uit het
-[plan D2](plans/2026-11-26-d2-voorschrijver.md). Daarna **E** fase 2
-(patiëntenbestand). Begin elk plan met de open issues
-(`CLAUDE.md` §4). Open issues:
+restrisico van Recente apps (#37), D2 (voorschrijver, #39, 0.5.0), fix 0.5.1
+(#45) en 0.5.2 (handtekening en stapnummers, #47; release en proef in orde)
+zijn klaar. Nu: het plan voor **E** fase 2 (patiëntenbestand), daarna een
+volledige review van de keten. Begin met de open issues (`CLAUDE.md` §4);
+neem zo mogelijk de kleine UI-punten #41 en #42 mee, en zet #43 en #44 eerst
+als voorstel op het canvas. Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
 van de back-up; bij het vaststellen van formaat 1, blokkade vóór echte
@@ -201,9 +203,9 @@ nieuwe versie onleesbaar), [#42](https://github.com/DrArts87/dahis/issues/42)
 (back-up controleren vanuit Meer) en
 [#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen).
 
-Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle 29 schermen tot
-0.5.0, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:
-Jouw gegevens) ([werkwijze](ui/ontwerpcanvas.md)).
+Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle schermen tot
+0.5.2, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:
+Jouw gegevens); Voorstellen is leeg ([werkwijze](ui/ontwerpcanvas.md)).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
