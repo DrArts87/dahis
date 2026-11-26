@@ -7,7 +7,7 @@
 const subtle = globalThis.crypto.subtle;
 
 export const FORMAT = 1;
-export const DEFAULT_ITERATIONS = 600000;
+export const DEFAULT_ITERATIONS = 2000000;   // stap D1 (besluit 2026-11-26)
 export const MIN_ITERATIONS = 600000;
 export const MAX_ITERATIONS = 10000000;
 export const MIN_PASSWORD_LENGTH = 14;

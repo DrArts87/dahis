@@ -20,9 +20,8 @@ const k = (key) => key;
 
 const app = new AppController();
 
+// Scherm (tab, sub) staat in de werkstand van de controller (app.state.work).
 const ui = {
-  tab: 'patients',          // patients | recipes | settings | more
-  sub: null,                // password | about | measure | erase | audit | backup
   unlockMode: 'password',   // password | recovery
   lockedMode: 'unlock',     // unlock | file (back-up controleren op het vergrendelscherm)
   file: null,               // gekozen back-upbestand (File); overleeft opnieuw tekenen
@@ -212,30 +211,19 @@ async function install() {
 
 // --- Vergrendelen bij verbergen en inactiviteit ---------------------------------------
 
-let lastActivity = Date.now();
-
-function markActivity() {
-  lastActivity = Date.now();
-}
-
+// De beslissingen staan in de controller (stap D1): wachttijd na wisselen
+// van app in 'ready', anders direct; inactiviteit; pagehide altijd.
 for (const type of ['pointerdown', 'keydown', 'input', 'touchstart', 'wheel']) {
-  window.addEventListener(type, markActivity, { capture: true, passive: true });
-}
-
-function lockIfSecrets() {
-  if (app.shouldLockOnHide()) app.lock();
+  window.addEventListener(type, () => app.activity(), { capture: true, passive: true });
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') lockIfSecrets();
+  if (document.visibilityState === 'hidden') app.hidden();
+  else app.visible();
 });
-window.addEventListener('pagehide', lockIfSecrets);
+window.addEventListener('pagehide', () => app.pageClosed());
 
-setInterval(() => {
-  if (!app.shouldLockOnHide()) return;
-  const minutes = app.state.settings['lock.idleMinutes'];
-  if (Date.now() - lastActivity >= minutes * 60 * 1000) app.lock();
-}, 10 * 1000);
+setInterval(() => app.idleTick(), 10 * 1000);
 
 // --- Hulpmiddelen voor schermen ---------------------------------------------------------
 
@@ -470,13 +458,13 @@ function nav() {
   return el('nav', { class: 'navbar', 'aria-label': t('nav.label') },
     NAV.map((item) => el('button', {
       type: 'button',
-      'aria-current': ui.tab === item.tab ? 'page' : null,
-      onclick: () => { ui.tab = item.tab; ui.sub = null; app.closeAuditLog(); app.closeBackup(); app.say(null); onTab(); render(); },
+      'aria-current': app.state.work.tab === item.tab ? 'page' : null,
+      onclick: () => { app.showScreen(item.tab, null); app.closeAuditLog(); app.closeBackup(); app.say(null); onTab(); render(); },
     }, symbol(item.icon), t(item.label))));
 }
 
 function onTab() {
-  if (ui.tab === 'settings') app.refreshStorage();
+  if (app.state.work.tab === 'settings') app.refreshStorage();
 }
 
 function listItem(iconId, label, { value: val, onclick, danger, chevron = true, control } = {}) {
@@ -668,7 +656,9 @@ function onboardingDone() {
           el('dt', {}, t('onboarding.done.unlock')),
           el('dd', {}, t('onboarding.done.unlockTime', { s: seconds(app.state.pbkdfMs || 0) })),
           el('dt', {}, t('onboarding.done.lock')),
-          el('dd', {}, t('onboarding.done.lockText', { min: SETTINGS['lock.idleMinutes'].default })))),
+          el('dd', {}, t('onboarding.done.lockText', {
+            min: SETTINGS['lock.idleMinutes'].default, away: SETTINGS['lock.awayMinutes'].default,
+          })))),
       el('p', { class: 'note warn' }, t('onboarding.done.noBackup')),
       el('p', {}, t('onboarding.done.next')),
       button(t('onboarding.done.button'), () => app.lock(), 'primary'),
@@ -762,7 +752,7 @@ function backupReminder() {
   if (!backupDue(last)) return null;
   return el('div', { class: 'note warn reminder', role: 'status' },
     el('span', {}, last === null ? t('backup.reminderNever') : t('backup.reminderOld', { when: dateTime(last) })),
-    button(t('backup.reminderButton'), () => { ui.tab = 'more'; ui.sub = 'backup'; app.say(null); render(); }, 'small'));
+    button(t('backup.reminderButton'), () => { app.showScreen('more', 'backup'); app.say(null); render(); }, 'small'));
 }
 
 function patientsTab() {
@@ -778,16 +768,18 @@ function recipesTab() {
   return [el('h3', {}, t('recipes.recent')), emptyState(t('recipes.empty'))];
 }
 
-function idleSelect() {
-  const def = SETTINGS['lock.idleMinutes'];
-  const current = app.state.settings['lock.idleMinutes'];
+// Keuzelijst in minuten voor een instelling; 0 heet "Direct".
+function minutesSelect(id, key, label) {
+  const def = SETTINGS[key];
+  const current = app.state.settings[key];
   const options = [];
   for (let m = def.min; m <= def.max; m++) {
-    options.push(el('option', { value: String(m), selected: m === current }, t('settings.minutes', { n: m })));
+    options.push(el('option', { value: String(m), selected: m === current },
+      m === 0 ? t('settings.immediately') : t('settings.minutes', { n: m })));
   }
   return el('select', {
-    id: 'idle', 'aria-label': t('settings.idle'), disabled: app.state.busy,
-    onchange: (event) => app.saveSetting('lock.idleMinutes', Number(event.target.value)),
+    id, 'aria-label': label, disabled: app.state.busy,
+    onchange: (event) => app.saveSetting(key, Number(event.target.value)),
   }, options);
 }
 
@@ -802,11 +794,13 @@ function settingsTab() {
   return [
     el('h3', {}, t('settings.security')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
-      listItem('i-clock', t('settings.idle'), { control: idleSelect() }),
-      listItem('i-key', t('settings.password'), { onclick: () => { ui.sub = 'password'; app.say(null); render(); } }))),
+      listItem('i-clock', t('settings.idle'), { control: minutesSelect('idle', 'lock.idleMinutes', t('settings.idle')) }),
+      listItem('i-clock', t('settings.away'), { control: minutesSelect('away', 'lock.awayMinutes', t('settings.away')) }),
+      listItem('i-key', t('settings.password'), { onclick: () => { app.showSub('password'); app.say(null); render(); } }))),
     el('h3', {}, t('settings.device')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
       listItem('i-db', t('settings.storage'), { value: storageText() }))),
+    el('p', { class: 'muted' }, t('settings.awayNote')),
     el('p', { class: 'muted' }, t('settings.encrypted')),
   ];
 }
@@ -816,19 +810,19 @@ function moreTab() {
     el('h3', {}, t('more.data')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
       listItem('i-archive', t('more.backup'), {
-        value: dateTime(app.state.lastBackupAt), onclick: () => { ui.sub = 'backup'; app.say(null); render(); },
+        value: dateTime(app.state.lastBackupAt), onclick: () => { app.showSub('backup'); app.say(null); render(); },
       }),
       listItem('i-shield', t('more.check'), {
         value: checkValue(), onclick: () => app.runFullCheck(),
       }),
       listItem('i-clock', t('more.audit'), {
-        onclick: async () => { ui.sub = 'audit'; app.say(null); render(); await app.openAuditLog(); },
+        onclick: async () => { app.showSub('audit'); app.say(null); render(); await app.openAuditLog(); },
       }))),
     el('h3', {}, t('more.support')),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
-      listItem('i-gauge', t('more.measure'), { onclick: () => { ui.sub = 'measure'; app.say(null); render(); } }),
-      listItem('i-info', t('more.about'), { onclick: () => { ui.sub = 'about'; app.say(null); render(); } }),
-      listItem('i-trash', t('more.erase'), { danger: true, onclick: () => { ui.sub = 'erase'; app.say(null); render(); } }))),
+      listItem('i-gauge', t('more.measure'), { onclick: () => { app.showSub('measure'); app.say(null); render(); } }),
+      listItem('i-info', t('more.about'), { onclick: () => { app.showSub('about'); app.say(null); render(); } }),
+      listItem('i-trash', t('more.erase'), { danger: true, onclick: () => { app.showSub('erase'); app.say(null); render(); } }))),
   ];
 }
 
@@ -836,12 +830,14 @@ function appVersion() {
   return (sw.info && sw.info.version) || '0.0.0';
 }
 
-// Alleen downloaden: het deelmenu van Android verbergt de app, die dan
-// vergrendelt door te herladen, en dat breekt het delen af (proef op de
-// OnePlus, versie 0.3.0). Delen gaat daarna vanuit Bestanden → Downloads.
+// Downloaden kan altijd. Delen via het deelmenu alleen met een wachttijd na
+// wisselen van app (stap D1): het deelmenu verbergt de app, en zonder
+// wachttijd vergrendelt die direct door te herladen, wat het delen afbreekt
+// (proef op de OnePlus, versie 0.3.0).
 function downloadBackup() {
   const b = app.backupForDownload();
   if (!b) return;
+  app.backupSaved();
   const url = URL.createObjectURL(new Blob([b.text], { type: 'application/octet-stream' }));
   const a = el('a', { href: url, download: b.name, hidden: true });
   document.body.append(a);
@@ -850,12 +846,55 @@ function downloadBackup() {
   setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
 }
 
+// Bestandstypen die Chrome op Android mag delen, staan vast; .dahis hoort
+// er niet bij. Dan dezelfde inhoud als tekstbestand met .txt achter de naam
+// (het bestand is UTF-8-tekst; de naam doet bij het inlezen niet mee).
+function shareFile(b) {
+  if (typeof navigator.canShare !== 'function' || typeof File !== 'function') return null;
+  const candidates = [
+    new File([b.text], b.name, { type: 'application/octet-stream' }),
+    new File([b.text], b.name + '.txt', { type: 'text/plain' }),
+  ];
+  return candidates.find((f) => { try { return navigator.canShare({ files: [f] }); } catch (err) { return false; } }) || null;
+}
+
+function canShareBackup() {
+  return typeof navigator.share === 'function' && typeof navigator.canShare === 'function'
+    && app.state.settings['lock.awayMinutes'] > 0;
+}
+
+async function shareBackup() {
+  const b = app.backupForDownload();
+  if (!b) return;
+  app.say(null);   // geen melding van een vorige poging laten staan
+  const file = shareFile(b);
+  if (!file) { app.say('backup.shareUnsupported'); return; }
+  try {
+    await navigator.share({ files: [file], title: file.name });
+    app.backupSaved();
+  } catch (err) {
+    // Zelf geannuleerd (AbortError): geen melding. Elke andere fout wel, met
+    // Downloaden als alternatief: de back-up is al gemaakt en gecontroleerd.
+    if (!err || err.name !== 'AbortError') app.say('backup.shareFailed');
+  }
+}
+
+// Na downloaden of delen: alleen de laatste vier bewaren (#19), met de datum
+// van de vorige back-up zodat zichtbaar is welke bestanden weg kunnen.
+function cleanupNote(b) {
+  if (!b.saved) return null;
+  const text = b.previousAt === null
+    ? t('backup.cleanupFirst')
+    : t('backup.cleanup', { when: dateTime(b.previousAt) });
+  return el('p', { class: 'note', role: 'status' }, text);
+}
+
 function backupScreen() {
   const b = app.state.backup;
   return page({
     head: header({
       title: t('backup.title'), lock: true,
-      back: backLink(t('nav.more'), () => { ui.sub = null; app.closeBackup(); app.say(null); render(); }),
+      back: backLink(t('nav.more'), () => { app.showSub(null); app.closeBackup(); app.say(null); render(); }),
     }),
     body: [
       el('p', {}, t('backup.text')),
@@ -864,8 +903,10 @@ function backupScreen() {
       el('p', { class: 'muted' }, t('backup.policy')),
       b ? [
         el('section', { class: 'card' }, el('p', { class: 'hash' }, t('backup.file', { name: b.name, size: fileSize(b.bytes) }))),
-        button(t('backup.download'), downloadBackup, 'primary'),
-        el('p', { class: 'muted' }, t('backup.afterDownload')),
+        canShareBackup() ? button(t('backup.share'), shareBackup, 'primary') : null,
+        button(t('backup.download'), downloadBackup, canShareBackup() ? '' : 'primary'),
+        el('p', { class: 'muted' }, canShareBackup() ? t('backup.afterShare') : t('backup.afterDownload')),
+        cleanupNote(b),
       ] : button(t('backup.make'), () => app.makeBackup({ appVersion: appVersion() }), 'primary'),
     ],
     navbar: true,
@@ -877,7 +918,7 @@ function changePasswordScreen() {
   return page({
     head: header({
       title: t('settings.password'), lock: true,
-      back: backLink(t('nav.settings'), () => { ui.sub = null; app.say(null); render(); }),
+      back: backLink(t('nav.settings'), () => { app.showSub(null); app.say(null); render(); }),
     }),
     body: form(() => {
       const current = recovery ? { recoveryKey: value('cur') } : { password: value('cur') };
@@ -918,7 +959,7 @@ function aboutScreen() {
   return page({
     head: header({
       title: t('more.about'), lock: true,
-      back: backLink(t('nav.more'), () => { ui.sub = null; render(); }),
+      back: backLink(t('nav.more'), () => { app.showSub(null); render(); }),
     }),
     body: [
       el('section', { class: 'card' },
@@ -957,7 +998,7 @@ function auditScreen() {
   return page({
     head: header({
       title: t('more.audit'), lock: true,
-      back: backLink(t('nav.more'), () => { ui.sub = null; app.closeAuditLog(); app.say(null); render(); }),
+      back: backLink(t('nav.more'), () => { app.showSub(null); app.closeAuditLog(); app.say(null); render(); }),
     }),
     body: [
       el('p', { class: 'muted' }, t('audit.text')),
@@ -997,7 +1038,7 @@ function measureScreen() {
   return page({
     head: header({
       title: t('more.measure'), lock: true,
-      back: backLink(t('nav.more'), () => { ui.sub = null; render(); }),
+      back: backLink(t('nav.more'), () => { app.showSub(null); render(); }),
     }),
     body: [
       el('p', {}, t('measure.text')),
@@ -1024,18 +1065,18 @@ function eraseScreen(halted) {
   return page({
     head: header({
       title: t('erase.title'),
-      back: backLink(halted ? t('halt.back') : t('nav.more'), () => { ui.sub = null; app.say(null); render(); }),
+      back: backLink(halted ? t('halt.back') : t('nav.more'), () => { app.showSub(null); app.say(null); render(); }),
     }),
     body: form(() => app.eraseAll(value('erase')),
       el('p', { class: 'note warn' }, t('erase.warning')),
       field('erase', t('erase.label', { word: ERASE_WORD }), textInput('erase')),
       submit(t('erase.submit'), 'danger'),
-      button(t('common.cancel'), () => { ui.sub = null; app.say(null); render(); }, 'link')),
+      button(t('common.cancel'), () => { app.showSub(null); app.say(null); render(); }, 'link')),
   });
 }
 
 function haltedScreen() {
-  if (ui.sub === 'erase') return eraseScreen(true);
+  if (app.state.work.sub === 'erase') return eraseScreen(true);
   const code = app.state.haltCode;
   return page({
     head: header({ title: t('halt.title'), chip: t('halt.chip') }),
@@ -1045,25 +1086,26 @@ function haltedScreen() {
       el('p', {}, t('halt.text')),
       el('p', { class: 'muted' }, t('halt.options')),
       button(t('common.lock'), () => app.lock(), 'primary'),
-      button(t('halt.erase'), () => { ui.sub = 'erase'; app.say(null); render(); }),
+      button(t('halt.erase'), () => { app.showSub('erase'); app.say(null); render(); }),
     ],
   });
 }
 
 function readyScreen() {
-  if (ui.sub === 'password') return changePasswordScreen();
-  if (ui.sub === 'about') return aboutScreen();
-  if (ui.sub === 'measure') return measureScreen();
-  if (ui.sub === 'audit') return auditScreen();
-  if (ui.sub === 'erase') return eraseScreen(false);
-  if (ui.sub === 'backup') return backupScreen();
+  const { tab, sub } = app.state.work;
+  if (sub === 'password') return changePasswordScreen();
+  if (sub === 'about') return aboutScreen();
+  if (sub === 'measure') return measureScreen();
+  if (sub === 'audit') return auditScreen();
+  if (sub === 'erase') return eraseScreen(false);
+  if (sub === 'backup') return backupScreen();
   const titles = {
     patients: t('nav.patients'), recipes: t('nav.recipes'), settings: t('nav.settings'), more: t('nav.more'),
   };
   const bodies = { patients: patientsTab, recipes: recipesTab, settings: settingsTab, more: moreTab };
   return page({
-    head: header({ title: titles[ui.tab], lock: true }),
-    body: bodies[ui.tab](),
+    head: header({ title: titles[tab], lock: true }),
+    body: bodies[tab](),
     navbar: true,
   });
 }
@@ -1104,6 +1146,13 @@ function render() {
     for (const input of root.querySelectorAll('input[id]')) if (input.type !== 'file') saved.set(input.id, input.value);
   }
   replace(root, view());
+  // Werkvelden uit de werkstand (stap D1); de invoer van dit moment gaat voor.
+  const form = app.state.work.form;
+  if (form) {
+    for (const input of root.querySelectorAll('input[data-work]')) {
+      if (isWorkField(input) && Object.prototype.hasOwnProperty.call(form.fields, input.id)) input.value = form.fields[input.id];
+    }
+  }
   for (const [id, val] of saved) {
     const input = document.getElementById(id);
     if (input && input.type !== 'search' && input.type !== 'file') input.value = val;
@@ -1113,6 +1162,18 @@ function render() {
   if (target && typeof target.focus === 'function' && target.tagName !== 'P') target.focus();
   document.title = t('app.name');
 }
+
+// Alleen velden met data-work gaan in de werkstand, en nooit een
+// wachtwoordveld; passwordInput en textInput (herstelsleutel) zetten
+// data-work niet.
+function isWorkField(input) {
+  return input.dataset.work !== undefined && input.type !== 'password' && input.type !== 'file' && Boolean(input.id);
+}
+
+root.addEventListener('input', (event) => {
+  const input = event.target;
+  if (input instanceof HTMLInputElement && isWorkField(input)) app.setWorkField(input.id, input.value);
+});
 
 app.subscribe(() => render());
 render();

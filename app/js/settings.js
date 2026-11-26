@@ -12,6 +12,8 @@ export const SETTINGS_SCHEMA = 1;
 // gewijzigde opslag kan de app er niet buiten zetten).
 export const SETTINGS = Object.freeze({
   'lock.idleMinutes': Object.freeze({ type: 'int', min: 1, max: 15, default: 3 }),
+  // Wachttijd na wisselen van app (stap D1); 0 = direct vergrendelen.
+  'lock.awayMinutes': Object.freeze({ type: 'int', min: 0, max: 15, default: 5 }),
 });
 
 export class SettingError extends Error {

@@ -143,3 +143,15 @@ opgelost.
 - De vier nieuwe documenten staan in de repository; de bestanden voor
   OneDrive zijn aangeleverd; na de merge staan de afspraken in de agenda.
 - De controles uit `CLAUDE.md` §2 slagen.
+
+Uitgevoerd in #22. Na de merge door de gebruiker (2026-11-26): de afspraken
+in de agenda staan, de sjablonen op OneDrive zijn ingevuld, het
+DPIA-besluit is ondertekend, tweestapsverificatie op GitHub is bevestigd en
+de herstelsleutel is opgeborgen. Afgevinkt in de PR van D1.
+
+## Stap D1: wachttijd, PBKDF2 en werkstand
+
+Eigen plan: [plan D1](2026-11-26-d1-vergrendelen.md) (akkoord gebruiker
+2026-11-26, met de beslispunten KDF-upgrade bij ontgrendelen, #19 mee,
+wachttijd alleen ontgrendeld zonder handeling, terugkomen telt als
+activiteit). Versie 0.4.0.

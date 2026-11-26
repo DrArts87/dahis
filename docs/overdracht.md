@@ -1,7 +1,8 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A–C
-van het vervolgplan (issues, browsertests in CI, compliance-toets). Dit document is het
+Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd), stap A–C
+van het vervolgplan (issues, browsertests in CI, compliance-toets) en de PR
+van stap D1 (wachttijd, PBKDF2 2.000.000, werkstand; versie 0.4.0). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -27,7 +28,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
 | #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 | #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
-| #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd |
+| #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd. Daarna door de gebruiker: sjablonen ingevuld, DPIA-besluit ondertekend, incidentenregister, checklist apparaten, tweestapsverificatie, herstelsleutel opgeborgen; agenda *App onderhoud* met drie terugkerende afspraken |
+| D1 | Stap D1 ([plan](plans/2026-11-26-d1-vergrendelen.md)), versie 0.4.0: instelling *Vergrendelen na wisselen van app* (0–15 min, standaard 5) alleen ontgrendeld zonder handeling, anders direct; terugkomen telt als activiteit; logica in de controller (`hidden`, `visible`, `pageClosed`, `idleTick`). PBKDF2-standaard 2.000.000 met KDF-upgrade bij ontgrendelen (`kdfUpgradeTx`, formaat §12.2 stap 6). Werkstand (`state.work`, `NullWorkStore`). Delen terug naast Downloaden (alleen met wachttijd > 0; proef op de OnePlus). Herinnering om op te ruimen na downloaden of delen (#19). `nen7510.md`, `dpia.md` (besluit ondertekend), `voor-echte-dossiers.md`, `SECURITY.md` bijgewerkt |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -47,8 +49,9 @@ taak 1–10 klaar. De acceptatietest
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
 echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
-[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap D1**
-(wachttijd na wisselen van app, PBKDF2 2.000.000, werkstand).
+[vervolgplan](plans/2026-11-26-vervolgplan.md); stap D1 staat in een PR
+(versie 0.4.0); daarna de proef op de OnePlus (plan D1) en **stap D2**
+(voorschrijver).
 
 ## Belangrijkste documenten
 
@@ -86,14 +89,15 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | Updates | Nieuwe versie pas actief na eigen tik; `tools/release.py` zet hashes in `sw.js` |
 | Publiceren | Alleen bij een versietag `vX.Y.Z` op `main` (release op GitHub), via `pages.yml`; zie [`docs/release.md`](release.md) |
 | Formaat | Formaat 1, concept. Afwijking accepteren en forensisch bestand pas na de alpha |
-| Back-ups | Wekelijks; bewaar de laatste vier. Herinnering na 7 dagen. Alleen downloaden: het deelmenu vergrendelt de app en breekt het delen af (proef OnePlus); delen vanuit Bestanden → Downloads. `last_backup_at` en `verify_backup` vóór het downloaden; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
+| Back-ups | Wekelijks; bewaar de laatste vier, met een herinnering na downloaden of delen (#19). Herinnering na 7 dagen. Delen via het deelmenu alleen met een wachttijd na wisselen van app (vanaf 0.4.0; zonder wachttijd vergrendelt het deelmenu de app); Downloaden altijd. `last_backup_at` en `verify_backup` vóór het downloaden; een ouder bestand controleren vanaf het vergrendelscherm, zonder logregel |
 | UI | Groene kopregel met varen, lint onderaan (Patiënten, Recepten, Instellingen, Meer), hoofdscherm geheel groen; logo, varen en randen van de gebruiker, vormen ongewijzigd |
 | Teksten | Los van de code in `app/js/i18n/nl.js`; geen namen, ook geen verzonnen, in de repository |
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
 | Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen; inzien onder Meer → Logboek (met technische regel voor debugging en forensisch onderzoek), het inzien zelf wordt niet gelogd |
 | Realistisch log | 0–10 regels per dag (≈ 18.000 in 5 jaar); meten bij 20.000 en 100.000 regels |
-| PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard nu 600.000, wordt 2.000.000 in stap D1 (besluit 2026-11-26) |
-| Vergrendelen | Nu direct bij naar de achtergrond gaan; in stap D1 een wachttijd na wisselen van app, 0–15 min, standaard 5 (besluit 2026-11-26) |
+| PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard 2.000.000 vanaf 0.4.0, met KDF-upgrade van oudere wraps bij ontgrendelen met het wachtwoord (besluit 2026-11-26) |
+| Vergrendelen | Na inactiviteit (1–15 min, standaard 3) en na wisselen van app met wachttijd (0–15 min, standaard 5), alleen ontgrendeld zonder lopende handeling; bij een handeling, de herstelsleutel, het nieuwe wachtwoord na herstel en het stopscherm direct; terugkomen telt als activiteit (besluit 2026-11-26) |
+| Werkstand | Scherm en aangemerkte formuliervelden in `state.work` van de controller; `workStore` bewaart nu niets (`NullWorkStore`). "Verder waar je was" (versleuteld concept) in fase 2/3 met een eigen formaatbesluit. Nooit wachtwoord of herstelsleutel |
 | Issues | Formulieren voor fout, wens en schermpunt; labels `bug`, `enhancement`, `ui`, `compliance`, `documentation`; elk plan loopt eerst de open issues na; Claude stelt issues voor en maakt ze aan na toestemming (`CLAUDE.md` §1, §4, §7). Geen aparte UI-ronde |
 | Documenten buiten de repository | Privé-OneDrive (restrisico geaccepteerd), aangeleverd door Claude; agenda *App onderhoud* in Google Calendar; zie het vervolgplan |
 | Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld). Onderbreken tijdens schrijven of terugzetten, schade bij de volledige controle en "niet leesbaar" gelden als gedekt door de tests (besluit 2026-11-26). Taak 10 sluit fase 1 af als **alpha geaccepteerd**; echte dossiers daarna pas na de review van de volledige keten, formaat 1 *vastgesteld* (eigen PR) en de compliance-toets. Eigen gegevens van de voorschrijver mogen na stap D2 (besluit 2026-11-26) |
@@ -136,7 +140,7 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | Pad | Wat |
 |---|---|
 | `app/index.html`, `app/js/app.js`, `app/js/dom.js`, `app/css/app.css` | Schermen (alleen tekenen), logo en iconen als SVG-symbolen in `index.html`, DOM zonder `innerHTML` |
-| `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen, herstel, wachtwoord, instellingen, controle (met duur en soort bij een afwijking), logboek, metingen, vergrendelen (herladen), alles wissen, stoppen bij een afwijking |
+| `app/js/controller.js` | Toestand van de app zonder DOM: opstarten, onboarding, ontgrendelen (met KDF-upgrade), herstel, wachtwoord, instellingen, controle (met duur en soort bij een afwijking), logboek, metingen, vergrendelen (herladen) bij verbergen met wachttijd en bij inactiviteit, werkstand, alles wissen, stoppen bij een afwijking |
 | `app/js/benchmark.js` | Meting van de controles en van grote back-ups op een nep-opslag in het geheugen (wegwerpsleutels, niets opgeslagen) |
 | `app/js/settings.js`, `app/js/i18n.js`, `app/js/i18n/nl.js` | Vaste lijst instellingen; teksten met vaste sleutels |
 | `app/img/` | Randen (SVG) en varen (PNG) van de gebruiker |
@@ -151,16 +155,16 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 
 ## Volgende stap
 
-Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A
-(werkwijze met issues), B (browsertests in CI, verplicht) en C
-(compliance-toets) zijn klaar na de merge van C; daarna maakt Claude de
-afspraken in de agenda *App onderhoud* aan en vinkt die af in de PR van D1.
-Volgende: **D1** wachttijd bij wisselen van app en PBKDF2,
-**D2** voorschrijver, **E** fase 2. Begin elk plan met de open issues
-(`CLAUDE.md` §4). Open issues nu:
-[#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later) en
-[#19](https://github.com/DrArts87/dahis/issues/19) (herinnering om
-back-ups op te ruimen; bekijken bij D1).
+Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A, B en C
+zijn klaar; D1 staat in een PR (versie 0.4.0). Na de merge: releasetekst
+met codehash (`CLAUDE.md` §3), release door de gebruiker, en de proef op de
+OnePlus uit het [plan D1](plans/2026-11-26-d1-vergrendelen.md) (onder
+meer **Delen**: lukt dat niet, dan gaat de knop eruit en stelt Claude een
+issue voor). Daarna **D2** voorschrijver en **E** fase 2. Begin elk plan
+met de open issues (`CLAUDE.md` §4). Open issues na D1:
+[#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later);
+[#19](https://github.com/DrArts87/dahis/issues/19) wordt gesloten door de
+PR van D1.
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of

@@ -1,10 +1,14 @@
 # DPIA: persoonlijk patiëntendossier Dahis
 
-Status: **concept**, 2026-11-26 (compliance-toets, stap C van het
-[vervolgplan](../plans/2026-11-26-vervolgplan.md)). Eigen beoordeling, geen
-juridisch advies. Punten die de verwerkingsverantwoordelijke nog moet
-invullen of beslissen staan als **Open**. Het ondertekende besluit (§8)
-staat buiten de repository, op OneDrive. Jaarlijks herzien (agenda *App
+Status: **besluit ondertekend**, 2026-11-26 (op OneDrive). Opgesteld in de
+compliance-toets (stap C van het
+[vervolgplan](../plans/2026-11-26-vervolgplan.md)); bijgewerkt in stap D1.
+Eigen beoordeling, geen juridisch advies. De punten die in het concept als
+*Open* stonden (aantal betrokkenen, afweging van de alternatieven,
+acceptatie van de restrisico's, conclusie), zijn door de
+verwerkingsverantwoordelijke **buiten de repository ingevuld**, in het
+ondertekende besluit (§8) op OneDrive. De inhoud daarvan staat bewust niet
+in deze openbare repository. Jaarlijks herzien (agenda *App
 onderhoud*) en bij elke wezenlijke wijziging van de verwerking.
 
 ## 1. Waarom een DPIA
@@ -18,7 +22,7 @@ persoonsgegevens gaat, voeren we hem toch uit (zie [`avg.md`](avg.md)).
 |---|---|
 | Verwerkingsverantwoordelijke | De arts die de app gebruikt (BIG-geregistreerd); naam en BIG-nummer alleen in de app en in het besluit op OneDrive |
 | Doel | Verlenen en vastleggen van zorg aan zichzelf, gezinsleden en vrienden; voorschrijven van geneesmiddelen |
-| Betrokkenen | De arts zelf, gezinsleden, vrienden. Aantal: **Open** (schatting) |
+| Betrokkenen | De arts zelf, gezinsleden, vrienden. Aantal: ingevuld in het besluit op OneDrive |
 | Gegevens | Zie [`avg.md`](avg.md): identificatie, contact, BSN (optioneel), huisarts, apotheek, verzekering, allergieën, voorgeschiedenis, medicatie, recepten; auditlog zonder namen of medische gegevens |
 | Systeem | Progressive web app in Chrome op één Android-telefoon (referentie OnePlus 13R), code via GitHub Pages; alle gegevens versleuteld in de browser van het toestel |
 | Opslag | IndexedDB op de telefoon, versleuteld (AES-GCM-256); versleutelde back-ups (`.dahis`) op OneDrive (privé) |
@@ -36,7 +40,7 @@ persoonsgegevens gaat, voeren we hem toch uit (zie [`avg.md`](avg.md)).
   nodig zijn; BSN optioneel (verificatie via SBV-Z is niet mogelijk).
 - **Alternatieven**: een papieren dossier (moeilijker te beveiligen en te
   back-uppen) of een HIS (niet bedoeld voor behandeling van naasten buiten
-  de praktijk). **Open**: afweging bevestigen.
+  de praktijk). Afweging bevestigd in het besluit op OneDrive.
 - **Rechten van betrokkenen**: inzage, afschrift, correctie en vernietiging
   volgens [`avg.md`](avg.md); de functies komen in fase 2.
 - **Informeren**: elke betrokkene weet dat er een dossier is en waarom;
@@ -55,9 +59,11 @@ persoonsgegevens gaat, voeren we hem toch uit (zie [`avg.md`](avg.md)).
 ## 5. Maatregelen
 Uitgewerkt in [`nen7510.md`](nen7510.md). In het kort:
 - versleuteling op het toestel en in de back-up; sleutel afgeleid van het
-  wachtwoord (PBKDF2, standaard 2.000.000 rondes vanaf stap D1);
+  wachtwoord (PBKDF2, standaard 2.000.000 rondes vanaf versie 0.4.0, met
+  upgrade van oudere wraps bij ontgrendelen);
   herstelsleutel alleen op papier;
-- automatisch vergrendelen (inactiviteit, wisselen van app met wachttijd),
+- automatisch vergrendelen (inactiviteit, wisselen van app met wachttijd;
+  op schermen met de herstelsleutel en tijdens een handeling direct),
   biometrische schermvergrendeling en versleuteling van de telefoon;
 - geen netwerkverkeer behalve app-code; updates pas na eigen akkoord, met
   codehash; strikte CSP; geen dependencies; één Pages-site op het account;
@@ -65,8 +71,8 @@ Uitgewerkt in [`nen7510.md`](nen7510.md). In het kort:
   stopt bij een afwijking;
 - wekelijkse back-up met herinnering, hersteltest elk kwartaal,
   [herstelprocedure](herstelprocedure.md);
-- bewaarbeleid back-ups (laatste vier), herinnering om op te ruimen
-  ([#19](https://github.com/DrArts87/dahis/issues/19));
+- bewaarbeleid back-ups (laatste vier), herinnering in de app om op te
+  ruimen (vanaf 0.4.0, [#19](https://github.com/DrArts87/dahis/issues/19));
 - incidentenregister alleen met patiëntnummers; de koppeling nummer–persoon
   staat niet op OneDrive;
 - wijzigingsbeheer via pull requests met verplichte controles en review.
@@ -75,19 +81,21 @@ Uitgewerkt in [`nen7510.md`](nen7510.md). In het kort:
 | Restrisico | Toelichting | Besluit |
 |---|---|---|
 | OneDrive privé zonder verwerkersovereenkomst | Microsoft bewaart de versleutelde back-ups en de compliance-documenten; de back-ups zijn zonder wachtwoord of herstelsleutel niet te lezen, maar een offline aanval op een back-up is onbeperkt in de tijd mogelijk. Maatregel: sterk wachtwoord, PBKDF2 2.000.000 | Geaccepteerd door de gebruiker, 2026-11-26 |
-| Sleutels in het geheugen tijdens de wachttijd | Binnen de wachttijd na wisselen van app (standaard 5 minuten) blijft de app open | Geaccepteerd door de gebruiker, 2026-11-26; wachttijd 0 is mogelijk |
+| Sleutels in het geheugen tijdens de wachttijd | Binnen de wachttijd na wisselen van app (standaard 5 minuten) blijft de app open; het voorbeeld in *Recente apps* kan het laatste scherm tonen (`nen7510.md`) | Geaccepteerd door de gebruiker, 2026-11-26; wachttijd 0 is mogelijk |
 | Geheugen niet te wissen in JavaScript | Resten van sleutels kunnen tot herladen in het geheugen van Chrome staan | Restrisico, zie `nen7510.md` |
-| Gewijzigde code via de hosting | De app ziet een nieuwe versie pas na eigen akkoord en toont de codehash; een aanvaller met toegang tot het GitHub-account kan een release maken | **Open**: accepteren; maatregel is tweestapsverificatie op GitHub (**Open**: bevestigen) |
+| Gewijzigde code via de hosting | De app ziet een nieuwe versie pas na eigen akkoord en toont de codehash; een aanvaller met toegang tot het GitHub-account kan een release maken | Besloten in het besluit op OneDrive; maatregel tweestapsverificatie op GitHub, bevestigd 2026-11-26 |
 | Verlies van beide geheimen | Geen achterdeur: dossiers onherstelbaar | Restrisico, zie herstelprocedure §3 |
 | Back-up alleen leesbaar met de app | Tot de noodontsleutelaar (na de alpha) | Restrisico tot de noodontsleutelaar |
 | Verificatie BSN niet mogelijk | SBV-Z vraagt een UZI-certificaat | Restrisico, BSN optioneel |
 
-## 7. Conclusie (concept)
+## 7. Conclusie
 Met de maatregelen in §5 is het risico voor betrokkenen naar verwachting
 aanvaardbaar, mits de punten in [vóór echte dossiers](voor-echte-dossiers.md)
-af zijn. **Open**: oordeel van de verwerkingsverantwoordelijke.
+af zijn. Het oordeel van de verwerkingsverantwoordelijke staat in het
+ondertekende besluit op OneDrive.
 
 ## 8. Besluit
-Wordt buiten de repository vastgelegd en ondertekend (sjabloon *DPIA-besluit*
-op OneDrive): datum, conclusie, geaccepteerde restrisico's, datum volgende
-herziening.
+Vastgelegd en ondertekend buiten de repository, op OneDrive (sjabloon
+*DPIA-besluit*), op **2026-11-26**: datum, conclusie, geaccepteerde
+restrisico's, datum volgende herziening (agenda *App onderhoud*, jaarlijks
+vanaf november 2027).

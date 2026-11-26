@@ -56,14 +56,17 @@ niet in deze repository.
 
 ## Back-ups
 - Back-ups zijn versleuteld (zie `docs/formaat.md`) en worden minstens
-  wekelijks gemaakt; de app herinnert eraan na 7 dagen. De app downloadt
-  het bestand (delen vergrendelt de app, taak 7); bewaar het daarna op
+  wekelijks gemaakt; de app herinnert eraan na 7 dagen. De app biedt
+  Delen (vanaf 0.4.0, met een wachttijd na wisselen van app) en Downloaden;
+  bewaar het bestand daarna op
   OneDrive (zie *Verwerkers en diensten*).
 - **Hersteltest**: elk kwartaal volgens de
   [herstelprocedure](herstelprocedure.md) §6 (agenda *App onderhoud*).
 - **Bewaarbeleid**: bewaar de laatste vier wekelijkse back-ups en verwijder
-  oudere, in Downloads én op OneDrive. Een herinnering in de app volgt
-  ([#19](https://github.com/DrArts87/dahis/issues/19)).
+  oudere, in Downloads én op OneDrive. Na downloaden of delen herinnert de
+  app eraan, met de datum van de vorige back-up (vanaf 0.4.0,
+  [#19](https://github.com/DrArts87/dahis/issues/19)); de app kan niet zien
+  welke bestanden er buiten de app staan.
 - **Vernietiging** (WGBO art. 7:455): de app wist een vernietigd dossier uit
   de actieve opslag, maar kan back-upbestanden buiten de app niet wissen.
   Door het bewaarbeleid bestaan vernietigde gegevens hooguit ongeveer vier

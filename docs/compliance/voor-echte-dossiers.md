@@ -17,7 +17,7 @@ ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
 | ☑ | Tests bij onderbreking (onboarding, schrijfactie, terugzetten) | Claude, CI | Taak 10 stap K; `tests/browser.mjs` in CI (Browsertests (Chrome)) |
 | ☑ | Verschuldigde volledige controle met schade laat de opslag ongewijzigd | CI | `tests/browser.mjs` |
 | ☑ | Limieten in `formaat.md` §2.4 gemeten en vastgesteld | Gebruiker | Taak 5–7 |
-| ☐ | PBKDF2 standaard 2.000.000 en wachttijd na wisselen van app | Claude | Stap D1 |
+| ☑ | PBKDF2 standaard 2.000.000 en wachttijd na wisselen van app | Claude | Stap D1, versie 0.4.0 ([plan D1](../plans/2026-11-26-d1-vergrendelen.md)); `tests/controller.test.mjs`, `tests/vault.test.mjs` |
 | ☐ | Patiëntenbestand met logging van inzage en wijziging (NEN 7513) | Claude | Stap E (fase 2) |
 | ☐ | Volledige review van de keten door de auditor | Gebruiker, auditor | Na fase 2 |
 | ☐ | Formaat 1 *vastgesteld* (eigen PR, na de review) | Claude, gebruiker | Na de review |
@@ -28,11 +28,11 @@ ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
 |---|---|---|---|
 | ☑ | Private vulnerability reporting en secret scanning aan | Gebruiker | 2026-11-26 |
 | ☑ | Branchbescherming met vier verplichte controles | Gebruiker | 2026-11-26 |
-| ☐ | Onderhoud in de agenda (hersteltest, updates, jaarlijkse herziening) | Claude | Agenda *App onderhoud*, na de merge van stap C; afvinken in de PR van D1 |
-| ☐ | Tweestapsverificatie op het GitHub-account (een release is code die de telefoon na akkoord draait) | Gebruiker | [DPIA](dpia.md) §6 |
-| ☐ | DPIA aangevuld (punten **Open**) en het besluit ondertekend | Gebruiker | [`dpia.md`](dpia.md); besluit op OneDrive |
-| ☐ | Incidentenregister aangelegd op OneDrive (alleen patiëntnummers) | Gebruiker | Sjabloon aangeleverd |
-| ☐ | Checklist apparaten ingevuld (telefoon en laptop: biometrische vergrendeling, versleuteling, updates, wissen op afstand) | Gebruiker | Sjabloon aangeleverd |
-| ☐ | Herstelsleutel op papier op een veilige plek, niet bij de telefoon | Gebruiker | Besluitenlog op OneDrive (alleen "gedaan", niet de plek) |
+| ☑ | Onderhoud in de agenda (hersteltest, updates, jaarlijkse herziening) | Claude | Agenda *App onderhoud*: updates elke maand vanaf 5 december 2026, hersteltest elk kwartaal vanaf 9 januari 2027, herziening elk jaar vanaf 27 november 2027 |
+| ☑ | Tweestapsverificatie op het GitHub-account (een release is code die de telefoon na akkoord draait) | Gebruiker | Bevestigd 2026-11-26; [DPIA](dpia.md) §6 |
+| ☑ | DPIA aangevuld (punten **Open**) en het besluit ondertekend | Gebruiker | 2026-11-26; open punten ingevuld in het besluit op OneDrive, [`dpia.md`](dpia.md) |
+| ☑ | Incidentenregister aangelegd op OneDrive (alleen patiëntnummers) | Gebruiker | 2026-11-26, op OneDrive |
+| ☑ | Checklist apparaten ingevuld (telefoon en laptop: biometrische vergrendeling, versleuteling, updates, wissen op afstand) | Gebruiker | 2026-11-26, op OneDrive |
+| ☑ | Herstelsleutel op papier op een veilige plek, niet bij de telefoon | Gebruiker | 2026-11-26, besluitenlog op OneDrive (alleen "gedaan", niet de plek) |
 | ☐ | Eerste hersteltest volgens de [herstelprocedure](herstelprocedure.md) §6 | Gebruiker | Januari 2027, of eerder |
 | ☐ | Betrokkenen informeren dat er een dossier wordt bijgehouden (`avg.md`) | Gebruiker | Bij elk nieuw dossier, vastgelegd in het dossier |
