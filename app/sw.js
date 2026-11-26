@@ -15,10 +15,10 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.4.2';
-const CODE_HASH = '797f721c420c2974ea939b4f3614efcc1511b9c36328ff3c215747553d517d4f';
+const VERSION = '0.4.3';
+const CODE_HASH = '5198eb132a7340f5378f6b68814e003e1616f2649e1e4c46cf1010370b4226cd';
 const FILES = {
-  'css/app.css': 'e78b7dc50a581779e30d6147869d41250b7d1fde05fb2dd33618f7fc6a6c86cf',
+  'css/app.css': '632ed982db4ecdd79ef514aefc33e74d74d5ba1bd940b1619bb08edc51db6c48',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
   'icons/icon-512.png': 'b343af987b68af8170afc33f05cd4d7df9b0ef2b0743a4839fac4d2719767889',
   'icons/maskable-512.png': '2f31ea3c158ef2f6be8d0db386f4f7ddb3e77b35598c7c861ed169f7a18c6949',
@@ -27,11 +27,11 @@ const FILES = {
   'img/rand-onder.svg': 'f75a8bc82a75f09d636a48b82a5cf0c0d409a18ab28175e6e32984811a8be26e',
   'img/varen-mos.png': '78513f78acfa8a13bb62ff74f5dd030ce6b34f4034f24d120ffbcfc254011f84',
   'index.html': '7af7f7da05e2d52ca7d5b49de2adda06f2aaefbeaa43d21dfaab06cbfa41a5b5',
-  'js/app.js': '47eb59265a78681079e8fa50bbc3211a60985577950fcbe40a6579a3d7c2d1cd',
+  'js/app.js': '267427181d4e0ceafcdba53252e136e0e685383c3baaff2c19d62ed385214e43',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
   'js/controller.js': '8a69b50af525b93d4159b571d6728f2ae08b993ad6210b45a20ecc211c43cae5',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',
-  'js/dom.js': 'ed32a3932255ff714bc2a899f79a2dd9315476a5d9f368c95df94f3acca2cc7b',
+  'js/dom.js': 'd01992736527ffc6a30e9c6654d04494c1ca68c6f3af4685d6448c07633415b9',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
   'js/i18n/nl.js': '74aa1320f77584cec4eac4cd6ff3e8173a8b55e14ed0078cad553de078a134fa',
   'js/settings.js': 'c1c47f737b38658d4c62963c0de21b69605d51947846fb3154394fa4dc741ed8',

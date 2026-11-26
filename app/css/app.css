@@ -19,6 +19,7 @@
   --ok: #1f5c2c;
   --banner: #fff4d6;
   --outside: #c9d1c6;
+  --scroll-thumb: #123f32;
   color-scheme: light dark;
 }
 
@@ -39,6 +40,7 @@
     --ok: #9fd8a8;
     --banner: #3a3216;
     --outside: #050807;
+    --scroll-thumb: #5fae8c;
   }
 }
 
@@ -64,18 +66,31 @@ html, body {
 body.covered #app { visibility: hidden; }
 
 /* --- Pagina ----------------------------------------------------------------- */
+/* Kop en lint staan vast; alleen .inner scrolt (#32). De pagina is precies
+   zo hoog als het scherm, de randen blijven als lijst om het middendeel. */
 .shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--bg);
   position: relative;
   overflow: hidden;
 }
 
-.content { position: relative; flex: 1; display: flex; flex-direction: column; }
-.inner { position: relative; z-index: 1; flex: 1; padding: 16px 16px 24px; }
+.content { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.inner {
+  position: relative; z-index: 1; flex: 1; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 16px 16px 24px;
+  scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent;
+}
+/* Alleen de verplaatsende balk, zonder achtergrond en pijltjes; geen balk
+   als de inhoud past (overflow-y: auto). */
+.inner::-webkit-scrollbar { width: 6px; }
+.inner::-webkit-scrollbar-track { background: transparent; }
+.inner::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.inner::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
 
 /* Randen achter de inhoud (ontwerp gebruiker) */
 .rand {
@@ -87,6 +102,7 @@ body.covered #app { visibility: hidden; }
 
 /* --- Kopregel --------------------------------------------------------------- */
 .top {
+  flex: none;
   position: relative;
   overflow: hidden;
   min-height: 116px;
@@ -240,7 +256,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 
 /* --- Navigatielint ------------------------------------------------------------- */
 .navbar {
-  position: sticky; bottom: 0; z-index: 2;
+  flex: none; position: relative; z-index: 2;
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
   background: var(--card); border-top: 1px solid var(--border);
   padding: 8px 6px max(12px, env(safe-area-inset-bottom));
@@ -257,7 +273,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 }
 
 /* --- Hoofdscherm: geheel groen ---------------------------------------------------- */
-.shell.green { background: #123f32; color: #eef4ee; }
+.shell.green { background: #123f32; color: #eef4ee; --scroll-thumb: #b9cdbf; }
 .shell.green .inner { padding-top: max(56px, env(safe-area-inset-top)); }
 .shell.green .hero { text-align: center; margin-bottom: 16px; }
 .shell.green .hero .mark { width: 96px; height: 172px; color: #ffffff; }

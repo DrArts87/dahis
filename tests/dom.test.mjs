@@ -4,7 +4,9 @@
 // {id, type, value, dataset}, zoals in de browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isSecretInput, collectInputs, restoreInputs, clearSecretInputs } from '../app/js/dom.js';
+import {
+  isSecretInput, collectInputs, restoreInputs, clearSecretInputs, collectScroll, restoreScroll,
+} from '../app/js/dom.js';
 
 function input(id, type, value = '', secret = false) {
   return { id, type, value, dataset: secret ? { secret: '' } : {} };
@@ -50,4 +52,25 @@ test('ander formulier met hetzelfde veld-id: niets terugzetten (Ontgrendelen →
   const sameField = input('secret', 'password');
   restoreInputs(saved, [sameField], 'locked|unlock|password');
   assert.equal(sameField.value, 'verzonnen wachtwoord');
+});
+
+// Scrollpositie (#32): terug op hetzelfde scherm, bovenaan op een ander scherm.
+test('scrollpositie: zelfde scherm houdt de positie', () => {
+  const saved = collectScroll({ scrollTop: 240 }, 'ready||settings|');
+  const next = { scrollTop: 0 };
+  restoreScroll(saved, next, 'ready||settings|');
+  assert.equal(next.scrollTop, 240);
+});
+
+test('scrollpositie: ander scherm begint bovenaan', () => {
+  const saved = collectScroll({ scrollTop: 240 }, 'ready||settings|');
+  const next = { scrollTop: 120 };
+  restoreScroll(saved, next, 'ready||more|');
+  assert.equal(next.scrollTop, 0);
+});
+
+test('scrollpositie: zonder scrollgebied gebeurt er niets', () => {
+  const saved = collectScroll(null, 'a');
+  assert.equal(saved.top, 0);
+  assert.doesNotThrow(() => restoreScroll(saved, null, 'a'));
 });
