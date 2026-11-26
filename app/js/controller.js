@@ -221,7 +221,8 @@ export class AppController {
     this.checkKind = null;        // lopende controle: 'quick' of 'full'
     this.auditToken = 0;          // hoger bij openen of sluiten van het logboek
     this.auditOpen = false;
-    this.backupFile = null;       // gemaakte en gecontroleerde back-up: {text, name}
+    this.backupFile = null;       // gemaakte en gecontroleerde back-up: {id, text, name}
+    this.backupSerial = 0;        // volgnummer van de exports in deze sessie
     this.hiddenAt = null;         // ms: verborgen met wachttijd (stap D1)
     this.awayTimer = null;
     this.lastActivity = this.now();
@@ -246,7 +247,7 @@ export class AppController {
       checkMeasurements: {},      // index in MEASURE_CHECK_SIZES -> {buildMs, fullMs, quickMs}
       backupMeasurements: {},     // MiB uit MEASURE_BACKUP_MIB -> {bytes, buildMs, writeMs, readMs} of {error}
       lastBackupAt: null,         // ms of null (meta.last_backup_at)
-      backup: null,               // klaar om te delen: {name, bytes, createdAt, previousAt, saved}
+      backup: null,               // klaar om te delen: {id, name, bytes, createdAt, previousAt, saved, warned}
       fileCheck: null,            // uitslag van een gecontroleerd bestand (vergrendelscherm)
       work: defaultWork(),        // werkstand: scherm en formulier
       awayNotice: false,          // melding: nieuwe instelling wachttijd nog niet bewaard
@@ -742,9 +743,13 @@ export class AppController {
       await this.queue.run(this.session, (store, s, now) => V.verifyBackupTx(store, s, { detail: 'equal', now }));
       this.alive(gen);
       const name = backupFileName(at);
-      this.backupFile = { text, name };
+      // Uniek volgnummer per export: twee back-ups in dezelfde minuut hebben
+      // dezelfde naam (review PR #23, tweede ronde).
+      this.backupSerial += 1;
+      const id = this.backupSerial;
+      this.backupFile = { id, text, name };
       this.set({
-        backup: { name, bytes: bytes.length, createdAt: at.getTime(), previousAt, saved: false, warned: false },
+        backup: { id, name, bytes: bytes.length, createdAt: at.getTime(), previousAt, saved: false, warned: false },
         lastBackupAt: lastBackupOf(this.backend.store.meta),
         lastFullCheckAt: this.session.lastFullCheckAt,
       });
@@ -761,15 +766,15 @@ export class AppController {
   // Het bestand is gedownload of gedeeld: toon de herinnering om op te
   // ruimen (#19). Er wordt niets geschreven.
   // Alleen voor de back-up waarmee de gebruiker begon (review PR #23, P2).
-  backupSaved(name) {
+  backupSaved(id) {
     const b = this.state.backup;
-    if (!this.backupOpen(name) || b.saved) return;
+    if (!this.backupOpen(id) || b.saved) return;
     this.set({ backup: Object.assign({}, b, { saved: true }) });
   }
 
-  backupOpen(name) {
+  backupOpen(id) {
     const b = this.state.backup;
-    return this.state.view === 'ready' && Boolean(b) && b.name === name;
+    return this.state.view === 'ready' && Boolean(b) && b.id === id;
   }
 
   // Mag het back-upscherm dicht? Een gemaakt maar nog niet gedownload of

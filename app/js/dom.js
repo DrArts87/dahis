@@ -45,18 +45,20 @@ export function symbol(id, cls = 'icon') {
 // --- Invoer bewaren bij opnieuw tekenen (review PR #23 P1-1) -------------------
 //
 // Een veld is geheim als het een wachtwoordveld is of data-secret heeft
-// (herstelsleutel, groepen). Waarden gaan alleen terug in een veld met
-// hetzelfde id, hetzelfde type en dezelfde geheimmarkering: een wachtwoord
-// komt zo nooit in een gewoon tekstveld terecht na het wisselen naar de
-// herstelsleutel. Werkt op alles met {id, type, value, dataset}, zodat het
+// (herstelsleutel, groepen). Waarden gaan alleen terug binnen hetzelfde
+// formulier (zelfde formuliersleutel; review PR #23, tweede ronde) en in een
+// veld met hetzelfde id, hetzelfde type en dezelfde geheimmarkering: een
+// wachtwoord komt zo nooit in een gewoon tekstveld of in een ander formulier
+// met hetzelfde veld-id terecht. Werkt op alles met {id, type, value, dataset}, zodat het
 // ook in Node te testen is.
 
 export function isSecretInput(input) {
   return input.type === 'password' || (input.dataset && input.dataset.secret !== undefined);
 }
 
-export function collectInputs(inputs) {
+export function collectInputs(inputs, formKey = null) {
   const saved = new Map();
+  saved.formKey = formKey;
   for (const input of inputs) {
     if (!input.id || input.type === 'file') continue;
     saved.set(input.id, { value: input.value, type: input.type, secret: isSecretInput(input) });
@@ -64,7 +66,8 @@ export function collectInputs(inputs) {
   return saved;
 }
 
-export function restoreInputs(saved, inputs) {
+export function restoreInputs(saved, inputs, formKey = null) {
+  if (saved.formKey !== formKey) return;
   for (const input of inputs) {
     const s = saved.get(input.id);
     if (!s || input.type === 'search' || input.type === 'file') continue;

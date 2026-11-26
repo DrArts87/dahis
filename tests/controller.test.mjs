@@ -1083,9 +1083,9 @@ test('D1 en #19: na downloaden of delen de herinnering met de vorige back-up', a
   assert.equal(app.state.backup.previousAt, null);
   assert.equal(app.state.backup.saved, false);
   const before = canon(dev.backend.disk);
-  app.backupSaved('ander-bestand.dahis');
-  assert.equal(app.state.backup.saved, false, 'alleen het eigen bestand (review PR #23, P2)');
-  app.backupSaved(app.state.backup.name);
+  app.backupSaved(app.state.backup.id + 1);
+  assert.equal(app.state.backup.saved, false, 'alleen de eigen export (review PR #23, P2)');
+  app.backupSaved(app.state.backup.id);
   assert.equal(app.state.backup.saved, true);
   assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
   const first = app.state.lastBackupAt;
@@ -1208,11 +1208,12 @@ test('review PR #23 P1-2: back-upscherm verlaten zonder downloaden of delen: eer
   assert.equal(app.state.message.key, 'backup.notSaved');
   assert.equal(app.leaveBackup(), true, 'tweede keer wel');
   assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
-  app.backupSaved(app.state.backup.name);
+  app.backupSaved(app.state.backup.id);
   assert.equal(app.leaveBackup(), true, 'opgeslagen: geen waarschuwing');
-  assert.equal(app.backupOpen(app.state.backup.name), true);
+  const id = app.state.backup.id;
+  assert.equal(app.backupOpen(id), true);
   app.closeBackup();
-  assert.equal(app.backupOpen('x'), false);
+  assert.equal(app.backupOpen(id), false);
 });
 
 test('review PR #23: melding over de nieuwe wachttijd tot de instelling is bewaard', async () => {
@@ -1233,4 +1234,22 @@ test('review PR #23: melding over de nieuwe wachttijd tot de instelling is bewaa
   const b = await unlocked(dev2);
   assert.equal(await b.saveSetting('lock.idleMinutes', 4), true);
   assert.equal(b.state.awayNotice, false);
+});
+
+test('review PR #23 ronde 2: twee exports met dezelfde naam; een late deeluitkomst raakt alleen de eigen export', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
+  const first = app.state.backup;
+  // Delen van de eerste loopt nog; in dezelfde minuut een tweede export.
+  assert.equal(await app.makeBackup({ appVersion: '0.4.0' }), true);
+  const second = app.state.backup;
+  assert.equal(second.name, first.name, 'zelfde minuut, zelfde naam');
+  assert.notEqual(second.id, first.id);
+  app.backupSaved(first.id);             // vertraagde uitkomst van de eerste
+  assert.equal(app.state.backup.saved, false, 'tweede niet als gedeeld gemarkeerd');
+  assert.equal(app.backupOpen(first.id), false, 'geen foutmelding bij de tweede');
+  app.backupSaved(second.id);
+  assert.equal(app.state.backup.saved, true);
 });

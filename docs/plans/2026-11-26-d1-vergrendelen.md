@@ -104,6 +104,14 @@ Verwerkt na akkoord van de gebruiker op alle punten:
 | Nieuwe instelling zichtbaar | Melding na ontgrendelen zolang de instelling niet bewaard is; *Begrepen* bewaart de waarde |
 | Cloud en AVG | Teksten: afgesproken cloudmap, niet per mail; `avg.md` (bestemming, prullenbak); open punt in *vóór echte dossiers*; [#25](https://github.com/DrArts87/dahis/issues/25) |
 
+Tweede ronde (auditor, 2026-11-26), verwerkt na akkoord:
+
+| Punt | Verwerking |
+|---|---|
+| Delen aan een unieke export | Elke export krijgt een volgnummer (`state.backup.id`); de deeluitkomst, de foutmelding en het onthouden deelbare bestand gaan daarvan uit, niet van de bestandsnaam (twee back-ups in dezelfde minuut). Test met twee exports met dezelfde naam en een late uitkomst |
+| Invoer alleen binnen hetzelfde formulier | `render()` bepaalt een formuliersleutel (weergave, stap, scherm, vergrendelmodus, invoermodus); bij een ander formulier gaat er niets terug, ook niet bij hetzelfde veld-id (Ontgrendelen en Back-up controleren). Test in `tests/dom.test.mjs` |
+| #24 vóór echte dossiers | Als punt op de checklist *vóór echte dossiers*, naast #25 en de proef |
+
 ## Proef op de OnePlus (na de release van 0.4.0, alleen testgegevens)
 1. Versie en codehash kloppen (Meer → Over).
 2. Ontgrendelen met het bestaande wachtwoord: werkt; in het logboek

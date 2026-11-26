@@ -40,3 +40,14 @@ test('verbergen: alleen geheime velden gewist', () => {
   assert.equal(clearSecretInputs(fields), 2);
   assert.deepEqual(fields.map((f) => f.value), ['', '', 'WIS']);
 });
+
+test('ander formulier met hetzelfde veld-id: niets terugzetten (Ontgrendelen → Back-up controleren)', () => {
+  const saved = collectInputs([input('secret', 'password', 'verzonnen wachtwoord')], 'locked|unlock|password');
+  const fileCheckField = input('secret', 'password');
+  restoreInputs(saved, [fileCheckField], 'locked|file|password');
+  assert.equal(fileCheckField.value, '');
+  // Zelfde formulier opnieuw getekend: wel terug.
+  const sameField = input('secret', 'password');
+  restoreInputs(saved, [sameField], 'locked|unlock|password');
+  assert.equal(sameField.value, 'verzonnen wachtwoord');
+});

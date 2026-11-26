@@ -860,7 +860,7 @@ function appVersion() {
 function downloadBackup() {
   const b = app.backupForDownload();
   if (!b) return;
-  app.backupSaved(b.name);
+  app.backupSaved(b.id);
   const url = URL.createObjectURL(new Blob([b.text], { type: 'application/octet-stream' }));
   const a = el('a', { href: url, download: b.name, hidden: true });
   document.body.append(a);
@@ -875,7 +875,7 @@ function downloadBackup() {
 // Eén keer per back-up bepaald (ui.share), zodat opnieuw tekenen geen nieuwe
 // kopie van het bestand maakt. null: dit bestand is niet te delen.
 function shareFile(b) {
-  if (ui.share && ui.share.name === b.name) return ui.share.file;
+  if (ui.share && ui.share.id === b.id) return ui.share.file;
   let file = null;
   if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function') {
     const candidates = [
@@ -884,7 +884,7 @@ function shareFile(b) {
     ];
     file = candidates.find((f) => { try { return navigator.canShare({ files: [f] }); } catch (err) { return false; } }) || null;
   }
-  ui.share = { name: b.name, file };
+  ui.share = { id: b.id, file };
   return file;
 }
 
@@ -902,14 +902,14 @@ async function shareBackup() {
   app.say(null);   // geen melding van een vorige poging laten staan
   const file = shareFile(b);
   if (!file) { app.say('backup.shareUnsupported'); return; }
-  const name = b.name;
+  const id = b.id;   // de export waarmee de gebruiker begon, niet de naam
   try {
     await navigator.share({ files: [file], title: file.name });
-    app.backupSaved(name);
+    app.backupSaved(id);
   } catch (err) {
     // Zelf geannuleerd (AbortError): geen melding. Elke andere fout wel, maar
     // alleen als dezelfde back-up nog openstaat (review PR #23, P2).
-    if ((!err || err.name !== 'AbortError') && app.backupOpen(name)) app.say('backup.shareFailed');
+    if ((!err || err.name !== 'AbortError') && app.backupOpen(id)) app.say('backup.shareFailed');
   }
 }
 
@@ -1180,11 +1180,20 @@ function view() {
   }
 }
 
+// Welk formulier staat er? Ander formulier: geen invoer terugzetten (review
+// PR #23, tweede ronde: Ontgrendelen en Back-up controleren delen veld-id's).
+let lastFormKey = null;
+
+function formKey() {
+  const s = app.state;
+  return [s.view, s.step, s.work.tab, s.work.sub, ui.lockedMode, ui.unlockMode].join('|');
+}
+
 // Invoer bewaren bij opnieuw tekenen (bijvoorbeeld een melding van de
 // service worker tijdens het typen), behalve direct na versturen.
 function render() {
   const focused = document.activeElement && document.activeElement.id;
-  const saved = ui.clearInputs ? new Map() : collectInputs(root.querySelectorAll('input[id]'));
+  const saved = ui.clearInputs ? new Map() : collectInputs(root.querySelectorAll('input[id]'), lastFormKey);
   replace(root, view());
   // Werkvelden uit de werkstand (stap D1); de invoer van dit moment gaat voor.
   const form = app.state.work.form;
@@ -1193,7 +1202,8 @@ function render() {
       if (isWorkField(input) && Object.prototype.hasOwnProperty.call(form.fields, input.id)) input.value = form.fields[input.id];
     }
   }
-  restoreInputs(saved, root.querySelectorAll('input[id]'));
+  lastFormKey = formKey();
+  restoreInputs(saved, root.querySelectorAll('input[id]'), lastFormKey);
   if (!app.state.busy) ui.clearInputs = false;
   const target = (focused && document.getElementById(focused)) || root.querySelector('[role="alert"]');
   if (target && typeof target.focus === 'function' && target.tagName !== 'P') target.focus();

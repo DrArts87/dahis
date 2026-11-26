@@ -21,6 +21,7 @@ ook voordat deze lijst af is (besluit gebruiker 2026-11-26).
 | ☐ | Patiëntenbestand met logging van inzage en wijziging (NEN 7513) | Claude | Stap E (fase 2) |
 | ☐ | Volledige review van de keten door de auditor | Gebruiker, auditor | Na fase 2 |
 | ☐ | Formaat 1 *vastgesteld* (eigen PR, na de review) | Claude, gebruiker | Na de review |
+| ☐ | Back-upstatus met een bevestigde externe kopie: de herinnering mag niet wegvallen als het bestand de telefoon niet heeft verlaten (direct vergrendelen, app sluiten, mislukte upload) | Claude, gebruiker | [#24](https://github.com/DrArts87/dahis/issues/24); bij het vaststellen van formaat 1; review PR #23 |
 | ☐ | Eisen aan een recept nagelopen (Geneesmiddelenwet) | Claude, gebruiker | Fase 3, vóór recepten |
 
 ## Organisatie
