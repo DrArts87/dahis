@@ -157,8 +157,11 @@ back-upbestand na metingen op het referentietoestel (hieronder).
 meten, 2026-11-25): PBKDF2-SHA256 met 600.000 rondes 0,1 s, met 10.000.000
 rondes 1,5 s, bij een tweede meting (versie 0.2.0) 0,1 s en 1,4 s. Het
 maximum is dus werkbaar en de grens van `kdf.iterations`
-is vastgesteld. Een hogere standaardwaarde dan 600.000 is mogelijk; dat is
-een apart besluit.
+is vastgesteld. De standaardwaarde is vanaf app-versie 0.4.0 **2.000.000**
+(besluit gebruiker 2026-11-26, stap D1; op het referentietoestel ongeveer
+0,3 s). Dat is geen formaatwijziging: de grenzen blijven 600.000 t/m
+10.000.000, en een bestaande wrap met minder rondes wordt bij ontgrendelen
+opnieuw gewrapt (§12.2 stap 6).
 
 **Back-upbestand** (taak 7): Meer → Snelheid meten → Grote back-up maakt en
 opent een nep-back-up van ongeveer 64, 128 en 250 MiB in het geheugen. In
@@ -239,7 +242,8 @@ Met die sleutel wordt precies één keer versleuteld.
   wachtzin van minstens 5 willekeurige woorden) en weigert evident zwakke
   wachtwoorden; die controle hoort bij de app, niet bij het formaat.
 - `KEK_w = PBKDF2-HMAC-SHA256(wachtwoord, salt_w, iterations, 32 bytes)`.
-- `salt_w`: 16 willekeurige bytes. Standaard `iterations`: 600.000. De duur
+- `salt_w`: 16 willekeurige bytes. Standaard `iterations`: 2.000.000 (tot
+  app-versie 0.3.1: 600.000; zie §2.4). De duur
   wordt bij onboarding gemeten en getoond.
 
 ### 3.5 Herstelsleutel-KEK
@@ -285,8 +289,10 @@ herstelsleutel) onjuist, of de gegevens zijn beschadigd of gewijzigd."
     dezelfde handeling is afgeleid uit het wachtwoord of de herstelsleutel die
     de gebruiker net heeft ingevoerd;
   - een oude `DK` uit `keyring`, met `K_kid,keyring`.
-- Bij de **KDF-upgrade** tijdens het ontgrendelen (§12.2) is dat de `KEK_w`
-  uit die ontgrendeling.
+- Bij de **KDF-upgrade** tijdens het ontgrendelen (§12.2) is dat een
+  `KEK_w` die in dezelfde handeling opnieuw wordt afgeleid uit het net
+  ingevoerde wachtwoord en de huidige `kdf` (de sleutel uit stap 2 van
+  §12.2 is dan al gewist).
 - KEK's en ruwe bytes bestaan alleen binnen de handeling; buffers worden na
   gebruik met nullen overschreven. JavaScript garandeert niet dat er geen
   kopieën in het geheugen achterblijven (§16).
@@ -664,12 +670,14 @@ mee.
    `last_backup_at` schrijven. De regel `export` betekent dus "poging"; een
    bruikbaar bestand blijkt uit de direct volgende `verify_backup` met
    `equal` (audit A3). Mislukt de controle, dan geen `verify_backup`.
-5. Pas daarna downloaden; er wordt dan niets meer geschreven. De app biedt
-   **geen deelmenu**: dat verbergt de app, die dan vergrendelt door te
-   herladen, en dat breekt het delen af (proef op de OnePlus, versie 0.3.0;
-   besluit gebruiker 2026-11-25). Het bestand gaat buiten het toestel via
-   Bestanden → Downloads. Wie niet downloadt, heeft wel een bijgewerkte
-   `last_backup_at` maar geen bestand; dat is geaccepteerd.
+5. Pas daarna downloaden of delen; er wordt dan niets meer geschreven.
+   Delen via het deelmenu biedt de app alleen met een wachttijd na wisselen
+   van app (vanaf versie 0.4.0, stap D1): het deelmenu verbergt de app, en
+   zonder wachttijd vergrendelt die direct door te herladen, wat het delen
+   afbreekt (proef op de OnePlus, versie 0.3.0). Downloaden kan altijd; het
+   bestand gaat dan buiten het toestel via Bestanden → Downloads. Wie niet
+   downloadt of deelt, heeft wel een bijgewerkte `last_backup_at` maar geen
+   bestand; dat is geaccepteerd.
 
 ### 11.4 Controleren
 - **Interne integriteit** (elke back-up): §11.5 stap 1–5 zonder te schrijven.
@@ -742,9 +750,16 @@ Stap 1–6 gebeuren in het geheugen; er wordt niets geschreven.
    mislukte ontgrendeling de teller van stap 3.
 5. Reservering schrijven (§3.8 geval 2), dan regel `unlock` (§9.1), plus
    `integrity_check` als in stap 4 de volledige controle is uitgevoerd.
-6. Is `iterations` lager dan de huidige standaard, dan opnieuw wrappen met de
-   `KEK_w` van stap 2 (§3.7) en `password_change` met detail `kdf_upgrade`
-   loggen.
+6. Is `iterations` lager dan de huidige standaard (alleen bij ontgrendelen
+   met het wachtwoord), dan in **dezelfde transactie** als stap 5 opnieuw
+   wrappen: de ruwe `DK` opnieuw ontsleutelen met een `KEK_w` uit het net
+   ingevoerde wachtwoord en de huidige `kdf` (§3.7), dan een nieuwe `salt_w`
+   en `KEK_w` met de standaard `iterations`, en `password_change` met detail
+   `kdf_upgrade` loggen. Mislukt die transactie, dan staat er geen `unlock`
+   en geen upgrade in de opslag en kan de gebruiker het opnieuw proberen.
+   Bestaande back-upbestanden houden hun eigen `kdf` en dus hun oorspronkelijke
+   aantal rondes; een teruggezette back-up krijgt de upgrade bij de eerste
+   ontgrendeling met het wachtwoord.
 
 ### 12.3 Herstel met de herstelsleutel (zelfde toestel)
 Na ontgrendelen met de herstelsleutel direct een nieuw wachtwoord laten

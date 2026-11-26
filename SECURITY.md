@@ -9,9 +9,14 @@ request, ook niet als voorbeeld.
 
 ## Ontwerp in het kort
 - Alle gegevens versleuteld op het toestel met Web Crypto (AES-GCM-256);
-  sleutel alleen in het geheugen, afgeleid van het hoofdwachtwoord.
+  sleutel alleen in het geheugen, afgeleid van het hoofdwachtwoord met
+  PBKDF2-SHA256 (standaard 2.000.000 rondes; oudere wraps worden bij
+  ontgrendelen verzwaard).
 - Herstelsleutel op papier; versleutelde back-ups als bestand.
-- Automatisch vergrendelen bij inactiviteit en naar de achtergrond gaan.
+- Automatisch vergrendelen bij inactiviteit (standaard 3 minuten) en na
+  wisselen van app met een instelbare wachttijd (0–15 minuten, standaard
+  5); tijdens een handeling of met de herstelsleutel op het scherm direct.
+  Vergrendelen herlaadt de pagina.
 - Strikte Content-Security-Policy, geen externe scripts, geen
   netwerkverkeer behalve zelf gestarte updates.
 - Auditlog volgens NEN 7513.
