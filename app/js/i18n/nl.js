@@ -133,7 +133,6 @@ export default Object.freeze({
   'signature.cancel': 'Annuleren',
   'signature.onRecipes': 'Deze handtekening komt op je recepten.',
   'signature.photoHint': 'Een foto van je handtekening op wit papier werkt het best: het wit wordt weggehaald en het plaatje verkleind. Alleen het nieuwe plaatje wordt bewaard.',
-  'signature.directWarn': 'Staat "Vergrendelen na wisselen van app" op Direct, dan vergrendelt de app bij het kiezen van een afbeelding. Tekenen werkt altijd.',
   'signature.error.required': 'Teken je handtekening of kies een afbeelding.',
   'signature.error.invalid': 'De handtekening kon niet worden opgeslagen. Probeer het opnieuw.',
   'signature.error.empty': 'Er is geen handtekening te zien. Teken opnieuw of kies een andere afbeelding.',

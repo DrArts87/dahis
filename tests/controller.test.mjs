@@ -9,7 +9,7 @@ import * as V from '../app/js/vault.js';
 import { MemoryBackend, WriteQueue, AlreadyOpenError } from '../app/js/store.js';
 import {
   AppController, ERASE_WORD, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, BACKUP_REMINDER_MS,
-  backupDue, backupFileName, normalizeGroup,
+  backupDue, backupFileName, normalizeGroup, PICKER_AWAY_MS, PICKER_ARM_MS,
 } from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
@@ -1563,4 +1563,83 @@ test('0.5.2: vergrendelen tijdens het inlezen van de handtekening laat niets in 
   assert.equal(await app.unlock({ password: PASSWORD }), false);
   assert.equal(app.state.signature, null);
   assert.equal(app.signatureId, null);
+});
+
+// --- Review PR #47: bestandskiezer voor de handtekening --------------------------------------
+
+test('review PR #47, 3: bij "Direct" blijft de app open tijdens de bestandskiezer, hooguit 3 minuten, één keer', async () => {
+  const dev = timedDevice();
+  const app = await readyApp(dev);
+  assert.equal(await app.saveSetting('lock.awayMinutes', 0), true);
+  // Niet op het scherm van de voorschrijver: geen uitzondering.
+  assert.equal(app.armPicker(), false);
+  app.showScreen('settings', 'prescriber');
+  assert.equal(app.armPicker(), true);
+  app.hidden();
+  assert.equal(app.state.view, 'ready', 'niet direct vergrendeld');
+  assert.equal([...dev.timers.values()][0].ms, PICKER_AWAY_MS);
+  dev.advance(PICKER_AWAY_MS - 1);
+  app.visible();
+  assert.equal(app.state.view, 'ready', 'terug binnen 3 minuten');
+  // Eén keer: wegwisselen zonder nieuwe tik vergrendelt weer direct.
+  app.hidden();
+  assert.equal(app.state.view, 'locking');
+});
+
+test('review PR #47, 3: na 3 minuten weg, of te laat na de tik, gewoon vergrendelen', async () => {
+  const dev = timedDevice();
+  const app = await readyApp(dev);
+  await app.saveSetting('lock.awayMinutes', 0);
+  app.showScreen('settings', 'prescriber');
+  app.armPicker();
+  app.hidden();
+  dev.advance(PICKER_AWAY_MS);
+  app.visible();
+  assert.equal(app.state.view, 'locking', 'te lang weg');
+
+  const dev2 = timedDevice();
+  const b = await readyApp(dev2);
+  await b.saveSetting('lock.awayMinutes', 0);
+  b.showScreen('settings', 'prescriber');
+  b.armPicker();
+  dev2.advance(PICKER_ARM_MS);
+  b.hidden();
+  assert.equal(b.state.view, 'locking', 'tik te lang geleden');
+});
+
+test('review PR #47, 3: een langere eigen wachttijd blijft gelden; ook in de vaste stap', async () => {
+  const dev = timedDevice();
+  const app = await readyApp(dev);
+  await app.saveSetting('lock.awayMinutes', 10);
+  app.showScreen('settings', 'prescriber');
+  app.armPicker();
+  app.hidden();
+  assert.equal([...dev.timers.values()][0].ms, 10 * MIN);
+  app.visible();
+
+  // Vaste stap (opslag zonder handtekening) met "Direct".
+  const c = timedDevice();
+  await onboard(c);
+  const x = await unlocked(c);
+  await x.saveSetting('lock.awayMinutes', 0);
+  await x.queue.run(x.session, (store, s, now) => V.destroyRecordTx(store, s, { id: x.signatureId, now }));
+  await x.lock();
+  c.open = false;
+  const y = await unlocked(c);
+  assert.equal(y.state.view, 'prescriber');
+  assert.equal(y.armPicker(), true);
+  y.hidden();
+  assert.equal(y.state.view, 'prescriber');
+  c.advance(60 * 1000);
+  y.visible();
+  assert.equal(y.state.view, 'prescriber');
+});
+
+test('review PR #47: een melding over de handtekening verdwijnt; andere fouten blijven', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  app.set({ prescriberErrors: { signature: 'signature.error.required', big: 'prescriber.error.big' } });
+  app.clearSignatureError();
+  assert.deepEqual(app.state.prescriberErrors, { big: 'prescriber.error.big' });
 });

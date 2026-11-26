@@ -129,3 +129,11 @@ schermen).
 4. Opslaan zonder handtekening geeft de melding; met handtekening naar het hoofdscherm.
 5. Instellingen → Voorschrijver toont de handtekening; *Wijzigen* en opslaan werkt.
 6. Logboek: `signature` aangemaakt en gewijzigd, zonder inhoud. Back-up maken en controleren.
+
+### Review van PR #47 (auditor, 2026-11-26)
+| Punt | Verwerking |
+|---|---|
+| 1: een verlaten concept kon later de handtekening vervangen | Een concept vervalt zodra het formulier van de voorschrijver niet meer zichtbaar is (tabblad, terug, vergrendelen, stop) |
+| 2: opslaan tijdens het verwerken van een afbeelding meldde succes | *Opslaan* uitgeschakeld en genegeerd zolang de verwerking loopt; elk concept heeft een nummer, de uitkomst voor een verlaten concept wordt genegeerd |
+| 3: bij "Direct" vergrendelde de bestandskiezer de app en kwam je terug in de vaste stap | Besluit gebruiker: tijdens de bestandskiezer tijdelijk niet vergrendelen. Na een tik op *Afbeelding kiezen* blijft de app één keer hooguit 3 minuten open (`armPicker`, `PICKER_AWAY_MS`), alleen op het formulier van de voorschrijver; restrisico in `nen7510.md`. De waarschuwing bij "Direct" vervalt |
+| Erbij | Een melding over de handtekening verdwijnt na het tekenen van een lijn of bij het kiezen van een afbeelding |

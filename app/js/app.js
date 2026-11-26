@@ -756,10 +756,26 @@ function prescriberValues() {
 // verwerkte gekozen afbeelding (pending), of het wijzigen van een opgeslagen
 // handtekening (editing). Alleen in het geheugen; herladen bij vergrendelen
 // wist het.
-ui.sig = { strokes: [], pending: null, editing: false, working: false, error: null };
+// Elk concept heeft een eigen nummer: de uitkomst van een verwerking voor een
+// verlaten of geannuleerd concept wordt genegeerd (review PR #47, 2).
+let sigSerial = 0;
+
+function freshSignature() {
+  sigSerial += 1;
+  return { id: sigSerial, strokes: [], pending: null, editing: false, working: false, error: null };
+}
+
+ui.sig = freshSignature();
 
 function resetSignature() {
-  ui.sig = { strokes: [], pending: null, editing: false, working: false, error: null };
+  ui.sig = freshSignature();
+}
+
+// Is het formulier met de handtekening zichtbaar? Zo niet, dan vervalt een
+// concept, hoe de gebruiker het formulier ook verliet (review PR #47, 1).
+function signatureFormVisible() {
+  const s = app.state;
+  return s.view === 'prescriber' || (s.view === 'ready' && s.work.sub === 'prescriber');
 }
 
 const SIG_ERRORS = {
@@ -814,7 +830,9 @@ function signaturePad() {
     line.push(padPoint(canvas, event));
     drawStrokes(ctx, ui.sig.strokes, PAD_W, PAD_H);
   });
-  const end = () => { line = null; };
+  // Een melding over de handtekening verdwijnt na de lijn (niet tijdens het
+  // tekenen: opnieuw tekenen zou het vak vervangen).
+  const end = () => { if (line) { line = null; app.clearSignatureError(); } };
   canvas.addEventListener('pointerup', end);
   canvas.addEventListener('pointercancel', end);
   return el('div', { class: 'sig-box' },
@@ -831,18 +849,22 @@ function signaturePreview(data, saved) {
 
 async function pickSignatureFile(file) {
   if (!file) return;
-  ui.sig.working = true;
-  ui.sig.error = null;
+  const draft = ui.sig;
+  draft.working = true;
+  draft.error = null;
+  app.clearSignatureError();
   render();
+  let result = null;
+  let error = null;
   try {
-    ui.sig.pending = await fromFile(file);
-    ui.sig.strokes = [];
+    result = await fromFile(file);
   } catch (err) {
-    ui.sig.error = err instanceof SignatureError ? err.code : 'image';
-  } finally {
-    ui.sig.working = false;
-    render();
+    error = err instanceof SignatureError ? err.code : 'image';
   }
+  if (ui.sig !== draft || draft.id !== ui.sig.id) return;   // concept intussen verlaten
+  draft.working = false;
+  if (result) { draft.pending = result; draft.strokes = []; } else draft.error = error;
+  render();
 }
 
 // De handtekening om op te slaan: een gekozen afbeelding, of de tekening;
@@ -880,13 +902,14 @@ function signatureBlock() {
       ui.sig.pending ? signaturePreview(ui.sig.pending, false) : signaturePad(),
       el('div', { class: 'sig-actions' },
         button(t('signature.clear'), clear, 'small', { disabled: busy }),
-        button(ui.sig.working ? t('signature.working') : t('signature.pick'),
-          () => document.getElementById('sig-file').click(), 'small', { disabled: busy })),
+        button(ui.sig.working ? t('signature.working') : t('signature.pick'), () => {
+          app.armPicker();   // bestandskiezer: tijdelijk niet vergrendelen (review PR #47, 3)
+          document.getElementById('sig-file').click();
+        }, 'small', { disabled: busy })),
       fileInput,
       saved ? button(t('signature.cancel'), () => { resetSignature(); render(); }, 'link') : null,
       ui.sig.error ? el('p', { class: 'hint error', role: 'alert' }, t(SIG_ERRORS[ui.sig.error] || SIG_ERRORS.image)) : null,
-      el('p', { class: 'hint' }, t('signature.photoHint')),
-      app.state.settings['lock.awayMinutes'] === 0 ? el('p', { class: 'note warn' }, t('signature.directWarn')) : null);
+      el('p', { class: 'hint' }, t('signature.photoHint')));
   }
   if (formError) {
     parts.push(el('p', { class: 'hint error', role: 'alert' }, t(SIG_FORM_ERRORS.includes(formError) ? formError : SIG_FORM_ERRORS[0])));
@@ -916,6 +939,7 @@ function prescriberForm(submitLabel, after) {
     novalidate: true,
     onsubmit: async (event) => {
       event.preventDefault();
+      if (ui.sig.working || app.state.busy) return;   // afbeelding nog in verwerking (review PR #47, 2)
       let sig = null;
       try {
         sig = await signatureToSave();
@@ -932,7 +956,9 @@ function prescriberForm(submitLabel, after) {
         render();
       }
     },
-  }, fields, signatureBlock(), submit(submitLabel));
+  }, fields, signatureBlock(), el('button', {
+    type: 'submit', class: 'btn primary', disabled: app.state.busy || ui.sig.working,
+  }, app.state.busy || ui.sig.working ? t('common.busy') : submitLabel));
 }
 
 // Vaste stap na het ontgrendelen zolang de gegevens niet compleet zijn.
@@ -1431,6 +1457,9 @@ function readyScreen() {
 
 function view() {
   const s = app.state;
+  if (!signatureFormVisible() && (ui.sig.strokes.length || ui.sig.pending || ui.sig.editing || ui.sig.working)) {
+    resetSignature();
+  }
   switch (s.view) {
     case 'starting': return startingScreen();
     case 'already-open': return alreadyOpenScreen();

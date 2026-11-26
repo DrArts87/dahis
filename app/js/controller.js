@@ -119,6 +119,12 @@ const SECRET_VIEWS = new Set(['recovery-password', 'ready', 'prescriber', 'halte
 // geldt (de velden van de voorschrijver zijn geen geheimen; opzoeken in een
 // andere app moet kunnen).
 const AWAY_VIEWS = new Set(['ready', 'prescriber']);
+// Bestandskiezer voor de handtekening (review PR #47, besluit gebruiker
+// 2026-11-26): de kiezer stuurt de app naar de achtergrond. Ook bij "Direct"
+// blijft de app dan hooguit PICKER_AWAY_MS open, één keer, als het wegzijn
+// binnen PICKER_ARM_MS na de tik op "Afbeelding kiezen" begint.
+export const PICKER_AWAY_MS = 3 * 60 * 1000;
+export const PICKER_ARM_MS = 60 * 1000;
 const SECRET_STEPS = new Set(['key', 'check', 'done']);
 // Subschermen in 'ready' met invoer van een wachtwoord of de herstelsleutel:
 // daar geldt geen wachttijd (review PR #23 P1-1).
@@ -238,7 +244,9 @@ export class AppController {
     this.backupFile = null;       // gemaakte en gecontroleerde back-up: {id, text, name}
     this.backupSerial = 0;        // volgnummer van de exports in deze sessie
     this.hiddenAt = null;         // ms: verborgen met wachttijd (stap D1)
+    this.awayLimit = null;        // ms: geldende wachttijd tijdens dit wegzijn
     this.awayTimer = null;
+    this.pickerArmedAt = null;    // ms: tik op "Afbeelding kiezen" (0.5.2)
     this.lastActivity = this.now();
     this.state = {
       view: 'starting',
@@ -324,14 +332,38 @@ export class AppController {
     if (this.awayTimer !== null) this.deps.clearTimer(this.awayTimer);
     this.awayTimer = null;
     this.hiddenAt = null;
+    this.awayLimit = null;
+  }
+
+  // Staat het formulier met de handtekening open (vaste stap of Instellingen)?
+  signatureFormOpen() {
+    const v = this.state.view;
+    return v === 'prescriber' || (v === 'ready' && this.state.work.sub === 'prescriber');
+  }
+
+  // Vlak vóór het openen van de bestandskiezer voor de handtekening.
+  armPicker() {
+    if (!this.signatureFormOpen() || this.state.busy) return false;
+    this.pickerArmedAt = this.now();
+    return true;
+  }
+
+  pickerArmed() {
+    if (this.pickerArmedAt === null) return false;
+    const since = this.now() - this.pickerArmedAt;
+    return since >= 0 && since < PICKER_ARM_MS && this.signatureFormOpen() && !this.state.busy;
   }
 
   // De app gaat naar de achtergrond (visibilitychange: hidden).
   hidden() {
     if (!this.shouldLockOnHide()) return;
-    if (!this.awayAllowed()) { this.lock(); return; }
+    const picker = this.pickerArmed();
+    this.pickerArmedAt = null;   // één keer
+    if (!this.awayAllowed() && !picker) { this.lock(); return; }
     if (this.hiddenAt !== null) return;
-    const ms = this.state.settings['lock.awayMinutes'] * 60 * 1000;
+    let ms = this.awayAllowed() ? this.state.settings['lock.awayMinutes'] * 60 * 1000 : 0;
+    if (picker) ms = Math.max(ms, PICKER_AWAY_MS);
+    this.awayLimit = ms;
     this.hiddenAt = this.now();
     // Loopt JavaScript op de achtergrond nog, dan vergrendelt de app al
     // tijdens het wegzijn. Bevriest Android de app, dan beslist visible().
@@ -343,7 +375,7 @@ export class AppController {
   visible() {
     if (this.hiddenAt === null) return;
     const away = this.now() - this.hiddenAt;
-    const ms = this.state.settings['lock.awayMinutes'] * 60 * 1000;
+    const ms = this.awayLimit;
     this.clearAway();
     if (!this.shouldLockOnHide()) return;
     if (away < 0 || away >= ms || !AWAY_VIEWS.has(this.state.view)) { this.lock(); return; }
@@ -728,7 +760,16 @@ export class AppController {
     });
   }
 
-  clearPrescriberErrors() {
+  clearSignatureError() {
+    const e = this.state.prescriberErrors;
+    if (e.signature) {
+      const rest = Object.assign({}, e);
+      delete rest.signature;
+      this.set({ prescriberErrors: rest });
+    }
+  }
+
+    clearPrescriberErrors() {
     if (Object.keys(this.state.prescriberErrors).length) this.set({ prescriberErrors: {} });
   }
 
@@ -1098,6 +1139,7 @@ export class AppController {
     if (this.state.view === 'locking' || this.erasing) return;
     this.generation += 1;
     this.clearAway();
+    this.pickerArmedAt = null;
     const session = this.session;
     const work = this.state.view === 'ready' ? normalizeWork(this.state.work) : null;
     this.session = null;
