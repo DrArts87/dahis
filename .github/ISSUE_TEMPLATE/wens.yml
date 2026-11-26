@@ -1,0 +1,61 @@
+name: Idee of wens
+description: Een nieuwe functie of een verbetering voorstellen.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Deze repository is openbaar: zet hier geen persoons- of medische
+        gegevens.** Dus geen namen, BSN's, geboortedata, adressen, diagnoses,
+        medicatie of recepten, geen back-ups of exports, en geen
+        schermafbeeldingen waar echte gegevens op staan. Gebruik alleen
+        verzonnen testgegevens.
+
+        Dahis heeft vaste uitgangspunten: geen externe dependencies, niets
+        naar internet behalve de eigen app-code, het versleutelingsformaat is
+        een contract met bestaande back-ups, en geen doseeradvies of
+        interactiecontrole (MDR). Zie CLAUDE.md. Wijkt een voorstel daarvan
+        af, leg dan uit waarom het nodig is.
+  - type: textarea
+    id: probleem
+    attributes:
+      label: Welk probleem lost het op?
+      description: Wat wil je kunnen doen dat nu niet of onhandig gaat?
+    validations:
+      required: true
+  - type: textarea
+    id: voorstel
+    attributes:
+      label: Wat stel je voor?
+      description: Beschrijf hoe het er voor de gebruiker uit zou zien.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatieven
+    attributes:
+      label: Alternatieven
+      description: Hoe los je het nu op, of welke andere oplossing heb je overwogen?
+  - type: dropdown
+    id: onderdeel
+    attributes:
+      label: Onderdeel
+      options:
+        - Inrichten en ontgrendelen
+        - Vergrendelen
+        - Back-up
+        - Logboek
+        - Instellingen
+        - Installatie en update
+        - Voorschrijver
+        - Patiënten
+        - Recepten
+        - Anders
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: Ik heb gecontroleerd dat dit issue geen persoons- of medische gegevens bevat, ook niet in een schermafbeelding.
+          required: true

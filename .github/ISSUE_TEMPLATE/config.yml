@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Beveiligingslek melden (niet openbaar)
+    url: https://github.com/DrArts87/dahis/security/advisories/new
+    about: Meld een kwetsbaarheid nooit in een openbaar issue. Zie SECURITY.md.
+  - name: Werkafspraken
+    url: https://github.com/DrArts87/dahis/blob/main/CLAUDE.md
+    about: Werkafspraken, ontwerpprincipes en de regel dat er geen persoons- of medische gegevens op GitHub komen.

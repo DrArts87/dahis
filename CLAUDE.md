@@ -24,6 +24,10 @@ plaats van te gokken.
 - Repository-instellingen, GitHub Pages of GitHub-workflows aanpassen.
 - Alles buiten deze repository, inclusief hosting en de installatie op de
   telefoon.
+- Een issue aanmaken, sluiten of labelen. Claude mag issues voorstellen
+  voor wat het tegenkomt maar niet direct oppakt; aanmaken pas na
+  toestemming (één akkoord mag meerdere issues dekken). Sluiten via
+  `Closes #n` bij een gemergede PR valt onder het akkoord op die PR.
 
 ### Nooit
 - Direct op `main` committen.
@@ -93,6 +97,12 @@ Voor een commit
 Features en refactors krijgen een plan in `docs/plans/JJJJ-MM-DD-onderwerp.md`
 met doel, omvang, taken, risico's en acceptatiecriteria.
 
+Elk plan begint met **Open issues nagelopen**: welke open issues het plan
+raken, welke meegaan (in de PR `Closes #n`) en welke alleen geraakt worden
+(`Zie #n`). De routekaart ([vervolgplan](docs/plans/2026-11-26-vervolgplan.md)
+en de plannen per fase) heeft voorrang; issues komen daar bovenop. Is de
+routekaart af, dan bepalen de open issues steeds het vervolg.
+
 ## 5. Valkuilen
 - Versleutelingsformaat, sleutelafleiding en back-upformaat zijn een
   contract met bestaande gegevens en back-ups: wijzigen alleen met
@@ -110,3 +120,18 @@ met doel, omvang, taken, risico's en acceptatiecriteria.
   korte uitleg in gewone taal ("ELI5"): wat er speelt, wat er gedaan is en
   wat de gebruiker moet beslissen, zonder vakjargon. Daaronder volgt de
   uitgebreide, technische informatie.
+
+## 7. Issues
+- Een issue per fout, wens of schermpunt, via de formulieren in
+  `.github/ISSUE_TEMPLATE/` (lege issues staan uit). Labels: `bug`,
+  `enhancement`, `ui`, `compliance`, `documentation`.
+- Issues zijn openbaar: de regels uit §1 *Nooit* gelden, ook voor
+  schermafbeeldingen. Een beveiligingslek nooit in een issue, maar via
+  *Security* → *Report a vulnerability* (`SECURITY.md`).
+- Een pull request koppelt elk issue dat hij oplost met een Engels
+  sleutelwoord (`Closes #12, closes #13`; "Sluit #12" koppelt niets). Na het
+  openen controleert Claude dat de issues gekoppeld zijn.
+- Een issue dat we niet bouwen, wordt na akkoord van de gebruiker gesloten
+  met een korte uitleg (*not planned*).
+- Kleine punten aan de schermen gaan als issue met label `ui`; er is geen
+  aparte UI-ronde.

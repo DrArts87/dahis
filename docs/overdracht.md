@@ -1,7 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-26, na taak 10 (acceptatietest op de OnePlus; fase 1
-alpha geaccepteerd). Dit document is het
+Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A van
+het vervolgplan (werkwijze met issues). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -25,6 +25,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #15 | Werkafspraak: na elke merge die `app/` wijzigt de releasetekst met codehash en het verzoek om een release |
 | #16 | Proef op de OnePlus met 0.3.0 (plan taak 7); herstelronde 0.3.1: alleen downloaden (delen vergrendelde de app), duidelijke bestandskeuze, grens van 256 MiB vastgesteld. Release `v0.3.1` |
 | #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
+| #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -43,12 +44,16 @@ taak 1–10 klaar. De acceptatietest
 ([plan taak 10](plans/2026-11-26-taak-10-acceptatie.md)) is op 2026-11-26
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
-echte dossiers rond zijn (zie *Besluiten*). **Volgende: de compliance-toets.**
+echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
+[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap B**
+(browsertests in CI).
 
 ## Belangrijkste documenten
 
 - [`CLAUDE.md`](../CLAUDE.md): werkafspraken (goedkeuring, nooit-regels,
-  workflows). Gaat altijd voor.
+  workflows, issues). Gaat altijd voor.
+- [Vervolgplan](plans/2026-11-26-vervolgplan.md): routekaart na fase 1
+  (stap A–E) en de besluiten van 2026-11-26.
 - [Projectplan](plans/2026-11-25-projectplan.md) en
   [plan fase 1](plans/2026-11-25-fase-1-fundament.md): besluiten, taken met
   testeisen, acceptatiecriteria, **voorwaarde voor echte dossiers**.
@@ -82,8 +87,11 @@ echte dossiers rond zijn (zie *Besluiten*). **Volgende: de compliance-toets.**
 | Instellingen | Versleuteld in de kluis (kind `settings`), vaste lijst met grenzen; vóór ontgrendelen niets opgeslagen |
 | Auditlog | Alleen ontgrendelingen, geen regel bij vergrendelen; inzien onder Meer → Logboek (met technische regel voor debugging en forensisch onderzoek), het inzien zelf wordt niet gelogd |
 | Realistisch log | 0–10 regels per dag (≈ 18.000 in 5 jaar); meten bij 20.000 en 100.000 regels |
-| PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard 600.000 (een hogere standaard is een apart besluit) |
-| Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld). Onderbreken tijdens schrijven of terugzetten, schade bij de volledige controle en "niet leesbaar" gelden als gedekt door de tests (besluit 2026-11-26). Taak 10 sluit fase 1 af als **alpha geaccepteerd**; echte dossiers daarna pas na de review van de volledige keten, formaat 1 *vastgesteld* (eigen PR) en de compliance-toets |
+| PBKDF2 | Grens 600.000–10.000.000 vastgesteld na meting; standaard nu 600.000, wordt 2.000.000 in stap D1 (besluit 2026-11-26) |
+| Vergrendelen | Nu direct bij naar de achtergrond gaan; in stap D1 een wachttijd na wisselen van app, 0–15 min, standaard 5 (besluit 2026-11-26) |
+| Issues | Formulieren voor fout, wens en schermpunt; labels `bug`, `enhancement`, `ui`, `compliance`, `documentation`; elk plan loopt eerst de open issues na; Claude stelt issues voor en maakt ze aan na toestemming (`CLAUDE.md` §1, §4, §7). Geen aparte UI-ronde |
+| Documenten buiten de repository | Privé-OneDrive (restrisico geaccepteerd), aangeleverd door Claude; agenda *App onderhoud* in Google Calendar; zie het vervolgplan |
+| Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld). Onderbreken tijdens schrijven of terugzetten, schade bij de volledige controle en "niet leesbaar" gelden als gedekt door de tests (besluit 2026-11-26). Taak 10 sluit fase 1 af als **alpha geaccepteerd**; echte dossiers daarna pas na de review van de volledige keten, formaat 1 *vastgesteld* (eigen PR) en de compliance-toets. Eigen gegevens van de voorschrijver mogen na stap D2 (besluit 2026-11-26) |
 
 ## Werkwijze met Claude (cloudsessie)
 
@@ -110,6 +118,10 @@ echte dossiers rond zijn (zie *Besluiten*). **Volgende: de compliance-toets.**
    wijzigen vraagt altijd apart akkoord.
 7. **Browsercontrole** in de cloudsessie met de voorgeïnstalleerde Chromium
    (Playwright), wegwerpprofiel, testscripts niet in de repository.
+8. **Issues**: fouten, wensen en schermpunten als issue via de formulieren.
+   Claude stelt issues voor die het tegenkomt maar niet direct oppakt, en
+   maakt ze aan na toestemming. Een PR sluit issues met `Closes #n`
+   (`CLAUDE.md` §7).
 
 ## Code in het kort
 
@@ -131,15 +143,14 @@ echte dossiers rond zijn (zie *Besluiten*). **Volgende: de compliance-toets.**
 
 ## Volgende stap
 
-Taak 10 is klaar (zie *Waar staan we*). In deze volgorde (besluit gebruiker
-2026-11-26):
-1. **Compliance-toets fase 1**: `nen7510.md` per maatregel bijwerken met
-   bewijs, `avg.md` aanpassen (alleen downloaden, back-uplocatie), DPIA als
-   concept, lijst "vóór echte dossiers" met per punt wie het doet.
-2. **Registreren van de eigenaar** (de arts) en de gegevens die later nodig
-   zijn, alleen in de versleutelde kluis.
-3. **UI-schaafsessie**.
-4. **Fase 2** (patiëntenbestand).
+Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A
+(werkwijze met issues) is klaar na de merge. Daarna **B** browsertests in CI,
+**C** compliance-toets, **D1** wachttijd bij wisselen van app en PBKDF2,
+**D2** voorschrijver, **E** fase 2. Begin elk plan met de open issues
+(`CLAUDE.md` §4). Open issues nu:
+[#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later) en
+[#19](https://github.com/DrArts87/dahis/issues/19) (herinnering om
+back-ups op te ruimen; bekijken bij D1).
 
 Browsercontrole: repository serveren met `python3 -m http.server` en
 `/app/` (de app) of `/tests/browser.html` (IndexedDB-tests) openen in een
@@ -148,13 +159,8 @@ repository.
 
 ## Openstaande beslissingen
 
-- Browsertests in CI (job met de Chrome van de runner, zonder npm):
-  wijziging van de workflow, dus apart te vragen.
-- Een nieuwe review nu taak 7 klaar is (volledige keten in de app); nodig
-  om formaat 1 vast te stellen vóór echte dossiers.
-- Een hogere standaardwaarde voor PBKDF2 dan 600.000 rondes (de meting laat
-  ruimte; raakt alleen nieuwe wraps, het formaat staat het al toe); bij
-  voorkeur vóór echte dossiers.
+Geen. De punten van na taak 10 (browsertests in CI, review van de keten,
+PBKDF2) zijn op 2026-11-26 besloten; zie het vervolgplan.
 
 ## Een nieuwe chat starten
 
@@ -162,5 +168,5 @@ Voorbeeld van een eerste bericht:
 
 > Lees `CLAUDE.md` en `docs/overdracht.md`. Controleer of de laatste PR
 > gemerged is en zet je branch opnieuw op vanaf `main`. Maak daarna het plan
-> voor de volgende taak, inclusief de auditpunten die daarbij horen, en wacht
-> op mijn akkoord.
+> voor de volgende stap uit het vervolgplan, met de open issues en de
+> auditpunten die daarbij horen, en wacht op mijn akkoord.
