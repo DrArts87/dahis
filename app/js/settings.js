@@ -48,6 +48,19 @@ export function normalizeSettings(data) {
   return out;
 }
 
+// Vaste keuzes op het instellingenscherm (#29); de overige toegestane waarden
+// staan onder "Anders" in een keuzelijst. Alleen schermkeuzes: de grenzen
+// blijven die van SETTINGS.
+export const PRESETS = Object.freeze({
+  'lock.idleMinutes': Object.freeze([1, 3, 5, 10]),
+  'lock.awayMinutes': Object.freeze([0, 1, 5, 10]),
+});
+
+// Staat de waarde op een vaste keuze? Zo niet, dan opent "Anders".
+export function isPreset(key, value) {
+  return Object.prototype.hasOwnProperty.call(PRESETS, key) && PRESETS[key].includes(value);
+}
+
 // Nieuwe set met één gewijzigde instelling; gooit SettingError als de
 // sleutel of waarde niet is toegestaan.
 export function withSetting(current, key, value) {

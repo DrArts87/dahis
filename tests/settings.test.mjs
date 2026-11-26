@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SETTINGS, defaultSettings, normalizeSettings, withSetting, isValidSetting, SettingError,
+  PRESETS, isPreset,
 } from '../app/js/settings.js';
 
 test('standaardwaarden voor alle sleutels', () => {
@@ -39,4 +40,21 @@ test('withSetting weigert onbekende sleutels en waarden buiten de grenzen', () =
   assert.throws(() => withSetting({}, 'lock.awayMinutes', 16), SettingError);
   assert.throws(() => withSetting({}, 'lock.idleMinutes', 30), SettingError);
   assert.throws(() => withSetting({}, '__proto__', 1), SettingError);
+});
+
+// Vaste keuzes op het instellingenscherm (#29).
+test('vaste keuzes zijn toegestane waarden en bevatten de standaard', () => {
+  for (const [key, values] of Object.entries(PRESETS)) {
+    assert.ok(Object.prototype.hasOwnProperty.call(SETTINGS, key), key);
+    for (const v of values) assert.equal(isValidSetting(key, v), true, key + ' ' + v);
+    assert.ok(values.includes(SETTINGS[key].default), key + ' standaard');
+  }
+});
+
+test('waarde buiten de vaste keuzes opent "Anders"', () => {
+  assert.equal(isPreset('lock.idleMinutes', 3), true);
+  assert.equal(isPreset('lock.idleMinutes', 7), false);
+  assert.equal(isPreset('lock.awayMinutes', 0), true);
+  assert.equal(isPreset('lock.awayMinutes', 15), false);
+  assert.equal(isPreset('bestaat.niet', 1), false);
 });

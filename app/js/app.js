@@ -9,7 +9,7 @@ import { t } from './i18n.js';
 import {
   AppController, ERASE_WORD, MEASURE_ITERATIONS, MEASURE_CHECK_SIZES, MEASURE_BACKUP_MIB, backupDue,
 } from './controller.js';
-import { SETTINGS } from './settings.js';
+import { SETTINGS, PRESETS, isPreset } from './settings.js';
 
 // Nooit in een frame draaien (de header frame-ancestors werkt pas zodra de
 // service worker de pagina serveert).
@@ -29,6 +29,7 @@ const ui = {
   lockedMode: 'unlock',     // unlock | file (back-up controleren op het vergrendelscherm)
   file: null,               // gekozen back-upbestand (File); overleeft opnieuw tekenen
   clearInputs: false,
+  other: {},                // instellingen waarbij "Anders" open staat (#29); per tabblad
 };
 
 const sw = {
@@ -491,7 +492,8 @@ function nav() {
 }
 
 function onTab() {
-  if (app.state.work.tab === 'settings') app.refreshStorage();
+  ui.other = {};
+  if (app.state.work.tab === 'more') app.refreshStorage();
 }
 
 function listItem(iconId, label, { value: val, onclick, danger, chevron = true, control } = {}) {
@@ -815,7 +817,7 @@ function minutesSelect(id, key, label) {
       m === 0 ? t('settings.immediately') : t('settings.minutes', { n: m })));
   }
   return el('select', {
-    id, 'aria-label': label, disabled: app.state.busy,
+    id, 'aria-label': label || null, disabled: app.state.busy,
     onchange: (event) => app.saveSetting(key, Number(event.target.value)),
   }, options);
 }
@@ -827,17 +829,43 @@ function storageText() {
   return s.usage === null || s.usage === undefined ? status : t('storage.usage', { status, mb: megabytes(s.usage) });
 }
 
+function minutesLabel(m) {
+  return m === 0 ? t('settings.immediately') : t('settings.minutes', { n: m });
+}
+
+// Kaart met vaste keuzes en "Anders" (#29). "Anders" staat open als de
+// gebruiker erop tikte of als de bewaarde waarde geen vaste keuze is; dan
+// verschijnt de keuzelijst met alle toegestane minuten.
+function minutesChoice(id, key, iconId, label, extra = null) {
+  const current = app.state.settings[key];
+  const other = Boolean(ui.other[key]) || !isPreset(key, current);
+  const choice = (bid, text, pressed, onclick) => el('button', {
+    type: 'button', id: bid, class: 'choice', 'aria-pressed': pressed ? 'true' : 'false',
+    disabled: app.state.busy, onclick,
+  }, text);
+  return el('section', { class: 'card setting' },
+    el('div', { class: 'setting-head' }, symbol(iconId, 'lead'), el('h4', {}, label)),
+    el('div', { class: 'choices', role: 'group', 'aria-label': label },
+      PRESETS[key].map((m) => choice(id + '-' + m, minutesLabel(m), !other && current === m, () => {
+        ui.other[key] = false;
+        app.saveSetting(key, m);
+      })),
+      choice(id + '-other', t('settings.other'), other, () => { ui.other[key] = true; render(); })),
+    other ? el('div', { class: 'setting-other' },
+      el('label', { for: id }, t('settings.otherLabel')),
+      minutesSelect(id, key, null)) : null,
+    extra);
+}
+
 function settingsTab() {
+  const direct = app.state.settings['lock.awayMinutes'] === 0;
   return [
     el('h3', {}, t('settings.security')),
+    minutesChoice('idle', 'lock.idleMinutes', 'i-clock', t('settings.idle')),
+    minutesChoice('away', 'lock.awayMinutes', 'i-swap', t('settings.away'),
+      direct ? el('p', { class: 'note warn' }, t('settings.directWarn')) : null),
     el('section', { class: 'card' }, el('ul', { class: 'list' },
-      listItem('i-clock', t('settings.idle'), { control: minutesSelect('idle', 'lock.idleMinutes', t('settings.idle')) }),
-      listItem('i-clock', t('settings.away'), { control: minutesSelect('away', 'lock.awayMinutes', t('settings.away')) }),
       listItem('i-key', t('settings.password'), { onclick: () => { app.showSub('password'); app.say(null); render(); } }))),
-    el('h3', {}, t('settings.device')),
-    el('section', { class: 'card' }, el('ul', { class: 'list' },
-      listItem('i-db', t('settings.storage'), { value: storageText() }))),
-    el('p', { class: 'muted' }, t('settings.awayNote')),
     el('p', { class: 'muted' }, t('settings.encrypted')),
   ];
 }
@@ -852,6 +880,7 @@ function moreTab() {
       listItem('i-shield', t('more.check'), {
         value: checkValue(), onclick: () => app.runFullCheck(),
       }),
+      listItem('i-db', t('more.storage'), { value: storageText() }),
       listItem('i-clock', t('more.audit'), {
         onclick: async () => { app.showSub('audit'); app.say(null); render(); await app.openAuditLog(); },
       }))),
