@@ -1,6 +1,9 @@
 # AVG: verwerkingsregister en uitgangspunten
 
 Beginversie, bij te houden naarmate de app groeit. Geen juridisch advies.
+Bijgewerkt in de compliance-toets van 2026-11-26; zie ook de
+[DPIA](dpia.md) (concept), de [MDR-toets](mdr.md) en
+[vóór echte dossiers](voor-echte-dossiers.md).
 
 ## Verwerkingsverantwoordelijke
 De arts die de app gebruikt, in de rol van BIG-geregistreerd
@@ -16,10 +19,30 @@ niet in deze repository.
 | Betrokkenen | De arts zelf, gezinsleden, vrienden |
 | Gegevens | Naam, geboortedatum, geslacht, adres, contactgegevens, BSN (optioneel), huisarts, apotheek, verzekering, allergieën, voorgeschiedenis, medicatie, recepten |
 | Ontvangers | Geen. Recepten gaan op papier naar de apotheek via de patiënt |
-| Verwerkers | Geen: gegevens staan alleen op de eigen telefoon. Back-ups in iCloud/Google Drive zijn versleuteld met een sleutel die de dienst niet heeft; GitHub (code en Pages) ziet nooit gegevens |
+| Verwerkers | Zie *Verwerkers en diensten* hieronder |
 | Doorgifte buiten EER | Geen |
 | Bewaartermijn | 20 jaar na de laatste wijziging van het dossier (WGBO art. 7:454), of langer als goed hulpverlenerschap dat vraagt; daarna vernietigen |
 | Beveiliging | Versleuteld op het toestel (AES-GCM-256), hoofdwachtwoord + schermvergrendeling, automatisch vergrendelen, auditlog; zie `nen7510.md` |
+
+## Verwerkers en diensten
+| Dienst | Wat er staat | Persoonsgegevens? | Afspraak |
+|---|---|---|---|
+| Telefoon (Chrome, IndexedDB) | Alle dossiers, versleuteld | Ja, alleen versleuteld | Eigen toestel; geen verwerker |
+| OneDrive (privéaccount Microsoft) | Versleutelde back-ups (`.dahis`); compliance-documenten (besluitenlog, DPIA-besluit, incidentenregister, checklist apparaten) | Back-ups: versleuteld, Microsoft heeft de sleutel niet. Incidentenregister: alleen patiëntnummers (gepseudonimiseerd, blijven persoonsgegevens). Eigen naam van de arts in de besluiten | Geen verwerkersovereenkomst (privéaccount). Restrisico geaccepteerd door de verwerkingsverantwoordelijke, 2026-11-26 ([DPIA](dpia.md) §6) |
+| GitHub (repository, Pages) | Code en documentatie, openbaar | Nee (regel in `CLAUDE.md`, `privacy_check.py` in CI) | Geen verwerker |
+| Google Calendar (agenda *App onderhoud*) | Onderhoudsafspraken (hersteltest, updates, herziening) | Nee | Geen verwerker |
+| Claude (ontwikkeling) | Code en documentatie | Nee: nooit echte gegevens in sessies, issues of documenten | Geen verwerker |
+
+### Incidentenregister en pseudonimisering
+- Het incidentenregister staat op OneDrive en bevat per incident alleen
+  **patiëntnummers**, geen namen, geboortedata of andere details die naar
+  een persoon leiden (dus ook niet "mijn dochter" of een datum met een
+  diagnose).
+- De koppeling van nummer naar persoon staat **niet** op OneDrive. Tot
+  fase 2 zijn er geen echte patiënten; daarna staat de koppeling
+  versleuteld in de app zelf.
+- Gepseudonimiseerde gegevens blijven persoonsgegevens (AVG overweging 26);
+  daarom geldt het restrisico van OneDrive hierboven ook voor het register.
 
 ## Rechten van betrokkenen
 - **Inzage en afschrift** (AVG art. 15, WGBO art. 7:456): export per
@@ -33,9 +56,14 @@ niet in deze repository.
 
 ## Back-ups
 - Back-ups zijn versleuteld (zie `docs/formaat.md`) en worden minstens
-  wekelijks gemaakt; de app herinnert eraan.
+  wekelijks gemaakt; de app herinnert eraan na 7 dagen. De app downloadt
+  het bestand (delen vergrendelt de app, taak 7); bewaar het daarna op
+  OneDrive (zie *Verwerkers en diensten*).
+- **Hersteltest**: elk kwartaal volgens de
+  [herstelprocedure](herstelprocedure.md) §6 (agenda *App onderhoud*).
 - **Bewaarbeleid**: bewaar de laatste vier wekelijkse back-ups en verwijder
-  oudere.
+  oudere, in Downloads én op OneDrive. Een herinnering in de app volgt
+  ([#19](https://github.com/DrArts87/dahis/issues/19)).
 - **Vernietiging** (WGBO art. 7:455): de app wist een vernietigd dossier uit
   de actieve opslag, maar kan back-upbestanden buiten de app niet wissen.
   Door het bewaarbeleid bestaan vernietigde gegevens hooguit ongeveer vier
@@ -46,7 +74,8 @@ niet in deze repository.
 ## DPIA
 Een DPIA is verplicht bij grootschalige verwerking van gezondheidsgegevens.
 Dat is hier niet het geval, maar een korte DPIA wordt aanbevolen omdat het om
-bijzondere gegevens gaat. Uit te voeren vóór ingebruikname (fase 2).
+bijzondere gegevens gaat. Concept: [`dpia.md`](dpia.md); aan te vullen en
+het besluit te ondertekenen vóór echte dossiers.
 
 ## Datalekken
 - Een datalek met gezondheidsgegevens moet binnen 72 uur bij de Autoriteit
@@ -55,8 +84,9 @@ bijzondere gegevens gaat. Uit te voeren vóór ingebruikname (fase 2).
 - Een verloren telefoon met een sterk wachtwoord op de app is in de regel
   geen meldplichtig risico; uitgelekte sleutels of leesbare gegevens wel.
 - Elk incident, ook als het niet gemeld hoeft te worden, vastleggen in
-  een incidentenregister buiten de repository (bijv. in de app zelf), zeker
-  als het details over personen bevat.
+  het incidentenregister op OneDrive, met alleen patiëntnummers (zie
+  *Incidentenregister en pseudonimisering*). Wat te doen bij verlies of een
+  afwijking: [herstelprocedure](herstelprocedure.md).
 
 ## BSN
 Zorgaanbieders zijn bij de Wet gebruik BSN in de zorg verplicht het BSN te

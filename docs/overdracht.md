@@ -1,7 +1,7 @@
 # Overdracht: stand van zaken
 
-Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A en B
-van het vervolgplan (werkwijze met issues, browsertests in CI). Dit document is het
+Bijgewerkt: 2026-11-26, na taak 10 (fase 1 alpha geaccepteerd) en stap A–C
+van het vervolgplan (issues, browsertests in CI, compliance-toets). Dit document is het
 startpunt voor een nieuwe chat of sessie. Houd het bij aan het eind van elke
 taak.
 
@@ -27,6 +27,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #17 | Taak 10: acceptatietest op de OnePlus met versie 0.3.1, checklist A–K alle in orde (onder meer terugzetten met de herstelsleutel en een nieuw wachtwoord, van telefoon naar pc, testbestand via beide routes, geen leesbare testwaarde); punten die de tests dekken en afwijkingen van plan fase 1 §7 vastgelegd. Fase 1 **alpha geaccepteerd** |
 | #20 | Vervolgplan na fase 1 (stap A–E, besluiten 2026-11-26); stap A: formulieren voor issues (fout, wens, schermpunt), PR-sjabloon, werkafspraken voor issues in `CLAUDE.md` §1, §4 en §7. Issues #18 (biometrie) en #19 (back-ups opruimen) aangemaakt |
 | #21 | Stap B: browsertests (`tests/browser.html`, 16 tests op echte IndexedDB) in CI met de Chrome van de runner en `tests/run_browser.mjs` (alleen Node-standaardmodules); ook lokaal te draaien |
+| #22 | Stap C: compliance-toets. `nen7510.md` met bewijs per maatregel; nieuw: DPIA (concept), MDR-toets, herstelprocedure, *vóór echte dossiers*; `avg.md` met verwerkers (OneDrive privé, restrisico geaccepteerd) en incidentenregister met patiëntnummers; projectplan fase 0 en 1 afgevinkt. Sjablonen voor OneDrive (Word, Excel) buiten de repository aangeleverd |
 
 **Live**: Pages is ingericht; release `v0.3.1` (codehash
 `f4fe0deb8429ea42008a2c686792a849f4bc321fc6e19fdc9ed74a90014ec31a`) staat op
@@ -46,8 +47,8 @@ taak 1–10 klaar. De acceptatietest
 met versie 0.3.1 uitgevoerd: alle stappen in orde. Fase 1 is **alpha
 geaccepteerd**; nog steeds **alleen testgegevens** tot de voorwaarden voor
 echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
-[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap C**
-(compliance-toets).
+[vervolgplan](plans/2026-11-26-vervolgplan.md); **volgende: stap D1**
+(wachttijd na wisselen van app, PBKDF2 2.000.000, werkstand).
 
 ## Belangrijkste documenten
 
@@ -62,8 +63,11 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
   Concept tot na taak 3–7, de metingen op de OnePlus en een volgende review.
 - [Reviews](reviews/2026-11-25-reviews.md): bevindingen van de auditor en de
   afspraken daarover; A1–A4 verwerkt.
-- [`docs/compliance/`](compliance/): AVG (inclusief bewaarbeleid back-ups) en
-  NEN 7510 (met restrisico's van sessies).
+- [`docs/compliance/`](compliance/): AVG (verwerkers, bewaarbeleid
+  back-ups, incidentenregister), NEN 7510 (maatregelen met bewijs,
+  restrisico's van sessies), DPIA (concept), MDR-toets, herstelprocedure en
+  [vóór echte dossiers](compliance/voor-echte-dossiers.md) (wat nog af moet,
+  met eigenaar).
 - [UI-opbouw](plans/2026-11-25-ui-opbouw.md) en
   [voorbeeldschermen](ui/voorbeelden.html): geraamte, stijl, logo, teksten,
   instellingen; [plan taak 5](plans/2026-11-25-taak-5-ontgrendelen.md),
@@ -148,9 +152,10 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 ## Volgende stap
 
 Volgens het [vervolgplan](plans/2026-11-26-vervolgplan.md): stap A
-(werkwijze met issues) en B (browsertests in CI) zijn klaar na de merge;
-zet daarna de controle **Browsertests (Chrome)** op verplicht in de
-branchbescherming. Daarna **C** compliance-toets, **D1** wachttijd bij wisselen van app en PBKDF2,
+(werkwijze met issues), B (browsertests in CI, verplicht) en C
+(compliance-toets) zijn klaar na de merge van C; daarna maakt Claude de
+afspraken in de agenda *App onderhoud* aan en vinkt die af in de PR van D1.
+Volgende: **D1** wachttijd bij wisselen van app en PBKDF2,
 **D2** voorschrijver, **E** fase 2. Begin elk plan met de open issues
 (`CLAUDE.md` §4). Open issues nu:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later) en
