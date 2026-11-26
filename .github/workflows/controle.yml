@@ -51,6 +51,24 @@ jobs:
       - name: Node-tests (crypto, formaat, testvectoren)
         run: node --test tests/*.test.mjs
 
+  browser:
+    name: Browsertests (Chrome)
+    # Direct op de runner: Google Chrome en Node staan daar al. Het script
+    # gebruikt alleen Node-standaardmodules (geen npm) en een wegwerpprofiel.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Code ophalen
+        run: eval "$CHECKOUT"
+      - name: Versies
+        run: |
+          node --version
+          google-chrome --version
+      - name: Browsertests op echte IndexedDB (tests/browser.html)
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: node tests/run_browser.mjs
+
   privacy:
     name: Geen persoons- of patiëntgegevens
     runs-on: ubuntu-latest
