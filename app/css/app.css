@@ -166,7 +166,7 @@ input[aria-invalid="true"] { border: 2px solid var(--warn); }
 .note.ok { background: var(--ok-bg); color: var(--ok); }
 
 .banner {
-  background: var(--banner); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px;
+  background: var(--banner); color: var(--text); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px;
   display: flex; align-items: center; gap: 10px; font-size: 0.95rem;
 }
 .banner button {
@@ -317,4 +317,7 @@ input:focus-visible, select:focus-visible, button:focus-visible {
 .shell.green .btn.primary { background: #ffffff; color: #123f32; border-color: #ffffff; }
 .shell.green .btn.link { color: #d8ead9; }
 .shell.green .note.warn { background: #fbeee0; color: #8a3b12; }
+/* Banner nieuwe versie (#41): vaste kleuren, niet de lichte tekst van het groene scherm. */
+.shell.green .banner { background: #fff4d6; color: #17231d; }
+.shell.green .banner button { background: #1f5c4a; border-color: #1f5c4a; color: #ffffff; }
 .shell.green .fern-hero { right: -40px; bottom: -30px; width: 300px; height: 274px; opacity: 0.20; transform: rotate(8deg); }
