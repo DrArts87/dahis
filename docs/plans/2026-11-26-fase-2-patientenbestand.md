@@ -1,6 +1,7 @@
 # Plan fase 2: patiëntenbestand (stap E)
 
-Status: akkoord gebruiker 2026-11-26 (besluiten hieronder)
+Status: akkoord gebruiker 2026-11-26 (besluiten hieronder); herzien
+2026-11-28: referentiemodel-ready (raakpunten R1–R7 worden per taak besproken)
 Datum: 2026-11-26
 Hoort bij: [vervolgplan](2026-11-26-vervolgplan.md) stap E,
 [projectplan](2026-11-25-projectplan.md) §6 fase 2
@@ -16,6 +17,7 @@ Soort: per taak een eigen plan en een eigen PR
 | [#44](https://github.com/DrArts87/dahis/issues/44) Meer opsplitsen, [#43](https://github.com/DrArts87/dahis/issues/43) back-up controleren vanuit Meer | Eerst als voorstel op het canvas, parallel aan E1; bouwen in E5 |
 | [#24](https://github.com/DrArts87/dahis/issues/24) bevestigde externe kopie | Geraakt; bij het vaststellen van formaat 1 (E6) |
 | [#25](https://github.com/DrArts87/dahis/issues/25) cloudopslag en art. 28 AVG | Geraakt; vóór echte dossiers, beoordeling door de gebruiker |
+| [#52](https://github.com/DrArts87/dahis/issues/52) voorschrijvermodule afmeten aan het referentiemodel | Geraakt; vóór fase 3 en uiterlijk bij E6 (`Zie #52`) |
 | [#18](https://github.com/DrArts87/dahis/issues/18), [#30](https://github.com/DrArts87/dahis/issues/30), [#33](https://github.com/DrArts87/dahis/issues/33) | Niet geraakt |
 
 ## In het kort
@@ -39,20 +41,79 @@ er **alleen testgegevens** in de app.
 | 7 | Allergieën en voorgeschiedenis | Een lijst met regels: vrije tekst en een **verplichte** begindatum. Geen codering (ICPC of SNOMED later, bij het journaal) |
 | 8 | Volgorde | Eerst E0 (fix 0.5.3); de browsertest (E2b, #27) vóór E3 |
 
+## NHG HIS-Referentiemodel (besluiten gebruiker 2026-11-27 en 2026-11-28)
+**Referentiemodel-ready.** Dahis wordt geen volledig HIS en implementeert
+het [HIS-Referentiemodel](https://referentiemodel.nhg.org/inhoud/themas/publieksversie/published)
+van het NHG niet volledig. Wel bouwen we zo dat de app *klaar* is voor het
+model: begrippen, indeling van gegevens en regels voor wijzigen, vernietigen
+en loggen sluiten erop aan waar we dat per raakpunt besluiten, zodat
+gegevens later over te zetten of uit te wisselen zijn. Wat dat precies
+betekent, bespreken we **per besluit of raakpunt**, in het plan van de taak
+die het raakt (`CLAUDE.md` §4, *Referentiemodel nagelopen*). Dit plan legt
+geen raakpunten vast; het noemt ze alleen.
+
+**Fair use voor eigen gebruik (eis).** De gebruiker is huisarts, lid van en
+betalend abonnee bij het NHG, lid van de gebruikersraad die de G-Standaard
+mee ontwikkelt, en ontwikkelt Dahis voor eigen gebruik. Bevindingen uit het
+bouwen komen ten goede aan het referentiemodel en de G-Standaard. Daarom
+gebruiken we de publieksversie van het referentiemodel, de openbare
+NHG-Tabellen (bijvoorbeeld ICPC, geslacht, naamgebruik, ernst
+overgevoeligheidsreactie) en de G-Standaard van Z-Index zonder verdere
+beperking, als fair use voor eigen gebruik. Wordt de app commercieel
+aangeboden of door anderen gebruikt, dan handelt de gebruiker in een andere
+rol en zijn eerst licenties bij NHG en Z-Index nodig. Dit is de eigen
+beoordeling van de gebruiker, geen juridisch advies.
+
+**MDR en andere regels.** Fair use en de relatie van de gebruiker met deze
+organisaties veranderen niets aan de MDR en andere wetgeving en normen
+(AVG, WGBO, NEN 7510). Medicatiebewaking,
+interactiecontrole en doseeradvies (bijvoorbeeld met contra-indicaties uit
+de G-Standaard) alleen na een apart besluit (`CLAUDE.md` §1 *Nooit*).
+
+### Raakpunten van fase 2
+Gevonden in de publieksversie (2026-11-27). Per raakpunt een eerste
+voorstel; het besluit valt in het plan van de genoemde taak.
+
+| Dahis (fase 2) | Referentiemodel | Raakpunt |
+|---|---|---|
+| Patiënt (E1) | Dossierdeel [Persoonsgegevens](https://referentiemodel.nhg.org/node/1676), medisch gegeven [Patiënt](https://referentiemodel.nhg.org/node/1677) | R1, R2 |
+| Lijst en zoeken (E2) | Praktijkdossierdeel [Patiëntenadministratie](https://referentiemodel.nhg.org/node/1846) | R3, R4 |
+| Allergieën (E3) | Dossierdelen [Contra-indicaties en overgevoeligheden](https://referentiemodel.nhg.org/node/987) en [Overige overgevoeligheden](https://referentiemodel.nhg.org/node/1159) | R5 |
+| Voorgeschiedenis (E3) | Dossierdeel [Episodes](https://referentiemodel.nhg.org/node/1464), medisch gegeven [Episode](https://referentiemodel.nhg.org/node/93) | R6 |
+| Wijzigen en vernietigen (E3) | [Dossier-item](https://referentiemodel.nhg.org/node/4), [Wijzigingslog](https://referentiemodel.nhg.org/node/1151) | R1, R7 |
+| Inzage loggen (E3) | Praktijkdossierdeel [Toegangslog](https://referentiemodel.nhg.org/node/1149) | Past bij besluit 5 (een regel bij elke toegang, ook bij export); overzicht per dossier in E4 |
+| Afdrukbaar overzicht (E4) | [Medische samenvatting](https://referentiemodel.nhg.org/node/1466), module [Printen](https://referentiemodel.nhg.org/node/1862) | Indeling van het overzicht, in het plan van E4 |
+| Voorschrijver (D2, al gebouwd) | [Medewerker](https://referentiemodel.nhg.org/node/1913) | #52 |
+
+| # | Raakpunt | Eerste voorstel | Taak |
+|---|---|---|---|
+| R1 | Dossier-items | In het model is elk gegeven een dossier-item met eigen invoermoment, attentievlag, correctie en vernietiging. Voorstel: patiënt, episode en overgevoeligheid elk een eigen record met een verwijzing naar de patiënt | E1 |
+| R2 | Persoonsgegevens | Naamgebruik (NHG-Tabel 42) en geslacht (NHG-Tabel 4) als keuze uit de tabel, naast de velden uit besluit 1 | E1 |
+| R3 | Meerling | Melding bij een nieuwe patiënt met dezelfde achternaam en geboortedatum | E2 |
+| R4 | In- en uitschrijven | Het model kent actieve en inactieve patiënten (overleden, vertrokken) en samenvoegen. Voorstel: niet in fase 2; besluit 6 (archiveren later) heet dan *uitschrijven later* | E2 |
+| R5 | Overgevoeligheden | Splitsen in medicatie-overgevoeligheid (middel, reactie, ernst volgens NHG-Tabel 55, bron) en overige overgevoeligheid; niet meer actueel wordt afgesloten, niet verwijderd. Contra-indicaties (G-Standaard) en medicatiebewaking niet in fase 2 (MDR) | E3 |
+| R6 | Episodes | Voorgeschiedenis als episode: naam en ICPC (NHG-Tabel 24), open of afgesloten, attentievlag. Het model kent een *startdatum* (standaard vandaag) en een optionele *begindatum van de aandoening*; hoe dat zich verhoudt tot besluit 7 (begindatum verplicht) beslissen we in E3 | E3 |
+| R7 | Corrigeren | Het model onderscheidt corrigeren (een fout herstellen) van aanvullen of afsluiten. Voorstel: detailcode `correction` bij `update` in het logboek (formaat §8.2) | E3 |
+
+Raakpunten die het gegevensmodel raken (R1, R2, R5, R6, R7), moeten vaststaan
+vóór de review van de keten en het vaststellen van formaat 1 (E6).
+
 ## Taken
 | Stap | Wat | Versie |
 |---|---|---|
 | E0 | Fix: banner nieuwe versie leesbaar op alle schermen (#41), icoon Snelheid meten in het midden van zijn vlak (#42) | 0.5.3 |
-| E1 | Gegevensmodel: record `patient` (schema 1, formaat §6.3; geen structuurwijziging), `app/js/patient.js` met regels per veld, 11-proef als waarschuwing, patiëntnummer (§ hieronder), strikt inlezen; tests met verzonnen gegevens | 0.6.0 |
-| E2 | Tabblad Patiënten: lijst en zoeken (naam, geboortedatum, nummer). De lijst wordt na ontgrendelen in het geheugen ontsleuteld en bij vergrendelen gewist. Lege toestand met galago (#46). Meting bij 100 en 1.000 patiënten onder Snelheid meten | 0.6.x |
+| E1 | Gegevensmodel (raakpunten R1, R2): record `patient` (schema 1, formaat §6.3; geen structuurwijziging), `app/js/patient.js` met regels per veld, 11-proef als waarschuwing, patiëntnummer (§ hieronder), strikt inlezen; de kinds voor episode en overgevoeligheid worden in E1 ontworpen en in E3 gebouwd; tests met verzonnen gegevens | 0.6.0 |
+| E2 | Tabblad Patiënten: lijst en zoeken (naam, geboortedatum, nummer), raakpunten R3 en R4. De lijst wordt na ontgrendelen in het geheugen ontsleuteld en bij vergrendelen gewist. Lege toestand met galago (#46). Meting bij 100 en 1.000 patiënten onder Snelheid meten | 0.6.x |
 | E2b | UI-browsertest in CI (#27), inclusief de schermen van E2 | geen release |
-| E3 | Dossier: toevoegen, bekijken, wijzigen, vernietigen; allergieën en voorgeschiedenis; logregels `create`, `update`, `view`, `destroy` zonder inhoud | 0.7.0 |
-| E4 | Afdrukbaar overzicht per patiënt (inzage of afschrift; print-CSS, logregel `print`); bewaartermijn per dossier zichtbaar (WGBO) | 0.8.0 |
+| E3 | Dossier: toevoegen, bekijken, wijzigen, corrigeren, vernietigen; allergieën en voorgeschiedenis (raakpunten R5, R6); logregels `create`, `update` (raakpunt R7), `view`, `destroy` zonder inhoud | 0.7.0 |
+| E4 | Afdrukbaar overzicht per patiënt (indeling: de medische samenvatting uit het model als uitgangspunt) (inzage of afschrift; print-CSS, logregel `print`); overzicht van de inzage in een dossier uit het logboek; bewaartermijn per dossier zichtbaar (WGBO) | 0.8.0 |
 | E5 | Meer opsplitsen (#44) en back-up controleren vanuit Meer (#43), na het canvas | 0.8.x |
 | E6 | Volledige review van de keten; daarna formaat 1 *vastgesteld* (eigen PR, met #24) | geen release |
 
 Projectplan §6 fase 2: persoon (E1, E3), zoeken en lijst (E2), afdrukbaar
-overzicht (E4), bewaartermijn zichtbaar (E4).
+overzicht (E4), bewaartermijn zichtbaar (E4). Huisarts, apotheek en
+verzekering (besluit 1) staan bij de persoonsgegevens; contactpersonen en
+sociale gegevens (in het model *Additioneel*) komen later.
 
 ### Patiëntnummer
 Het nummer moet uniek blijven, ook na vernietigen en na terugzetten van een
@@ -65,7 +126,7 @@ van E1.
 
 ### Werkwijze per taak
 - Elke taak krijgt een eigen plan in `docs/plans/` (begint met de open
-  issues) en wacht op akkoord.
+  issues en het referentiemodel) en wacht op akkoord.
 - Schermen eerst op het canvas *Dahis – Schermen* (Voorstellen), met
   verzonnen gegevens; in de PR gelijk gehouden aan de code.
 - Na de merge: eerst releasetekst en teststappen, daarna het canvas
@@ -81,6 +142,8 @@ van E1.
 | Bewaarplicht tegenover vernietigen | Alleen vernietigen op verzoek, met bevestiging en een nieuwe back-up (besluit 6); bewaartermijn zichtbaar (E4) |
 | Medische software (MDR) | Allergieën en voorgeschiedenis alleen bewaren en tonen; geen controle of waarschuwing bij voorschrijven zonder apart besluit |
 | Snelheid bij veel dossiers | Meting bij 100 en 1.000 patiënten (E2) op de OnePlus |
+| Afwijken van het referentiemodel zonder het te merken | Paragraaf *Referentiemodel nagelopen* in elk plan; per raakpunt een besluit |
+| Licentie | NHG-materiaal en G-Standaard alleen als fair use voor eigen gebruik; bij commercieel aanbieden of gebruik door anderen eerst licenties bij NHG en Z-Index |
 | Testgegevens lijken echt | Alleen verzonnen gegevens; geen namen in de repository (overdracht, *Teksten*); BSN's halen de 11-proef niet |
 
 ## Acceptatiecriteria (fase 2)
@@ -98,3 +161,6 @@ van E1.
   testbestand van formaat 1 blijft slagen.
 - De controles uit `CLAUDE.md` §2 slagen per taak; de UI-browsertest (E2b)
   draait in CI.
+- Elk plan van een taak heeft *Referentiemodel nagelopen* met een besluit
+  per raakpunt; de tabel *Raakpunten van fase 2* is bij de afronding
+  bijgewerkt.

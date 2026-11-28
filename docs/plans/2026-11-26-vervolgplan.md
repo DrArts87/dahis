@@ -171,3 +171,5 @@ gebruiker 2026-11-26): taken E0–E6, elk met een eigen plan en PR; eerst fix
 (#27), het dossier, het afdrukbare overzicht, Meer opsplitsen (#43, #44) en
 de volledige review van de keten. Patiëntgegevens pas na die review en het
 vaststellen van formaat 1.
+Sinds 2026-11-27 *referentiemodel-ready* (NHG HIS-Referentiemodel; besluit per
+raakpunt, zie het plan en `CLAUDE.md` §4).
