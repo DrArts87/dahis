@@ -1801,3 +1801,90 @@ test('E1: alleen ontgrendeld; geen nummer meer vrij geeft een melding', async ()
   assert.equal(app.state.message.key, 'patient.full');
   assert.equal(canon(dev.backend.disk), before);
 });
+
+// --- Review PR #56 ---------------------------------------------------------------------------
+
+async function withTwoPatients() {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(await app.createPatient(TEST_PATIENT), true);
+  assert.equal(await app.createPatient(SECOND_PATIENT), true);
+  const counterId = dev.backend.disk.records.find((r) => r.kind === PATIENT_COUNTER_KIND).id;
+  return { dev, app, counterId };
+}
+
+async function refusesNewNumber(dev, app) {
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.createPatient(Object.assign({}, TEST_PATIENT, { initials: 'C.' })), false);
+  assert.equal(app.state.message.key, 'patient.numberUnsafe');
+  assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
+  assert.equal(new Set(app.state.patients.map((p) => p.data.number)).size, app.state.patients.length);
+}
+
+test('review PR #56, P2: een ongeldige teller geeft geen nummer opnieuw uit', async () => {
+  const { dev, app, counterId } = await withTwoPatients();
+  await app.queue.run(app.session, (store, s, now) => V.putRecordsTx(store, s, {
+    items: [{ id: counterId, kind: PATIENT_COUNTER_KIND, data: { last: '2' } }], now,
+  }));
+  await refusesNewNumber(dev, app);
+});
+
+test('review PR #56, P2: een verwijderde of ontbrekende teller bij bestaande patiënten geeft geen nummer', async () => {
+  const a = await withTwoPatients();
+  await a.app.queue.run(a.app.session, (store, s, now) => V.deleteRecordTx(store, s, { id: a.counterId, now }));
+  await refusesNewNumber(a.dev, a.app);
+  const b = await withTwoPatients();
+  await b.app.queue.run(b.app.session, (store, s, now) => V.destroyRecordTx(store, s, { id: b.counterId, now }));
+  await refusesNewNumber(b.dev, b.app);
+});
+
+test('review PR #56, P2: een nummer dat al bestaat, wordt niet opnieuw uitgegeven', async () => {
+  const { dev, app, counterId } = await withTwoPatients();
+  await app.queue.run(app.session, (store, s, now) => V.putRecordsTx(store, s, {
+    items: [{ id: counterId, kind: PATIENT_COUNTER_KIND, data: { last: 1 } }], now,
+  }));
+  await refusesNewNumber(dev, app);
+});
+
+test('review PR #56, P2: alles wissen haalt patiënten en voorschrijver meteen uit het geheugen, ook als het mislukt', async () => {
+  const dev = device();
+  await onboard(dev);
+  const first = await unlocked(dev);
+  await first.createPatient(TEST_PATIENT);
+  await first.lock();
+  dev.open = false;
+  let fail;
+  const app = dev.controller({
+    deleteDatabase: () => new Promise((resolve, reject) => { fail = () => reject(new Error('mislukt')); }),
+  });
+  await app.start();
+  await app.unlock({ password: PASSWORD });
+  assert.equal(app.state.patients.length, 1);
+  assert.equal(app.state.prescriber.name, TEST_PRESCRIBER.name);
+  const erasing = app.eraseAll(ERASE_WORD);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(app.state.patients, [], 'tijdens het wissen');
+  assert.deepEqual(app.state.prescriber, {});
+  assert.equal(app.state.signature, null);
+  assert.equal(app.prescriberId, null);
+  fail();
+  assert.equal(await erasing, false);
+  assert.equal(app.state.view, 'error');
+  assert.deepEqual(app.state.patients, [], 'na het mislukken');
+  assert.deepEqual(app.state.prescriber, {});
+});
+
+test('review PR #56, P3: namen met accenten in Nederlandse volgorde, gelijke namen op nummer', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const make = (family, initials) => Object.assign({}, TEST_PATIENT, { family_name: family, initials });
+  assert.equal(await app.createPatient(make('Zzproef', 'A.')), true);
+  assert.equal(await app.createPatient(make('Éénproef', 'A.')), true);
+  assert.equal(await app.createPatient(make('Eenproef', 'A.')), true);
+  assert.equal(await app.createPatient(make('Aaproef', 'A.')), true);
+  assert.deepEqual(app.state.patients.map((p) => p.data.family_name + ' ' + p.data.number), [
+    'Aaproef DH000004', 'Éénproef DH000002', 'Eenproef DH000003', 'Zzproef DH000001',
+  ]);
+});

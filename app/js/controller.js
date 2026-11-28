@@ -192,13 +192,24 @@ class PatientLimitError extends Error {
   constructor() { super('Geen patiëntnummer meer vrij'); this.name = 'PatientLimitError'; }
 }
 
-// Patiënten op naam (achternaam zonder voorvoegsels vooraan), dan op nummer.
+// Het volgende patiëntnummer is niet zeker: de teller is ongeldig, verwijderd
+// of ontbreekt terwijl er al patiënten zijn, of het nummer bestaat al
+// (review PR #56, P2). Er wordt niets geschreven.
+class PatientNumberError extends Error {
+  constructor() { super('Patiëntnummer niet zeker'); this.name = 'PatientNumberError'; }
+}
+
+// Patiënten op naam in Nederlandse volgorde (achternaam zonder voorvoegsels
+// vooraan; accenten tellen niet), dan op nummer (review PR #56, P3).
+const NAME_ORDER = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
+
 function sortPatients(list) {
   return list.slice().sort((a, b) => {
-    const ka = sortKey(a.data);
-    const kb = sortKey(b.data);
-    if (ka !== kb) return ka < kb ? -1 : 1;
-    return (a.data.number || '') < (b.data.number || '') ? -1 : 1;
+    const byName = NAME_ORDER.compare(sortKey(a.data), sortKey(b.data));
+    if (byName !== 0) return byName;
+    const na = a.data.number || '';
+    const nb = b.data.number || '';
+    return na < nb ? -1 : na > nb ? 1 : 0;
   });
 }
 
@@ -853,14 +864,23 @@ export class AppController {
     return this.guard(async (gen) => {
       let record = null;
       await this.queue.run(this.session, async (store, s, now) => {
-        const counter = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_COUNTER_KIND).map((r) => r.id))).sort()[0];
-        let last = 0;
+        const counters = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_COUNTER_KIND).map((r) => r.id)));
+        if (counters.length > 1) throw new PatientNumberError();
+        const counter = counters[0];
+        let last;
         if (counter) {
+          // Ongeldig of verwijderd: nooit als 0 tellen (review PR #56, P2).
           const rec = await V.readRecord(store, s, counter);
-          if (rec && !rec.content.deleted) last = readCounter(rec.content.data);
+          last = rec && !rec.content.deleted ? readCounter(rec.content.data) : null;
+        } else {
+          // Nog geen teller: alleen goed als er ook nog geen patiënt is.
+          last = store.records.some((r) => r.kind === PATIENT_KIND) ? null : 0;
         }
+        if (last === null) throw new PatientNumberError();
         if (last >= MAX_PATIENT_NUMBER) throw new PatientLimitError();
-        record = Object.assign({ number: formatNumber(last + 1) }, data);
+        const number = formatNumber(last + 1);
+        if (this.state.patients.some((p) => p.data.number === number)) throw new PatientNumberError();
+        record = Object.assign({ number }, data);
         const tx = await V.putRecordsTx(store, s, {
           items: [
             { kind: PATIENT_KIND, data: record, schema: PATIENT_SCHEMA },
@@ -877,7 +897,7 @@ export class AppController {
         patientErrors: {}, patientWarnings: {}, lastFullCheckAt: this.session.lastFullCheckAt,
       });
       this.say('patient.saved', { number: record.data.number });
-    }, { messages: { PatientLimitError: 'patient.full' } });
+    }, { messages: { PatientLimitError: 'patient.full', PatientNumberError: 'patient.numberUnsafe' } });
   }
 
   // Persoonsgegevens wijzigen; het nummer blijft.
@@ -1323,7 +1343,14 @@ export class AppController {
     this.pending = null;
     this.recoverySecret = null;
     this.backupFile = null;
-    this.set({ busy: true, message: null });
+    // Ontsleutelde gegevens meteen uit het geheugen, zoals bij vergrendelen,
+    // ook als het wissen daarna lang duurt of mislukt (review PR #56, P2).
+    this.prescriberId = null;
+    this.signatureId = null;
+    this.set({
+      busy: true, message: null, prescriber: {}, prescriberErrors: {}, signature: null,
+      patients: [], patientErrors: {}, patientWarnings: {},
+    });
     const storage = this.storage;
     let ok = true;
     try {

@@ -126,8 +126,10 @@ test('patiëntnummer en teller', () => {
   assert.equal(isPatientNumber('DH000001'), true);
   assert.equal(isPatientNumber('DH00001'), false);
   assert.equal(readCounter({ last: 4 }), 4);
-  for (const bad of [null, {}, { last: -1 }, { last: 1.5 }, { last: '4' }, { last: MAX_PATIENT_NUMBER + 1 }]) {
-    assert.equal(readCounter(bad), 0);
+  assert.equal(readCounter({ last: 0 }), 0);
+  // Ongeldig telt nooit als 0 (review PR #56, P2).
+  for (const bad of [null, {}, [], { last: -1 }, { last: 1.5 }, { last: '4' }, { last: MAX_PATIENT_NUMBER + 1 }]) {
+    assert.equal(readCounter(bad), null);
   }
 });
 

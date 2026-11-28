@@ -241,11 +241,12 @@ export function isPatientNumber(v) {
   return typeof v === 'string' && NUMBER_RE.test(v);
 }
 
-// Inhoud van de teller strikt inlezen: het hoogste uitgegeven nummer, 0 als
-// er nog niets is uitgegeven of de inhoud niet klopt.
+// Inhoud van de teller strikt inlezen: het hoogste uitgegeven nummer, of
+// null als de inhoud niet klopt. Een ongeldige teller telt nooit als 0: dan
+// zou een nummer opnieuw kunnen worden uitgegeven (review PR #56, P2).
 export function readCounter(data) {
-  const last = data && typeof data === 'object' ? data.last : undefined;
-  return Number.isSafeInteger(last) && last >= 0 && last <= MAX_PATIENT_NUMBER ? last : 0;
+  const last = data && typeof data === 'object' && !Array.isArray(data) ? data.last : undefined;
+  return Number.isSafeInteger(last) && last >= 0 && last <= MAX_PATIENT_NUMBER ? last : null;
 }
 
 // --- Weergave ------------------------------------------------------------------------------

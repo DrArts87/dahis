@@ -143,6 +143,7 @@ export default Object.freeze({
   'patient.check': 'Controleer de waarschuwingen voordat je opslaat.',
   'patient.saved': 'Patiënt {number} opgeslagen.',
   'patient.updated': 'Gegevens van {number} opgeslagen.',
+  'patient.numberUnsafe': 'Niet opgeslagen: het volgende patiëntnummer is niet zeker. Zet zo nodig een back-up terug.',
   'patient.full': 'Er kunnen geen nieuwe patiënten meer worden toegevoegd: alle nummers zijn uitgegeven.',
   'prescriber.encrypted': 'Je gegevens worden versleuteld bewaard en gaan mee in de back-up.',
   'prescriber.save': 'Opslaan',
