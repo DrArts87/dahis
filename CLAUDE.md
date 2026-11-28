@@ -126,7 +126,31 @@ met doel, omvang, taken, risico's en acceptatiecriteria.
 
 Elk plan begint met **Open issues nagelopen**: welke open issues het plan
 raken, welke meegaan (in de PR `Closes #n`) en welke alleen geraakt worden
-(`Zie #n`). De routekaart ([vervolgplan](docs/plans/2026-11-26-vervolgplan.md)
+(`Zie #n`).
+
+Vanaf fase 2 is Dahis **referentiemodel-ready**: gebaseerd op het
+[NHG HIS-Referentiemodel](https://referentiemodel.nhg.org/inhoud/themas/publieksversie/published),
+zonder het volledig te implementeren. Wat dat betekent, besluit de
+gebruiker per besluit of raakpunt. Elk plan heeft daarom na de open issues
+**Referentiemodel nagelopen**: welke dossierdelen en gegevens het plan
+raakt, met per raakpunt een voorstel ter beslissing.
+
+Het referentiemodel (publieksversie), de openbare NHG-Tabellen en de
+G-Standaard (Z-Index) gebruiken we als **fair use voor eigen gebruik** door
+de gebruiker (huisarts, NHG-lid, lid van de gebruikersraad van de
+G-Standaard). Wordt de app commercieel aangeboden of door anderen gebruikt,
+dan eerst licenties bij NHG en Z-Index. Fair use en de relatie van de
+gebruiker met deze organisaties veranderen niets aan de MDR en andere
+wetgeving en normen (onder meer AVG, WGBO, NEN 7510); de regel over
+doseeradvies en interactiecontrole (§1 *Nooit*) blijft gelden.
+
+**Kennisbronnen.** De gebruiker heeft toegang tot de KNMP Kennisbank,
+inclusief het Informatorium Medicamentorum. Heeft Claude achtergrondkennis of
+gegevens over geneesmiddelen nodig, of wil het weten of iets daarin staat,
+dan vraagt Claude de gebruiker ernaar in plaats van te gokken of het uit
+het eigen geheugen in te vullen.
+
+De routekaart ([vervolgplan](docs/plans/2026-11-26-vervolgplan.md)
 en de plannen per fase) heeft voorrang; issues komen daar bovenop. Is de
 routekaart af, dan bepalen de open issues steeds het vervolg.
 

@@ -39,7 +39,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #39 | Stap D2 ([plan](plans/2026-11-26-d2-voorschrijver.md)), versie 0.5.0: record `prescriber` (formaat §6.3), `app/js/prescriber.js` met regels per veld, alle velden verplicht, praktijknaam "vrij gevestigd"; vaste stap na de eerste ontgrendeling (weergave `prescriber`), wijzigen onder Instellingen; tests en verzonnen testvoorschrijver. Waarschuwing bij "Direct" zonder deelmenu. Voorstellen op het canvas (Voorstellen, `#39`): Jouw gegevens, Voorschrijver, Instellingen, Inrichten 5 – Klaar |
 | #45 | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
 | #47 | Versie 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht. Proef op de OnePlus in orde; opslaan zonder handtekening tijdens de onboarding in de cloudsessie gecontroleerd |
-| (PR) | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
+| #49 | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
+| (PR) | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën |
 
 **Live**: Pages is ingericht; release `v0.5.2` (codehash
 `e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228`) staat op
@@ -116,6 +117,7 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
 | Werkstand | Scherm en aangemerkte formuliervelden in `state.work` van de controller; `workStore` bewaart nu niets (`NullWorkStore`). "Verder waar je was" (versleuteld concept) in fase 2/3 met een eigen formaatbesluit. Nooit wachtwoord of herstelsleutel |
 | Issues | Formulieren voor fout, wens en schermpunt; labels `bug`, `enhancement`, `ui`, `compliance`, `documentation`; elk plan loopt eerst de open issues na; Claude stelt issues voor en maakt ze aan na toestemming (`CLAUDE.md` §1, §4, §7). Geen aparte UI-ronde |
 | Documenten buiten de repository | Privé-OneDrive (restrisico geaccepteerd), aangeleverd door Claude; agenda *App onderhoud* in Google Calendar; zie het vervolgplan |
+| Referentiemodel | Vanaf fase 2 *referentiemodel-ready*: gebaseerd op het [NHG HIS-Referentiemodel](https://referentiemodel.nhg.org/inhoud/themas/publieksversie/published), niet volledig geïmplementeerd; besluit per raakpunt in het plan van de taak (*Referentiemodel nagelopen*, `CLAUDE.md` §4). Publieksversie, openbare NHG-Tabellen en G-Standaard als fair use voor eigen gebruik; bij commercieel aanbieden of gebruik door anderen eerst licenties bij NHG en Z-Index; MDR en andere wetgeving en normen blijven gelden. De gebruiker heeft toegang tot de KNMP Kennisbank (met Informatorium Medicamentorum): vraag ernaar bij kennis over geneesmiddelen (`CLAUDE.md` §4). Voorschrijver toetsen in #52 (besluiten 2026-11-27 en 2026-11-28) |
 | Echte dossiers | Pas na de voorwaarde in het plan fase 1 §7 (back-up en herstel via beide routes op de OnePlus, tests bij onderbreking, controles, limieten gemeten, formaat vastgesteld). Onderbreken tijdens schrijven of terugzetten, schade bij de volledige controle en "niet leesbaar" gelden als gedekt door de tests (besluit 2026-11-26). Taak 10 sluit fase 1 af als **alpha geaccepteerd**; echte dossiers daarna pas na de review van de volledige keten, formaat 1 *vastgesteld* (eigen PR) en de compliance-toets. Eigen gegevens van de voorschrijver mogen na stap D2 (besluit 2026-11-26) |
 
 ## Werkwijze met Claude (cloudsessie)
@@ -182,10 +184,11 @@ en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
 en lint (#34, 0.4.3), instellingen met vaste keuzes (#35, 0.4.4) en het
 restrisico van Recente apps (#37), D2 (voorschrijver, #39, 0.5.0), fix 0.5.1
 (#45) en 0.5.2 (handtekening en stapnummers, #47; release en proef in orde)
-zijn klaar. Nu: het plan voor **E** fase 2 (patiëntenbestand), daarna een
-volledige review van de keten. Begin met de open issues (`CLAUDE.md` §4);
-neem zo mogelijk de kleine UI-punten #41 en #42 mee, en zet #43 en #44 eerst
-als voorstel op het canvas. Open issues:
+zijn klaar. Nu: **E** fase 2 volgens het
+[plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md), te beginnen met
+E0 (fix 0.5.3: #41, #42), dan E1 (gegevensmodel `patient`). Elke taak krijgt
+een eigen plan dat begint met de open issues (`CLAUDE.md` §4); #43 en #44
+eerst als voorstel op het canvas. Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
 van de back-up; bij het vaststellen van formaat 1, blokkade vóór echte
@@ -201,7 +204,9 @@ apps; restrisico geaccepteerd),
 nieuwe versie onleesbaar), [#42](https://github.com/DrArts87/dahis/issues/42)
 (icoon Snelheid meten), [#43](https://github.com/DrArts87/dahis/issues/43)
 (back-up controleren vanuit Meer) en
-[#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen).
+[#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen) en
+[#46](https://github.com/DrArts87/dahis/issues/46) (galago op lege schermen;
+in E2).
 
 Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle schermen tot
 0.5.2, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:

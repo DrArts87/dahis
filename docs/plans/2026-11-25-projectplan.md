@@ -27,7 +27,7 @@ verwijsbrieven, documenten). Waar mogelijk conform AVG en NEN 7510.
 | Gebruikers | Alleen de arts zelf, één account | Geen rollen of autorisatie nodig in v1 |
 | Repository | **Public**, `dahis`, zonder licentie (alle rechten voorbehouden) | Gratis GitHub Pages en branchbescherming; code en data strikt gescheiden |
 | Hosting app-code | GitHub Pages | Gratis bij een public repository; alleen app-code, nooit data |
-| Medicatiedata | Open data (CBG) + links naar NHG/Kompas | Prescriptor en G-Standaard vragen een licentie |
+| Medicatiedata | Open data (CBG) + links naar NHG/Kompas; G-Standaard mogelijk | G-Standaard en NHG-materiaal als fair use voor eigen gebruik (besluit 2026-11-28, `CLAUDE.md` §4); welke bron per onderdeel, besluiten we in fase 3 |
 | Toekomst | Browser op laptop, synchronisatie via server op Home Assistant | Zie §7; het ontwerp houdt hier nu al rekening mee |
 
 ## 3. Architectuur v1
@@ -141,7 +141,11 @@ De gegevens staan op één apparaat en moeten 20 jaar bewaard blijven (WGBO).
   om naar een JSON-bestand dat met de app meekomt en lokaal doorzocht wordt.
 - **Kennis**: per middel links naar het Farmacotherapeutisch Kompas en de
   NHG-Standaarden. Geen eigen doseeradvies of interactiecontrole (MDR, §8).
-- **NHG-Prescriptor / G-Standaard**: alleen met licentie; niet in v1.
+- **G-Standaard**: als fair use voor eigen gebruik (besluit 2026-11-28); of en
+  hoe in fase 3, per raakpunt. Geen medicatiebewaking of interactiecontrole
+  zonder apart besluit (MDR). **NHG-Prescriptor**: nog te bespreken.
+  Commercieel aanbieden of gebruik door anderen vraagt licenties bij NHG en
+  Z-Index.
 - **Recept**: afdrukbaar met de wettelijk vereiste gegevens
   (Geneesmiddelenwet art. 67 en onderliggende regeling). *De precieze eisen
   nog nalopen* voordat de module in gebruik gaat. Met de hand ondertekenen.
@@ -193,7 +197,8 @@ Afgerond 2026-11-26: fase 1 alpha geaccepteerd (taak 10); vervolg in het
   server bewaart alleen de al versleutelde records (end-to-end). Dan komt er
   ook een serveraccount met wachtwoord + authenticator-app (TOTP).
 - Journaal (SOEP, ICPC of SNOMED via Nictiz), metingen, vaccinaties, scans,
-  verwijsbrieven, licentie Prescriptor/G-Standaard.
+  verwijsbrieven; licenties bij NHG en Z-Index als de app commercieel wordt
+  aangeboden of door anderen gebruikt.
 
 ## 8. Juridisch kader (geen juridisch advies; zelf toetsen)
 
