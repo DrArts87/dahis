@@ -182,6 +182,14 @@ routekaart af, dan bepalen de open issues steeds het vervolg.
   nieuwe codehash en versie bij een wijziging in `app/`, en de gedraaide
   controles. Nieuwe nummers kiest Claude niet zelf; extra wijzigingen staan
   onder *Daarnaast*.
+- **Herkenbaar als AI.** Alles wat Claude op GitHub schrijft (PR-beschrijving,
+  comment, reactie op een review, issue, issuecomment) begint met
+  `> 🤖 **Reactie van Claude Code** (AI-agent van Anthropic)` (bij een
+  PR-beschrijving of issue: `> 🤖 **Geschreven door Claude Code** (AI-agent
+  van Anthropic)`) en eindigt met de gebruikelijke voettekst. Commits hebben
+  Claude als auteur en een regel `Co-Authored-By`. Codex doet hetzelfde
+  volgens `AGENTS.md`; een tekst zonder kop is van de gebruiker. Plaatst de
+  gebruiker een tekst van een AI door, dan blijft de kop staan.
 - Elke terugkoppeling van Claude (plan, verslag, antwoord) begint met een
   korte uitleg in gewone taal ("ELI5"): wat er speelt, wat er gedaan is en
   wat de gebruiker moet beslissen, zonder vakjargon. Daaronder volgt de

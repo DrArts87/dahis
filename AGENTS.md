@@ -16,6 +16,8 @@ Een review is één comment in de pull request, in het Nederlands, kort en
 in deze vorm. Laat een blok weg als er niets in staat.
 
 ```markdown
+> 🤖 **Review door Codex** (AI-agent van OpenAI), op verzoek van de gebruiker
+
 **Oordeel: mergen | eerst oplossen | akkoord voor testgegevens, niet voor echte dossiers**
 Gereviewd: <commit>. Sinds de vorige ronde: <commit>..<commit> (of: eerste ronde)
 
@@ -36,10 +38,18 @@ Gereviewd: <commit>. Sinds de vorige ronde: <commit>..<commit> (of: eerste ronde
 
 Gedraaid: <n> Node-tests, <n> Python-tests, <n> Chromium-tests, privacy, releasehash.
 Niet gecontroleerd: OnePlus, ontwerpcanvas, …
+
+---
+_Geschreven door Codex (OpenAI). Niet door een mens gecontroleerd vóór plaatsing, tenzij hierboven anders vermeld._
 ```
 
 ### Regels
 
+- **Zeg wie je bent.** Elke tekst die je op GitHub schrijft (review,
+  comment, issue, PR-beschrijving) begint met de kop en eindigt met de
+  voettekst uit het voorbeeld, ook als hij onder het account van de
+  gebruiker komt te staan. Zo ziet elke lezer welke AI wat schreef. Een
+  tekst zonder kop is van de gebruiker zelf.
 - **Vaste ID's per PR.** Bevindingen heten R1, R2, … en houden hun nummer in
   alle rondes van dezelfde PR. Een nieuwe ronde telt door (R4, R5, …) en
   begint niet opnieuw bij 1.

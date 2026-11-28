@@ -42,7 +42,7 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #49 | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
 | #50 | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën |
 | #51 | Versie 0.5.3, stap E0 van het [plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md): de banner over een nieuwe versie is leesbaar op de groene schermen (eigen tekstkleur, vaste kleuren op `.shell.green`; #41) en het icoon *Snelheid meten* (`i-gauge`) staat in het midden en is even groot als de andere iconen (#42). Nog niet uitgebracht: de gebruiker wacht met de release en de proef op de OnePlus tot een grotere wijziging |
-| (PR) | Reviewformaat voor Codex in `AGENTS.md` (vaste ID's R1, R2, … per PR, prioriteit P1–P3, aparte blokken voor herreview en compliance); PR-sjabloon met *Voor de review* (focus, buiten de review, besloten, basis); reacties van Claude per ID (`CLAUDE.md` §6) |
+| (PR) | Reviewformaat voor Codex in `AGENTS.md` (vaste ID's R1, R2, … per PR, prioriteit P1–P3, aparte blokken voor herreview en compliance); PR-sjabloon met *Voor de review* (focus, buiten de review, besloten, basis); reacties van Claude per ID (`CLAUDE.md` §6); alles wat Claude of Codex op GitHub schrijft, begint met de naam van de AI-agent |
 
 **Live**: Pages is ingericht; release `v0.5.2` (codehash
 `e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228`) staat op
