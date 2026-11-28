@@ -18,6 +18,9 @@ Soort: per taak een eigen plan en een eigen PR
 | [#24](https://github.com/DrArts87/dahis/issues/24) bevestigde externe kopie | Geraakt; bij het vaststellen van formaat 1 (E6) |
 | [#25](https://github.com/DrArts87/dahis/issues/25) cloudopslag en art. 28 AVG | Geraakt; vóór echte dossiers, beoordeling door de gebruiker |
 | [#52](https://github.com/DrArts87/dahis/issues/52) voorschrijvermodule afmeten aan het referentiemodel | Geraakt; vóór fase 3 en uiterlijk bij E6 (`Zie #52`) |
+| [#53](https://github.com/DrArts87/dahis/issues/53) logboek afmeten aan toegangslog en wijzigingslog | Geraakt: overzicht per dossier in E4, raakpunt R7 in E3; toets uiterlijk bij E6 (`Zie #53`) |
+| [#54](https://github.com/DrArts87/dahis/issues/54) fase 3 op Medicatieproces 9 | Niet in fase 2; raakt R5 (overgevoeligheden) |
+| [#55](https://github.com/DrArts87/dahis/issues/55) projectplan §3 gegevensmodel | Na de besluiten over R1, R5 en R6 (`Zie #55`) |
 | [#18](https://github.com/DrArts87/dahis/issues/18), [#30](https://github.com/DrArts87/dahis/issues/30), [#33](https://github.com/DrArts87/dahis/issues/33) | Niet geraakt |
 
 ## In het kort
