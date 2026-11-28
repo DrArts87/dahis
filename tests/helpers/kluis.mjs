@@ -81,3 +81,15 @@ export function makeTestSignature(width = 40, height = 16) {
 }
 
 export const TEST_SIGNATURE = makeTestSignature();
+
+// --- Patiënt voor tests (fase 2, E1) -------------------------------------------------------
+// Verzonnen persoonsgegevens; geen echte persoon. Een BSN in tests haalt de
+// 11-proef nooit (CLAUDE.md §5): TEST_BSN_FAILING geeft 147 (rest 4 bij delen door 11).
+export const TEST_PATIENT = Object.freeze({
+  family_name: 'Testpersoon',
+  initials: 'A.B.',
+  birth_date: '1980-03-12',
+  relation: 'self',
+});
+
+export const TEST_BSN_FAILING = '123456789';

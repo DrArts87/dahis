@@ -15,8 +15,8 @@
 'use strict';
 
 // BEGIN RELEASE (geschreven door tools/release.py, niet met de hand wijzigen)
-const VERSION = '0.5.3';
-const CODE_HASH = 'a588866de443a76c28451151da304ba0e273bdcea0181e1ab1715e0761986d6a';
+const VERSION = '0.6.0';
+const CODE_HASH = '4f69b51e40e18bf8a31591e009f7bbd736b1facc61de1519d5b03548cd8ed290';
 const FILES = {
   'css/app.css': '77c6777df3a74b25479f1711c698949db9a94475e593a51ecdc278a76e23f5bc',
   'icons/icon-192.png': 'd2edc03ddf6f76b8a7da2c6551a92503dd72252fddcc9036d1d19c021630d3f9',
@@ -29,16 +29,17 @@ const FILES = {
   'index.html': 'c050c2a78187d9f1e4d9eff9e3483baae7c3019e4afe271a67c7178c5db93941',
   'js/app.js': '497b246d6250c4a3ed4b3cc54e44116d972b30ba12535b6cb4d72f159d6d343f',
   'js/benchmark.js': '49f092c2cf461279979bfd5e68fe03eb110cf2307abcc4be689680361add6d52',
-  'js/controller.js': 'db4d888e2658d8f3d191439f966b69cd7a970669316f49ba3306a89800e5da89',
+  'js/controller.js': 'c35de589ce8626f9420ff037eb33d9ee62c09c1e128485bb91cf29763e7afef0',
   'js/crypto.js': '662322ad374fda7688fb72115f981d586e3961b072faf3508abc6ea1374ecb5f',
   'js/dom.js': 'd01992736527ffc6a30e9c6654d04494c1ca68c6f3af4685d6448c07633415b9',
   'js/i18n.js': '0558e4cae1a98c22e993077d8d53a67407dc970c2eaa792e28d402a9012acc97',
-  'js/i18n/nl.js': '4d211aee51f8ee7d052a40ee709e070fc89a3bfcdd0a557dc1ae740a33e64fcd',
+  'js/i18n/nl.js': 'd740365b81b67a17cc7c4254d22ee360483e75d465aa447822461976fa78fb03',
+  'js/patient.js': 'e51f2cc37ba96c2b10c4c57b0e615a95ef0f67b1318786431a70909b2b383e58',
   'js/prescriber.js': '782fbe211356a63f2c3f4542455e68376e03a36f919c4b674f53da7a323b1251',
   'js/settings.js': '21880f5f06ea53f9a24784bb19fe1b37c90df2ebec1abb4b28c3482892dffa6e',
   'js/signature.js': '09f103a7dcbdb02a453559f734e352b399142c4e19e4b3a20eaa159faca7e6fd',
   'js/store.js': '8a4b56bc67e108a7201b879a623dea1b86cd147c68cb8e036352a1d472aebfe9',
-  'js/vault.js': '142f6922082d3887136d031cc72925ed576cd6359d05f705365147ba206e5538',
+  'js/vault.js': '77ce55e86fb11c602af7bcbcde600c31621519c8f6a1fb1f2ef11fbacd181d8a',
   'manifest.webmanifest': 'f40056063d21cbfdf42cbf89d93f8d737f421ca41d3b789f34eab206e8e9a606',
 };
 // EINDE RELEASE

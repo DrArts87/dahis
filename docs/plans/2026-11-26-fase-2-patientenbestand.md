@@ -90,8 +90,8 @@ voorstel; het besluit valt in het plan van de genoemde taak.
 
 | # | Raakpunt | Eerste voorstel | Taak |
 |---|---|---|---|
-| R1 | Dossier-items | In het model is elk gegeven een dossier-item met eigen invoermoment, attentievlag, correctie en vernietiging. Voorstel: patiënt, episode en overgevoeligheid elk een eigen record met een verwijzing naar de patiënt | E1 |
-| R2 | Persoonsgegevens | Naamgebruik (NHG-Tabel 42) en geslacht (NHG-Tabel 4) als keuze uit de tabel, naast de velden uit besluit 1 | E1 |
+| R1 | Dossier-items | **Besloten 2026-11-28 (optie B, [plan E1](2026-11-28-e1-patient.md)):** elk gegeven een eigen record met `patient_id` in de versleutelde inhoud | E1 |
+| R2 | Persoonsgegevens | **Besloten 2026-11-28: niet afwijken van het NHG.** Alle codes van NHG-Tabel 42 (naamgebruik, ook pseudoniem) en NHG-Tabel 4 (geslacht); geslachtsnaam en voorvoegsels apart, met de naam van de echtgenoot | E1 |
 | R3 | Meerling | Melding bij een nieuwe patiënt met dezelfde achternaam en geboortedatum | E2 |
 | R4 | In- en uitschrijven | Het model kent actieve en inactieve patiënten (overleden, vertrokken) en samenvoegen. Voorstel: niet in fase 2; besluit 6 (archiveren later) heet dan *uitschrijven later* | E2 |
 | R5 | Overgevoeligheden | Splitsen in medicatie-overgevoeligheid (middel, reactie, ernst volgens NHG-Tabel 55, bron) en overige overgevoeligheid; niet meer actueel wordt afgesloten, niet verwijderd. Contra-indicaties (G-Standaard) en medicatiebewaking niet in fase 2 (MDR) | E3 |
@@ -106,9 +106,9 @@ vóór de review van de keten en het vaststellen van formaat 1 (E6).
 |---|---|---|
 | E0 | Fix: banner nieuwe versie leesbaar op alle schermen (#41), icoon Snelheid meten in het midden van zijn vlak (#42) | 0.5.3 |
 | E1 | Gegevensmodel (raakpunten R1, R2): record `patient` (schema 1, formaat §6.3; geen structuurwijziging), `app/js/patient.js` met regels per veld, 11-proef als waarschuwing, patiëntnummer (§ hieronder), strikt inlezen; de kinds voor episode en overgevoeligheid worden in E1 ontworpen en in E3 gebouwd; tests met verzonnen gegevens | 0.6.0 |
-| E2 | Tabblad Patiënten: lijst en zoeken (naam, geboortedatum, nummer), raakpunten R3 en R4. De lijst wordt na ontgrendelen in het geheugen ontsleuteld en bij vergrendelen gewist. Lege toestand met galago (#46). Meting bij 100 en 1.000 patiënten onder Snelheid meten | 0.6.x |
+| E2 | Tabblad Patiënten: lijst en zoeken (naam, geboortedatum, nummer) en **nieuwe patiënt** (persoonsgegevens, met de controle op BSN en meerling; verschoven van E3, besluit 2026-11-28, zodat er UI te testen is), raakpunten R3 en R4. De lijst wordt na ontgrendelen in het geheugen ontsleuteld en bij vergrendelen gewist. Lege toestand met galago (#46). Meting bij 100 en 1.000 patiënten onder Snelheid meten | 0.6.x |
 | E2b | UI-browsertest in CI (#27), inclusief de schermen van E2 | geen release |
-| E3 | Dossier: toevoegen, bekijken, wijzigen, corrigeren, vernietigen; allergieën en voorgeschiedenis (raakpunten R5, R6); logregels `create`, `update` (raakpunt R7), `view`, `destroy` zonder inhoud | 0.7.0 |
+| E3 | Dossier: bekijken, persoonsgegevens wijzigen, corrigeren, vernietigen; allergieën en voorgeschiedenis (raakpunten R5, R6); logregels `create`, `update` (raakpunt R7), `view`, `destroy` zonder inhoud | 0.7.0 |
 | E4 | Afdrukbaar overzicht per patiënt (indeling: de medische samenvatting uit het model als uitgangspunt) (inzage of afschrift; print-CSS, logregel `print`); overzicht van de inzage in een dossier uit het logboek; bewaartermijn per dossier zichtbaar (WGBO) | 0.8.0 |
 | E5 | Meer opsplitsen (#44) en back-up controleren vanuit Meer (#43), na het canvas | 0.8.x |
 | E6 | Volledige review van de keten; daarna formaat 1 *vastgesteld* (eigen PR, met #24) | geen release |
