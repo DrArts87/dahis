@@ -19,6 +19,18 @@ Closes #
 ## Hoe getest
 
 
+## Voor de review
+<!--
+Voor de auditor (AGENTS.md). Houd dit bij na elke reviewronde.
+Basis: de commit op main en eventueel de vorige gereviewde PR.
+Besloten: keuzes van de gebruiker met reden, die de review niet opnieuw opent.
+-->
+- **Focus**:
+- **Buiten de review**: proef op de OnePlus, ontwerpcanvas (privé)
+- **Besloten**: geen
+- **Basis**:
+
+
 ## Controle
 - [ ] Na een wijziging in `app/`: `python3 tools/release.py`, en de versie klopt.
 - [ ] `py_compile`, unittests, `node --check`, `node --test` en `privacy_check.py` slagen (`CLAUDE.md` §2).

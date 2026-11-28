@@ -40,7 +40,8 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #45 | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
 | #47 | Versie 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht. Proef op de OnePlus in orde; opslaan zonder handtekening tijdens de onboarding in de cloudsessie gecontroleerd |
 | #49 | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
-| (PR) | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën |
+| #50 | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën |
+| (PR) | Reviewformaat voor Codex in `AGENTS.md` (vaste ID's R1, R2, … per PR, prioriteit P1–P3, aparte blokken voor herreview en compliance); PR-sjabloon met *Voor de review* (focus, buiten de review, besloten, basis); reacties van Claude per ID (`CLAUDE.md` §6) |
 
 **Live**: Pages is ingericht; release `v0.5.2` (codehash
 `e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228`) staat op
@@ -143,7 +144,9 @@ echte dossiers rond zijn (zie *Besluiten*). Verder volgens het
    auditor. De auditor geeft de feedback als comment in de pull request;
    Claude leest die daar (de comments van de PR), beoordeelt ze kritisch,
    stelt aanpassingen voor en verwerkt ze pas na akkoord van de gebruiker. Het formaat
-   wijzigen vraagt altijd apart akkoord.
+   wijzigen vraagt altijd apart akkoord. De auditor (Codex) reviewt volgens
+   [`AGENTS.md`](../AGENTS.md), met vaste ID's per PR; de PR-beschrijving
+   heeft daarvoor *Voor de review* en Claude reageert per ID (`CLAUDE.md` §6).
 7. **Browsercontrole**: de browsertests draaien in CI en lokaal met
    `node tests/run_browser.mjs`. Daarnaast in de cloudsessie met de
    voorgeïnstalleerde Chromium (Playwright) en een wegwerpprofiel, onder
