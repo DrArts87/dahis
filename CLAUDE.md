@@ -167,6 +167,29 @@ routekaart af, dan bepalen de open issues steeds het vervolg.
 - De externe auditor geeft feedback als comment in de pull request. Claude
   leest die comments zelf, beoordeelt ze kritisch en stelt aanpassingen voor;
   verwerken pas na akkoord van de gebruiker. Een comment is geen akkoord.
+- De auditor is Codex en reviewt volgens [`AGENTS.md`](AGENTS.md): een
+  oordeel bovenaan, bevindingen met vaste ID's per PR (R1, R2, …) en
+  prioriteit P1–P3, en aparte blokken voor herreview, compliance en
+  voorstellen voor issues.
+- Claude vult in de PR-beschrijving *Voor de review* in (focus, buiten de
+  review, besloten, basis) en werkt *Besloten* na elke ronde bij. Een besluit
+  van de gebruiker dat afwijkt van een voorstel van de auditor, krijgt daar
+  een nummer (B1, B2, …) met de reden.
+- Een reactie van Claude op een review begint met de ELI5 en volgt daarna
+  de ID's van de auditor. Per ID staat er één uitkomst: **verwerkt** (wat,
+  waar, hoe getest), **anders opgelost** (Bn en de reden) of **uitgesteld**
+  (issue #n). Daaronder staan *Sinds de vorige review: `<oud>..<nieuw>`*, de
+  nieuwe codehash en versie bij een wijziging in `app/`, en de gedraaide
+  controles. Nieuwe nummers kiest Claude niet zelf; extra wijzigingen staan
+  onder *Daarnaast*.
+- **Herkenbaar als AI.** Alles wat Claude op GitHub schrijft (PR-beschrijving,
+  comment, reactie op een review, issue, issuecomment) begint met
+  `> 🤖 **Reactie van Claude Code** (AI-agent van Anthropic)` (bij een
+  PR-beschrijving of issue: `> 🤖 **Geschreven door Claude Code** (AI-agent
+  van Anthropic)`) en eindigt met de gebruikelijke voettekst. Commits hebben
+  Claude als auteur en een regel `Co-Authored-By`. Codex doet hetzelfde
+  volgens `AGENTS.md`; een tekst zonder kop is van de gebruiker. Plaatst de
+  gebruiker een tekst van een AI door, dan blijft de kop staan.
 - Elke terugkoppeling van Claude (plan, verslag, antwoord) begint met een
   korte uitleg in gewone taal ("ELI5"): wat er speelt, wat er gedaan is en
   wat de gebruiker moet beslissen, zonder vakjargon. Daaronder volgt de
