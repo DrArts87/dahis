@@ -428,6 +428,8 @@ vh  = SHA-256(aad ‖ iv ‖ ct)                   (versiehash)
 | `settings` | 1 | app 0.1.0 (taak 5) | Instellingen van de app: `data` is een object met vaste sleutels uit `app/js/settings.js`; onbekende sleutels en ongeldige waarden gelden als de standaard. Eén record per installatie |
 | `prescriber` | 1 | app 0.5.0 (stap D2) | Gegevens van de voorschrijver (de gebruiker zelf): `data` is een object met tekstvelden uit `app/js/prescriber.js` (`name`, `profession`, `big`, `agb`, `practice`, `address`, `postcode`, `city`, `phone`, `email`), alle verplicht; onbekende velden vallen weg, een ongeldig veld geldt als ontbrekend. Eén record per installatie |
 | `signature` | 1 | app 0.5.2 | Handtekening van de voorschrijver: `data` = `{type: "image/png", width, height, png}` met `png` in base64, een PNG zwart op transparant van hooguit 600 × 240 pixels en 200 KiB, waarvan breedte en hoogte in de IHDR gelijk zijn aan `width` en `height` (`app/js/signature.js`). Een ongeldige inhoud geldt als ontbrekend. Wordt samen met `prescriber` in één transactie geschreven. Eén record per installatie |
+| `patient` | 1 | app 0.6.0 (fase 2, E1) | Persoonsgegevens van één patiënt (dossierdeel Persoonsgegevens van het NHG HIS-Referentiemodel): `data` is een object met tekstvelden uit `app/js/patient.js` (onder meer `family_name`, `family_prefix`, `partner_name`, `name_usage` volgens NHG-Tabel 42, `sex` volgens NHG-Tabel 4, `birth_date` als `jjjj-mm-dd`, `relation`, optioneel `bsn`) plus `number` (`DH` + 6 cijfers). Alleen ingevulde velden; onbekende velden vallen weg, een ongeldig veld geldt als ontbrekend. Eén record per patiënt; andere dossiergegevens worden eigen records met `patient_id` in de inhoud (raakpunt R1) |
+| `patient_counter` | 1 | app 0.6.0 (fase 2, E1) | Hoogste uitgegeven patiëntnummer: `data` = `{last: n}`, 0 ≤ n ≤ 999.999. Wordt in dezelfde transactie bijgewerkt als de nieuwe `patient`; een nummer wordt nooit hergebruikt. Eén record per installatie; gaat mee in de back-up |
 
 Tests gebruiken `test_*`.
 
@@ -844,7 +846,7 @@ app. Interoperabiliteit wordt getoetst met de testvectoren.
 | Wijziging aan oudere auditregels | Pas zichtbaar bij de volgende volledige controle (§9.4) |
 | Afwijking | App stopt; herstel alleen via een back-up, wijzigingen sinds die back-up gaan verloren (§10) |
 | Teruggezette reservering plus herhaalde crashes | Geen cumulatieve bovengrens op ongetelde versleutelingen; bij het verwachte volume aanvaardbaar (§3.8) |
-| Metadata zichtbaar | Zie §1 |
+| Metadata zichtbaar | Zie §1. Omdat elk dossiergegeven een eigen record is (fase 2, raakpunt R1), is het aantal records per kind te zien (bijvoorbeeld het aantal patiënten), niet van wie of wat |
 | Oude kopieën | Blijven leesbaar met oude geheimen (§12.4, §12.5) |
 | Vernietigde gegevens in back-ups | Tot vier weken (§13) |
 | Offline raden van het wachtwoord | PBKDF2, wachtzinadvies; geen harde grens |

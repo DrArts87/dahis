@@ -18,6 +18,13 @@ repository, tests of het ontwerpcanvas (alleen verzonnen krabbels). Misbruik
 (vervalsing) is het belangrijkste risico; maatregel: alleen in de
 versleutelde kluis en de versleutelde back-up.
 
+Vanaf 0.6.0 (fase 2, E1) kan de app **persoonsgegevens van patiënten**
+bewaren (record `patient`, met een patiëntnummer `DH000001`, …; formaat
+§6.3). Tot de review van de keten en het vaststellen van formaat 1 alleen
+**testgegevens** ([vóór echte dossiers](voor-echte-dossiers.md)). Het
+patiëntnummer is het pseudoniem in het incidentenregister; de koppeling met
+de persoon staat alleen in de versleutelde app.
+
 ## Verwerking: persoonlijk patiëntendossier
 
 | Onderdeel | Invulling |
@@ -25,7 +32,7 @@ versleutelde kluis en de versleutelde back-up.
 | Doel | Verlenen en vastleggen van zorg aan zichzelf, gezinsleden en vrienden; voorschrijven van geneesmiddelen |
 | Grondslag | Art. 6 lid 1 sub b/c (behandelovereenkomst, WGBO-dossierplicht); uitzondering verwerkingsverbod art. 9 lid 2 sub h, met beroepsgeheim (art. 9 lid 3) |
 | Betrokkenen | De arts zelf, gezinsleden, vrienden |
-| Gegevens | Naam, geboortedatum, geslacht, adres, contactgegevens, BSN (optioneel), huisarts, apotheek, verzekering, allergieën, voorgeschiedenis, medicatie, recepten |
+| Gegevens | Naam (geslachtsnaam, voorvoegsels, naam echtgenoot, naamgebruik, voornamen of voorletters, roepnaam), geboortedatum, geslacht, relatie tot de arts, adres, contactgegevens, BSN (optioneel), huisarts, apotheek, verzekering met polisnummer, patiëntnummer, allergieën, voorgeschiedenis, medicatie, recepten |
 | Ontvangers | Geen. Recepten gaan op papier naar de apotheek via de patiënt |
 | Verwerkers | Zie *Verwerkers en diensten* hieronder |
 | Doorgifte buiten EER | Geen |

@@ -47,6 +47,10 @@ import {
   PRESCRIBER_KIND, PRESCRIBER_SCHEMA, readPrescriber, validatePrescriber, isComplete,
 } from './prescriber.js';
 import { SIGNATURE_KIND, SIGNATURE_SCHEMA, readSignature, isValidSignature } from './signature.js';
+import {
+  PATIENT_KIND, PATIENT_SCHEMA, PATIENT_COUNTER_KIND, PATIENT_COUNTER_SCHEMA, MAX_PATIENT_NUMBER,
+  validatePatient, readPatient, readCounter, formatNumber, sortKey,
+} from './patient.js';
 
 export const ERASE_WORD = 'WISSEN';
 export const RECOVERY_GROUPS = 14;
@@ -183,6 +187,21 @@ class StaleError extends Error {
   constructor() { super('Vergrendeld tijdens de handeling'); this.name = 'StaleError'; }
 }
 
+// Alle patiëntnummers (tot en met DH999999) zijn uitgegeven.
+class PatientLimitError extends Error {
+  constructor() { super('Geen patiëntnummer meer vrij'); this.name = 'PatientLimitError'; }
+}
+
+// Patiënten op naam (achternaam zonder voorvoegsels vooraan), dan op nummer.
+function sortPatients(list) {
+  return list.slice().sort((a, b) => {
+    const ka = sortKey(a.data);
+    const kb = sortKey(b.data);
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return (a.data.number || '') < (b.data.number || '') ? -1 : 1;
+  });
+}
+
 function isEmpty(store) {
   return Object.keys(store.meta).length === 0 && store.records.length === 0 && store.audit.length === 0;
 }
@@ -276,6 +295,9 @@ export class AppController {
       prescriber: {},             // geldige velden van de voorschrijver (stap D2)
       prescriberErrors: {},       // veld -> tekstsleutel van de fout bij opslaan
       signature: null,            // opgeslagen handtekening {type, width, height, png} (0.5.2)
+      patients: [],               // [{id, data}] na ontsleutelen, op naam (fase 2, E1)
+      patientErrors: {},          // veld -> tekstsleutel van de fout bij opslaan
+      patientWarnings: {},        // veld -> tekstsleutel van een waarschuwing (bijv. 11-proef)
     };
     this.prescriberId = null;
     this.signatureId = null;
@@ -483,6 +505,7 @@ export class AppController {
     this.set({
       view: 'halted', backup: null, haltCode: code, haltCheck: this.checkKind, checking: false,
       step: null, recoveryKey: null, audit: null, prescriber: {}, prescriberErrors: {}, signature: null,
+      patients: [], patientErrors: {}, patientWarnings: {},
     });
     this.checkKind = null;
     this.auditToken += 1;
@@ -638,9 +661,12 @@ export class AppController {
       this.alive(gen);
       const signature = await this.readSignature(session);
       this.alive(gen);
+      const patients = await this.readPatients(session);
+      this.alive(gen);
       this.applySettings(settings);
       this.applyPrescriber(prescriber);
       this.applySignature(signature);
+      this.set({ patients });
       const work = await this.loadWork(session);
       this.alive(gen);
       this.set({ work });
@@ -777,6 +803,108 @@ export class AppController {
 
     clearPrescriberErrors() {
     if (Object.keys(this.state.prescriberErrors).length) this.set({ prescriberErrors: {} });
+  }
+
+  // --- Patiënten (fase 2, E1) --------------------------------------------------------
+
+  // Leest en ontsleutelt alle patiënten; verandert niets aan de toestand.
+  // Een verwijderde versie telt niet mee.
+  async readPatients(session) {
+    const store = this.backend.store;
+    const ids = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_KIND).map((r) => r.id))).sort();
+    const out = [];
+    for (const id of ids) {
+      const rec = await V.readRecord(store, session, id);
+      if (rec && !rec.content.deleted) out.push({ id, data: readPatient(rec.content.data) });
+    }
+    return sortPatients(out);
+  }
+
+  // De datum van vandaag (jjjj-mm-dd, lokale tijd): grens voor de geboortedatum.
+  today() {
+    const d = this.deps.clock();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // Controle vóór opslaan. Fouten: niets geschreven. Waarschuwingen (zoals een
+  // BSN dat de 11-proef niet haalt): alleen opslaan met acceptWarnings.
+  checkPatient(input, acceptWarnings) {
+    const result = validatePatient(input, { today: this.today() });
+    if (result.errors) {
+      this.set({ patientErrors: result.errors, patientWarnings: result.warnings });
+      this.say('patient.invalid');
+      return null;
+    }
+    if (Object.keys(result.warnings).length && !acceptWarnings) {
+      this.set({ patientErrors: {}, patientWarnings: result.warnings });
+      this.say('patient.check');
+      return null;
+    }
+    return result.data;
+  }
+
+  // Nieuwe patiënt. Het nummer komt uit de teller; patiënt en teller gaan in
+  // één transactie. De teller wordt binnen de schrijfwachtrij gelezen, dus
+  // twee patiënten kunnen nooit hetzelfde nummer krijgen.
+  async createPatient(input, { acceptWarnings = false } = {}) {
+    if (this.state.view !== 'ready') return false;
+    const data = this.checkPatient(input, acceptWarnings);
+    if (!data) return false;
+    return this.guard(async (gen) => {
+      let record = null;
+      await this.queue.run(this.session, async (store, s, now) => {
+        const counter = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_COUNTER_KIND).map((r) => r.id))).sort()[0];
+        let last = 0;
+        if (counter) {
+          const rec = await V.readRecord(store, s, counter);
+          if (rec && !rec.content.deleted) last = readCounter(rec.content.data);
+        }
+        if (last >= MAX_PATIENT_NUMBER) throw new PatientLimitError();
+        record = Object.assign({ number: formatNumber(last + 1) }, data);
+        const tx = await V.putRecordsTx(store, s, {
+          items: [
+            { kind: PATIENT_KIND, data: record, schema: PATIENT_SCHEMA },
+            { id: counter, kind: PATIENT_COUNTER_KIND, data: { last: last + 1 }, schema: PATIENT_COUNTER_SCHEMA },
+          ],
+          now,
+        });
+        record = { id: tx.putRecords[0].id, data: record };
+        return tx;
+      });
+      this.alive(gen);
+      this.set({
+        patients: sortPatients(this.state.patients.concat([record])),
+        patientErrors: {}, patientWarnings: {}, lastFullCheckAt: this.session.lastFullCheckAt,
+      });
+      this.say('patient.saved', { number: record.data.number });
+    }, { messages: { PatientLimitError: 'patient.full' } });
+  }
+
+  // Persoonsgegevens wijzigen; het nummer blijft.
+  async updatePatient(id, input, { acceptWarnings = false } = {}) {
+    if (this.state.view !== 'ready') return false;
+    const current = this.state.patients.find((p) => p.id === id);
+    if (!current) return false;
+    const data = this.checkPatient(input, acceptWarnings);
+    if (!data) return false;
+    const record = Object.assign({ number: current.data.number }, data);
+    return this.guard(async (gen) => {
+      await this.queue.run(this.session, (store, s, now) => V.putRecordsTx(store, s, {
+        items: [{ id, kind: PATIENT_KIND, data: record, schema: PATIENT_SCHEMA }], now,
+      }));
+      this.alive(gen);
+      this.set({
+        patients: sortPatients(this.state.patients.map((p) => (p.id === id ? { id, data: record } : p))),
+        patientErrors: {}, patientWarnings: {}, lastFullCheckAt: this.session.lastFullCheckAt,
+      });
+      this.say('patient.updated', { number: record.number });
+    });
+  }
+
+  clearPatientMessages() {
+    if (Object.keys(this.state.patientErrors).length || Object.keys(this.state.patientWarnings).length) {
+      this.set({ patientErrors: {}, patientWarnings: {} });
+    }
   }
 
   // --- Instellingen -----------------------------------------------------------------
@@ -1158,6 +1286,7 @@ export class AppController {
       view: 'locking', step: null, recoveryKey: null, groups: null, busy: false, message: null,
       audit: null, checking: false, backup: null, fileCheck: null, work: defaultWork(),
       prescriber: {}, prescriberErrors: {}, signature: null,
+      patients: [], patientErrors: {}, patientWarnings: {},
     });
     this.prescriberId = null;
     this.signatureId = null;

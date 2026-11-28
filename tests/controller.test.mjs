@@ -13,7 +13,10 @@ import {
 } from '../app/js/controller.js';
 import { measureChecks } from '../app/js/benchmark.js';
 import { SETTINGS_KIND } from '../app/js/settings.js';
-import { TEST_ITERATIONS, REAL_ITERATIONS, TEST_PRESCRIBER, TEST_SIGNATURE, makeTestSignature } from './helpers/kluis.mjs';
+import {
+  TEST_ITERATIONS, REAL_ITERATIONS, TEST_PRESCRIBER, TEST_SIGNATURE, makeTestSignature, TEST_PATIENT, TEST_BSN_FAILING,
+} from './helpers/kluis.mjs';
+import { PATIENT_KIND, PATIENT_COUNTER_KIND, MAX_PATIENT_NUMBER } from '../app/js/patient.js';
 
 const PASSWORD = 'correct paard batterij nietje';
 const PASSWORD2 = 'een heel ander wachtwoord 2';
@@ -1653,4 +1656,148 @@ test('review PR #47 ronde 2: een geannuleerde of gesloten bestandskiezer trekt d
   app.disarmPicker();                     // kiezer geannuleerd zonder wegzijn
   app.hidden();                           // gewone appwissel daarna
   assert.equal(app.state.view, 'locking', 'direct vergrendeld, geen 3 minuten');
+});
+
+// --- Patiënten (fase 2, E1) ------------------------------------------------------------------
+
+async function auditContents(store, secret = { password: PASSWORD }) {
+  const { session } = await V.unlock(store, secret);
+  const rows = store.audit.slice().sort((a, b) => a.seq - b.seq);
+  const out = [];
+  let hPrev = C.ZERO_HASH;
+  for (const row of rows) {
+    out.push(await C.openAudit((await session.subkeys(row.kid)).audit, session.epochOf(row.kid), row, hPrev));
+    hPrev = row.h;
+  }
+  return out;
+}
+
+const SECOND_PATIENT = Object.freeze({
+  family_name: 'Proef', family_prefix: 'van der', initials: 'B.', birth_date: '1975-11-02', relation: 'acquaintance',
+});
+
+test('E1: patiënten aanmaken met oplopend nummer; patiënt en teller in één transactie; logboek zonder inhoud', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.deepEqual(app.state.patients, []);
+  const before = (await auditContents(dev.backend.disk)).length;
+  assert.equal(await app.createPatient(Object.assign({ bsn: TEST_BSN_FAILING }, TEST_PATIENT), { acceptWarnings: true }), true);
+  assert.equal(app.state.message.key, 'patient.saved');
+  assert.equal(app.state.message.params.number, 'DH000001');
+  assert.equal(await app.createPatient(SECOND_PATIENT), true);
+  assert.deepEqual(app.state.patients.map((p) => p.data.number), ['DH000002', 'DH000001'], 'op naam: Proef voor Testpersoon');
+  const counters = dev.backend.disk.records.filter((r) => r.kind === PATIENT_COUNTER_KIND);
+  assert.equal(new Set(counters.map((r) => r.id)).size, 1, 'één teller');
+  assert.deepEqual(counters.map((r) => r.version), [1, 2]);
+  const audit = await auditContents(dev.backend.disk);
+  assert.deepEqual(audit.slice(before).map((c) => c.action + ':' + c.kind), [
+    'create:patient', 'create:patient_counter', 'create:patient', 'update:patient_counter',
+  ]);
+  // Geen naam, geboortedatum of BSN in de opslag of het logboek.
+  const raw = canon(dev.backend.disk);
+  const log = JSON.stringify(audit);
+  for (const secret of ['Testpersoon', '1980-03-12', TEST_BSN_FAILING, 'Proef', 'DH000001']) {
+    assert.ok(!raw.includes(secret), 'opslag: ' + secret);
+    assert.ok(!log.includes(secret), 'logboek: ' + secret);
+  }
+});
+
+test('E1: fouten schrijven niets; een waarschuwing alleen met "Toch opslaan"', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.createPatient({ family_name: 'Testpersoon' }), false);
+  assert.equal(app.state.patientErrors.birth_date, 'patient.error.required');
+  assert.equal(app.state.message.key, 'patient.invalid');
+  const withBsn = Object.assign({ bsn: TEST_BSN_FAILING }, TEST_PATIENT);
+  assert.equal(await app.createPatient(withBsn), false);
+  assert.deepEqual(app.state.patientWarnings, { bsn: 'patient.warn.bsn' });
+  assert.deepEqual(app.state.patientErrors, {});
+  assert.equal(app.state.message.key, 'patient.check');
+  assert.equal(canon(dev.backend.disk), before, 'niets geschreven');
+  assert.equal(await app.createPatient(withBsn, { acceptWarnings: true }), true);
+  assert.deepEqual(app.state.patientWarnings, {});
+  assert.equal(app.state.patients[0].data.bsn, TEST_BSN_FAILING);
+});
+
+test('E1: wijzigen houdt het nummer; vergrendelen wist de patiënten; na ontgrendelen terug', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  await app.createPatient(TEST_PATIENT);
+  const id = app.state.patients[0].id;
+  assert.equal(await app.updatePatient(id, Object.assign({}, TEST_PATIENT, { call_name: 'Anna' })), true);
+  assert.equal(app.state.message.key, 'patient.updated');
+  assert.equal(app.state.patients[0].data.number, 'DH000001');
+  assert.equal(app.state.patients[0].data.call_name, 'Anna');
+  assert.equal(await app.updatePatient('bestaat-niet', TEST_PATIENT), false);
+  await app.lock();
+  assert.deepEqual(app.state.patients, [], 'uit het geheugen');
+  dev.open = false;
+  const again = await unlocked(dev);
+  assert.equal(again.state.patients.length, 1);
+  assert.equal(again.state.patients[0].id, id);
+  assert.equal(again.state.patients[0].data.call_name, 'Anna');
+  const versions = dev.backend.disk.records.filter((r) => r.kind === PATIENT_KIND).map((r) => r.version);
+  assert.deepEqual(versions, [1, 2]);
+});
+
+test('E1: de teller gaat mee in de back-up; na terugzetten telt de app verder', async () => {
+  const a = device();
+  await onboard(a);
+  const app = await unlocked(a);
+  await app.createPatient(TEST_PATIENT);
+  await app.createPatient(SECOND_PATIENT);
+  await app.lock();
+  a.open = false;
+  const { bytes } = await backupOf(a);
+  const b = device();
+  const r = b.controller();
+  await r.start();
+  r.goToStep('restore');
+  assert.equal(await r.restoreBackup(chosen(bytes), { password: PASSWORD }), true);
+  await r.lock();
+  b.open = false;
+  const opened = await unlocked(b);
+  assert.equal(opened.state.patients.length, 2);
+  assert.equal(await opened.createPatient(Object.assign({}, TEST_PATIENT, { initials: 'C.' })), true);
+  assert.equal(opened.state.message.params.number, 'DH000003');
+});
+
+test('E1: vergrendelen tijdens het inlezen van de patiënten laat niets in het geheugen', async () => {
+  const dev = device();
+  await onboard(dev);
+  const first = await unlocked(dev);
+  await first.createPatient(TEST_PATIENT);
+  await first.lock();
+  dev.open = false;
+  const app = dev.controller();
+  await app.start();
+  const original = app.readPatients.bind(app);
+  app.readPatients = async (session) => {
+    const result = await original(session);
+    await app.lock();
+    return result;
+  };
+  assert.equal(await app.unlock({ password: PASSWORD }), false);
+  assert.deepEqual(app.state.patients, []);
+});
+
+test('E1: alleen ontgrendeld; geen nummer meer vrij geeft een melding', async () => {
+  const dev = device();
+  await onboard(dev);
+  const locked = dev.controller();
+  await locked.start();
+  assert.equal(await locked.createPatient(TEST_PATIENT), false);
+  dev.open = false;
+  const app = await unlocked(dev);
+  await app.queue.run(app.session, (store, s, now) => V.putRecordsTx(store, s, {
+    items: [{ kind: PATIENT_COUNTER_KIND, data: { last: MAX_PATIENT_NUMBER } }], now,
+  }));
+  const before = canon(dev.backend.disk);
+  assert.equal(await app.createPatient(TEST_PATIENT), false);
+  assert.equal(app.state.message.key, 'patient.full');
+  assert.equal(canon(dev.backend.disk), before);
 });

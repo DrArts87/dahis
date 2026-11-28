@@ -40,7 +40,9 @@ Fase 1 (fundament, alpha met **alleen testgegevens**). Afgerond:
 | #45 | Fix 0.5.1 na de review van #39: geen `maxlength` meer op de velden van de voorschrijver (een geplakt te lang BIG-nummer werd ingekort en goedgekeurd); voorschrijver en instellingen pas na `alive(gen)` in de toestand (`readPrescriber`/`readSettings`). Proef D2 op de OnePlus (0.5.0) in orde. Issues #40–#44 aangemaakt |
 | #47 | Versie 0.5.2: handtekening van de voorschrijver (record `signature`, formaat §6.3; `app/js/signature.js`; tekenen of afbeelding, wit transparant, verplicht in de vaste stap, samen met de gegevens in één transactie via `putRecordsTx`; tonen op canvas zonder ruimere CSP) en stapnummers uit één lijst (#40). Ontworpen op het canvas. 0.5.1 is niet apart uitgebracht. Proef op de OnePlus in orde; opslaan zonder handtekening tijdens de onboarding in de cloudsessie gecontroleerd |
 | #49 | Uitkomst proef 0.5.2 vastgelegd; werkwijze na de merge (#48): eerst releasetekst en teststappen, daarna het canvas (`CLAUDE.md` §3, [ontwerpcanvas](ui/ontwerpcanvas.md) stap 5) |
-| (PR) | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën |
+| #50 | [Plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md) (stap E): taken E0–E6 en de besluiten over velden, relatie, BSN (waarschuwen), patiëntnummer `DH000001`, inzage loggen, vernietigen en allergieën; *referentiemodel-ready* (NHG HIS-Referentiemodel), fair use, KNMP Kennisbank als kennisbron (`CLAUDE.md` §4); issues #52–#55 |
+| #51 | E0, versie 0.5.3: banner nieuwe versie leesbaar (#41), icoon Snelheid meten in het midden (#42). Op `main`; **release uitgesteld** tot er UI te testen is (wens gebruiker) |
+| (PR) | E1, versie 0.6.0 ([plan](plans/2026-11-28-e1-patient.md)): gegevensmodel patiënt (`app/js/patient.js`, records `patient` en `patient_counter`, formaat §6.3), raakpunt R1 optie B en R2 zonder afwijking van het NHG; controller `createPatient`/`updatePatient`/`readPatients`; nog geen schermen, geen eigen release (mee met E2) |
 
 **Live**: Pages is ingericht; release `v0.5.2` (codehash
 `e315742f2b1c2f27af7d129addc586f35c6bf6682601dad549a8182ca2335228`) staat op
@@ -184,11 +186,13 @@ en D1 (#23, versie 0.4.0), de tests (#28, 0.4.1), fix 0.4.2 (#31), vaste kop
 en lint (#34, 0.4.3), instellingen met vaste keuzes (#35, 0.4.4) en het
 restrisico van Recente apps (#37), D2 (voorschrijver, #39, 0.5.0), fix 0.5.1
 (#45) en 0.5.2 (handtekening en stapnummers, #47; release en proef in orde)
-zijn klaar. Nu: **E** fase 2 volgens het
-[plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md), te beginnen met
-E0 (fix 0.5.3: #41, #42), dan E1 (gegevensmodel `patient`). Elke taak krijgt
-een eigen plan dat begint met de open issues (`CLAUDE.md` §4); #43 en #44
-eerst als voorstel op het canvas. Open issues:
+zijn klaar. Fase 2 volgens het
+[plan fase 2](plans/2026-11-26-fase-2-patientenbestand.md): E0 (0.5.3, #51)
+staat op `main`, release uitgesteld; E1 (gegevensmodel, 0.6.0) in de PR. Nu
+**E2**: lijst, zoeken en nieuwe patiënt, eerst op het canvas (Voorstellen,
+`E2 …`); daarna de release van 0.6.x met 0.5.3 erbij. Elk plan begint met de
+open issues en het referentiemodel (`CLAUDE.md` §4); #43 en #44 eerst als
+voorstel op het canvas. Open issues:
 [#18](https://github.com/DrArts87/dahis/issues/18) (biometrie, later),
 [#24](https://github.com/DrArts87/dahis/issues/24) (bevestigde externe kopie
 van de back-up; bij het vaststellen van formaat 1, blokkade vóór echte
@@ -200,17 +204,21 @@ schermen; na D2),
 mislukt; uitzoeken met de foutnaam) en
 [#33](https://github.com/DrArts87/dahis/issues/33) (voorbeeld in Recente
 apps; restrisico geaccepteerd),
-[#41](https://github.com/DrArts87/dahis/issues/41) (banner
-nieuwe versie onleesbaar), [#42](https://github.com/DrArts87/dahis/issues/42)
-(icoon Snelheid meten), [#43](https://github.com/DrArts87/dahis/issues/43)
-(back-up controleren vanuit Meer) en
-[#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen) en
+[#43](https://github.com/DrArts87/dahis/issues/43)
+(back-up controleren vanuit Meer),
+[#44](https://github.com/DrArts87/dahis/issues/44) (Meer opsplitsen),
 [#46](https://github.com/DrArts87/dahis/issues/46) (galago op lege schermen;
-in E2).
+in E2), [#52](https://github.com/DrArts87/dahis/issues/52) (voorschrijver en
+referentiemodel), [#53](https://github.com/DrArts87/dahis/issues/53)
+(logboek en referentiemodel), [#54](https://github.com/DrArts87/dahis/issues/54)
+(fase 3 volgens Medicatieproces 9) en
+[#55](https://github.com/DrArts87/dahis/issues/55) (projectplan §3).
 
 Ontwerpcanvas *Dahis – Schermen*: op Productie staan alle schermen tot
-0.5.2, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:
-Jouw gegevens); Voorstellen is leeg ([werkwijze](ui/ontwerpcanvas.md)).
+0.5.3, met de inrichtschermen in de volgorde van de onboarding (Inrichten 6:
+Jouw gegevens). Op Voorstellen staan de ontwerpen voor E2 (lege lijst met
+galago #46, lijst en zoeken, nieuwe patiënt, controle bij opslaan)
+([werkwijze](ui/ontwerpcanvas.md)).
 
 Browsercontrole: `node tests/run_browser.mjs` (Chrome via `CHROME`), of de
 repository serveren met `python3 -m http.server` en `/app/` (de app) of
