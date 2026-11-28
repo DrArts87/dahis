@@ -739,6 +739,17 @@ export async function readRecord(store, session, id) {
   return { row, content: await openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row) };
 }
 
+// Alle bewaarde versies van een record, oudste eerst; alleen lezen. Versies
+// worden nooit overschreven (§6.2), dus eerdere standen blijven te lezen
+// (review PR #56: tellerhistorie van de patiëntnummers).
+export async function readRecordVersions(store, session, id) {
+  const out = [];
+  for (const row of versionsOf(store, id)) {
+    out.push({ row, content: await openRecord((await session.subkeys(row.kid)).record, session.epochOf(row.kid), row) });
+  }
+  return out;
+}
+
 export async function putRecordTx(store, session, { id = uuid(), kind, data, schema = 1, now }) {
   const versions = versionsOf(store, id);
   const version = versions.length ? versions[versions.length - 1].version + 1 : 1;

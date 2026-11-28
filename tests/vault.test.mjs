@@ -141,6 +141,11 @@ test('versies, verwijderen en vernietigen', async () => {
   await write(store, session, () => V.deleteRecordTx(store, session, { id, now: NOW }));
   assert.equal((await V.readRecord(store, session, id)).content.deleted, true);
   assert.equal(store.records.filter((r) => r.id === id).length, 3);
+  // Alle versies blijven te lezen, oudste eerst (review PR #56: tellerhistorie).
+  const versions = await V.readRecordVersions(store, session, id);
+  assert.deepEqual(versions.map((v) => v.row.version), [1, 2, 3]);
+  assert.deepEqual(versions.map((v) => (v.content.deleted ? 'weg' : v.content.data.v)), [1, 2, 'weg']);
+  assert.deepEqual(await V.readRecordVersions(store, session, 'bestaat-niet'), []);
   await write(store, session, () => V.destroyRecordTx(store, session, { id, now: NOW }));
   assert.equal(store.records.length, 0);
   await V.fullCheck(store, session);

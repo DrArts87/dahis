@@ -199,6 +199,67 @@ class PatientNumberError extends Error {
   constructor() { super('Patiëntnummer niet zeker'); this.name = 'PatientNumberError'; }
 }
 
+// Het hoogste uitgegeven patiëntnummer, of null als dat niet zeker is
+// (review PR #56). Uitgifte gaat alleen door als alles klopt:
+// - er is hooguit één teller; de laatste versie is geldig en niet verwijderd;
+// - geen eerdere tellerstand is hoger (een teruggevallen teller zou het
+//   nummer van een vernietigd dossier opnieuw uitgeven);
+// - geen bestaande patiënt heeft een hoger nummer (vangnet);
+// - ontbreekt de teller, dan mogen er geen patiënten zijn en mag het logboek
+//   geen eerdere patiënt of teller tonen (ook niet als alles is vernietigd).
+// Een teruggezette oudere back-up is een apart geval: die bevat ook een
+// oudere geschiedenis (restrisico, plan E1).
+async function safeLastNumber(store, session) {
+  const counters = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_COUNTER_KIND).map((r) => r.id)));
+  if (counters.length > 1) return null;
+  let last;
+  if (counters.length === 1) {
+    const versions = await V.readRecordVersions(store, session, counters[0]);
+    const latest = versions[versions.length - 1];
+    if (!latest || latest.content.deleted) return null;
+    last = readCounter(latest.content.data);
+    if (last === null) return null;
+    for (const v of versions.slice(0, -1)) {
+      if (v.content.deleted) continue;
+      const earlier = readCounter(v.content.data);
+      if (earlier === null || earlier > last) return null;
+    }
+  } else {
+    if (store.records.some((r) => r.kind === PATIENT_KIND)) return null;
+    if (await auditShowsPatients(store, session)) return null;
+    last = 0;
+  }
+  if ((await highestPatientNumber(store, session)) > last) return null;
+  return last;
+}
+
+async function highestPatientNumber(store, session) {
+  const ids = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_KIND).map((r) => r.id)));
+  let highest = 0;
+  for (const id of ids) {
+    // Ook verwijderde versies tellen: ook dat nummer is uitgegeven.
+    for (const v of await V.readRecordVersions(store, session, id)) {
+      const n = v.content.deleted ? null : readPatient(v.content.data).number;
+      if (n) highest = Math.max(highest, Number(n.slice(NUMBER_DIGITS_FROM)));
+    }
+  }
+  return highest;
+}
+
+const NUMBER_DIGITS_FROM = 2;   // 'DH' + 6 cijfers
+
+// Toont het logboek ooit een patiënt of een teller? Alleen nodig als de teller
+// ontbreekt, dus in de praktijk één keer: bij de eerste patiënt.
+async function auditShowsPatients(store, session) {
+  let before = null;
+  do {
+    const page = await V.readAuditPage(store, session, { before });
+    if (page.entries.some((e) => e.kind === PATIENT_KIND || e.kind === PATIENT_COUNTER_KIND)) return true;
+    before = page.next;
+  } while (before !== null);
+  return false;
+}
+
 // Patiënten op naam in Nederlandse volgorde (achternaam zonder voorvoegsels
 // vooraan; accenten tellen niet), dan op nummer (review PR #56, P3).
 const NAME_ORDER = new Intl.Collator('nl', { sensitivity: 'base', numeric: true });
@@ -864,27 +925,16 @@ export class AppController {
     return this.guard(async (gen) => {
       let record = null;
       await this.queue.run(this.session, async (store, s, now) => {
-        const counters = Array.from(new Set(store.records.filter((r) => r.kind === PATIENT_COUNTER_KIND).map((r) => r.id)));
-        if (counters.length > 1) throw new PatientNumberError();
-        const counter = counters[0];
-        let last;
-        if (counter) {
-          // Ongeldig of verwijderd: nooit als 0 tellen (review PR #56, P2).
-          const rec = await V.readRecord(store, s, counter);
-          last = rec && !rec.content.deleted ? readCounter(rec.content.data) : null;
-        } else {
-          // Nog geen teller: alleen goed als er ook nog geen patiënt is.
-          last = store.records.some((r) => r.kind === PATIENT_KIND) ? null : 0;
-        }
+        // Alles op de opslag van deze transactie, binnen de schrijfwachtrij.
+        const last = await safeLastNumber(store, s);
         if (last === null) throw new PatientNumberError();
+        const counter = store.records.find((r) => r.kind === PATIENT_COUNTER_KIND);
         if (last >= MAX_PATIENT_NUMBER) throw new PatientLimitError();
-        const number = formatNumber(last + 1);
-        if (this.state.patients.some((p) => p.data.number === number)) throw new PatientNumberError();
-        record = Object.assign({ number }, data);
+        record = Object.assign({ number: formatNumber(last + 1) }, data);
         const tx = await V.putRecordsTx(store, s, {
           items: [
             { kind: PATIENT_KIND, data: record, schema: PATIENT_SCHEMA },
-            { id: counter, kind: PATIENT_COUNTER_KIND, data: { last: last + 1 }, schema: PATIENT_COUNTER_SCHEMA },
+            { id: counter ? counter.id : undefined, kind: PATIENT_COUNTER_KIND, data: { last: last + 1 }, schema: PATIENT_COUNTER_SCHEMA },
           ],
           now,
         });

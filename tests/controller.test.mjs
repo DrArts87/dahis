@@ -1888,3 +1888,41 @@ test('review PR #56, P3: namen met accenten in Nederlandse volgorde, gelijke nam
     'Aaproef DH000004', 'Éénproef DH000002', 'Eenproef DH000003', 'Zzproef DH000001',
   ]);
 });
+
+// Herreview PR #56 (auditor, Codex): elke controle apart getest, op de opslag
+// van de schrijfwachtrij.
+test('herreview PR #56: tellerhistorie houdt het nummer van een vernietigd dossier tegen', async () => {
+  const { dev, app, counterId } = await withTwoPatients();
+  const second = app.state.patients.find((p) => p.data.number === 'DH000002');
+  await app.queue.run(app.session, (store, s, now) => V.destroyRecordTx(store, s, { id: second.id, now }));
+  await app.queue.run(app.session, (store, s, now) => V.putRecordsTx(store, s, {
+    items: [{ id: counterId, kind: PATIENT_COUNTER_KIND, data: { last: 1 } }], now,
+  }));
+  // De hoogste bestaande patiënt heeft nummer 1: alleen de historie (1, 2, 1) houdt DH000002 tegen.
+  await refusesNewNumber(dev, app);
+});
+
+test('herreview PR #56: vangnet op de hoogste bestaande patiënt, ook met een tellerhistorie die nooit hoger was', async () => {
+  const { dev, app, counterId } = await withTwoPatients();
+  assert.equal(await app.createPatient(Object.assign({}, TEST_PATIENT, { initials: 'D.' })), true);   // DH000003
+  await app.queue.run(app.session, (store, s, now) => V.destroyRecordTx(store, s, { id: counterId, now }));
+  await app.queue.run(app.session, (store, s, now) => V.putRecordsTx(store, s, {
+    items: [{ kind: PATIENT_COUNTER_KIND, data: { last: 1 } }], now,
+  }));
+  // Nieuwe teller met alleen de stand 1: de historie is in orde, DH000003 bestaat nog.
+  await refusesNewNumber(dev, app);
+});
+
+test('herreview PR #56: alles vernietigd, maar het logboek toont eerdere patiënten: niet opnieuw bij DH000001', async () => {
+  const dev = device();
+  await onboard(dev);
+  const app = await unlocked(dev);
+  assert.equal(await app.createPatient(TEST_PATIENT), true);
+  for (const r of dev.backend.disk.records.filter((x) => x.kind === PATIENT_KIND || x.kind === PATIENT_COUNTER_KIND)) {
+    if (dev.backend.store.records.some((x) => x.id === r.id)) {
+      await app.queue.run(app.session, (store, s, now) => V.destroyRecordTx(store, s, { id: r.id, now }));
+    }
+  }
+  assert.equal(dev.backend.disk.records.filter((x) => x.kind === PATIENT_KIND || x.kind === PATIENT_COUNTER_KIND).length, 0);
+  await refusesNewNumber(dev, app);
+});
